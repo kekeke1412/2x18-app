@@ -1,4 +1,4 @@
-HƯNG: 20h35 7/4/2026: Đang sửa
+HƯNG: 20h35 7/4/2026: Đéo sửa được cay vcl con Claude
 Các tính năng xóa hiên năng mới chỉ dừng ở mức giao diện chứ chưa thực sự xóa. Tôi muốn bạn xóa thật và đưa nó vào mục mới là Thùng rác. Chỉ có core mới có quyền truy cập thùng rác, là hiện thùng rác
 Xóa bỏ hoàn toàn tab "SME và Tiến độ" ở ngoài, gộp nó vào trong chi tiết của "Môn học".
 Logic Task của môn học: User "Phụ trách" môn sẽ có quyền tạo ra một danh sách chi tiết các Chương, Mục, Dạng bài tập (có quyền Edit/Xóa). Các user "Thành viên" chỉ có quyền xem và đánh dấu (Tick checkbox) báo cáo hoàn thành.
