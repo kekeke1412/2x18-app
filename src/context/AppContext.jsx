@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef } from 'react';
 import { MOCK_MEMBERS, MOCK_SME, MOCK_VOTES, MOCK_NOTIFICATIONS, MOCK_ATTENDANCE, MOCK_CONTRIBUTIONS, MOCK_ROADMAP } from '../mockData';
 import { auth } from '../firebase';
-import { signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 // BƯỚC THÊM VÀO: Import Firebase
 import { db, ref, set, onValue } from '../firebase';
 
@@ -345,47 +345,84 @@ export function AppProvider({ children }) {
 
   // ── AUTH (Đã kết nối Firebase) ──────────────────────────────────────────────
   
-  // 1. Hàm Đăng nhập
+  /// 1. Hàm Đăng nhập thường
   const login = useCallback(async (email, password) => {
     try {
-      // Gọi Firebase kiểm tra pass
       const userCred = await signInWithEmailAndPassword(auth, email, password);
-      
-      // Đối chiếu email với danh sách thành viên để lấy role (core/member) và mssv
+      // Tìm profile trong database, nếu chưa có (có thể do lỗi đồng bộ) thì tạo tạm
       const userProfile = state.members.find(m => m.email === email) 
         || { id: userCred.user.uid, email: userCred.user.email, role: 'member' };
       
       localStorage.setItem('2x18_current_user', JSON.stringify(userProfile));
       dispatch({ type: A.SET_USER, payload: userProfile });
       toast('Đăng nhập thành công!', 'success');
+      return true;
     } catch (error) {
       toast('Sai tài khoản hoặc mật khẩu!', 'error');
+      throw error;
     }
   }, [state.members, toast]);
 
-  // 2. Hàm Đăng xuất
-  const logout = useCallback(async () => {
+  // 2. Hàm Đăng nhập bằng Google
+  const loginWithGoogle = useCallback(async () => {
     try {
-      await signOut(auth); // Báo cho Firebase biết đã đăng xuất
-      localStorage.removeItem('2x18_current_user');
-      dispatch({ type: A.SET_USER, payload: null });
-      toast('Đã đăng xuất an toàn!', 'info');
-    } catch (error) {
-      toast('Lỗi đăng xuất!', 'error');
-    }
-  }, [toast]);
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const email = result.user.email;
 
-  // 3. Hàm Đăng ký (Cho giao diện Đăng ký mới)
-  const register = useCallback(async (email, password) => {
-    try {
-      const userCred = await createUserWithEmailAndPassword(auth, email, password);
-      toast('Tạo tài khoản thành công! Hãy báo Core duyệt.', 'success');
-      return userCred.user;
+      let userProfile = state.members.find(m => m.email === email);
+
+      // Nếu là người mới hoàn toàn, tự động tạo profile cho họ vào database
+      if (!userProfile) {
+        userProfile = {
+          id: result.user.uid,
+          email: email,
+          fullName: result.user.displayName || 'Thành viên mới',
+          avatar: result.user.photoURL,
+          role: 'member',
+          mssv: '', // Cần họ tự cập nhật sau
+          status: 'pending'
+        };
+        persist('2x18_members', [...state.members, userProfile]);
+      }
+
+      localStorage.setItem('2x18_current_user', JSON.stringify(userProfile));
+      dispatch({ type: A.SET_USER, payload: userProfile });
+      toast('Đăng nhập Google thành công!', 'success');
+      return true;
     } catch (error) {
-      toast('Lỗi: Email đã tồn tại hoặc pass quá ngắn (cần 6 ký tự).', 'error');
+      toast('Lỗi đăng nhập Google!', 'error');
       throw error;
     }
-  }, [toast]);
+  }, [state.members, toast]);
+
+  // 3. Hàm Đăng ký (Xóa hàm register cũ và dùng hàm này)
+  const register = useCallback(async (userData) => {
+    try {
+      const { email, password, ho, ten, mssv, phone, reason } = userData;
+      // Tạo account trên hệ thống Auth
+      const userCred = await createUserWithEmailAndPassword(auth, email, password);
+      
+      // Tạo profile chi tiết đẩy lên Database
+      const newMember = {
+        id: userCred.user.uid,
+        email: email,
+        fullName: `${ho} ${ten}`.trim(),
+        mssv: mssv,
+        phone: phone,
+        role: 'member', 
+        status: 'pending',
+        reason: reason
+      };
+      
+      persist('2x18_members', [...state.members, newMember]);
+      toast('Đã gửi đơn! Hãy chờ Core duyệt.', 'success');
+      return userCred.user;
+    } catch (error) {
+      toast('Lỗi: Email đã tồn tại hoặc pass quá ngắn.', 'error');
+      throw error;
+    }
+  }, [state.members, toast]);
 
   // (Phần khai báo hàm phía dưới này giữ nguyên hoàn toàn như cũ)
   const updateProfile = useCallback((p) => {
@@ -534,7 +571,7 @@ export function AppProvider({ children }) {
   const value = {
     ...state,
     isCore, isSuperAdmin, myGrades, myTasks,
-    register, login, logout, toast, rmToast, addAudit,
+    loginWithGoogle, register, login, logout, toast, rmToast, addAudit,
     updateProfile, syncGrades, updateGrade, updateProgress,
     addTask, editTask, deleteTask, toggleTask,
     addSubjectTask, editSubjectTask, deleteSubjectTask, tickSubjectTask,
