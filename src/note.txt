@@ -1,4 +1,4 @@
-HƯNG: 20h35 7/4/2026: Đéo sửa được cay vcl con Claude
+HƯNG: 00h16 7/4/2026: Đã  fix
 Các tính năng xóa hiên năng mới chỉ dừng ở mức giao diện chứ chưa thực sự xóa. Tôi muốn bạn xóa thật và đưa nó vào mục mới là Thùng rác. Chỉ có core mới có quyền truy cập thùng rác, là hiện thùng rác
 Xóa bỏ hoàn toàn tab "SME và Tiến độ" ở ngoài, gộp nó vào trong chi tiết của "Môn học".
 Logic Task của môn học: User "Phụ trách" môn sẽ có quyền tạo ra một danh sách chi tiết các Chương, Mục, Dạng bài tập (có quyền Edit/Xóa). Các user "Thành viên" chỉ có quyền xem và đánh dấu (Tick checkbox) báo cáo hoàn thành.
@@ -14,3 +14,4 @@ Các vấn đề còn tồn tại:
 * Khi một thành viên đăng kí, kể cả dùng google hay bằng mail thì vẫn cần được core duyệt
 * Hiện tại thì chưa có một tài khoản admin vì thế tôi muốn tài khoản có mail hungphamba567@gmail.com là tài khoản admin, kiểu đăng nhập bằng google thì nó nhận ra là tôi và tự động cấp quyền cao nhất ấy. Và tôi có quyền chỉ định ai là admin, có quyền hạn tương đương tôi
 * Khi đăng nhập xong nhưng khi đăng xuất và đăng nhập lại cũng bằng google thì dữ liệu bị reset hoàn toàn
+* Sau Khi đăng nhập vào bằng đường link thì nó bị trạng thái loading page, F5 thì 404 Not found, và kể cả khi đang trong web mà F5 thì cũng 404 Not found

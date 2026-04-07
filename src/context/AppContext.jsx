@@ -1,6 +1,5 @@
 // src/context/AppContext.jsx
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
-import { MOCK_MEMBERS, MOCK_SME, MOCK_VOTES, MOCK_NOTIFICATIONS, MOCK_ATTENDANCE, MOCK_CONTRIBUTIONS, MOCK_ROADMAP } from '../mockData';
 import { auth, db, ref, set, onValue } from '../firebase';
 import {
   signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword,
@@ -9,7 +8,6 @@ import {
 
 export const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
 
-// Firebase write — OUTSIDE reducer (reducer phải là pure function)
 const fbSet = (path, data) => {
   try { set(ref(db, path), data); } catch (e) { console.warn('[fbSet]', path, e?.message); }
 };
@@ -21,6 +19,7 @@ const A = {
   ADD_TASK:'ADD_TASK', EDIT_TASK:'EDIT_TASK', DELETE_TASK:'DELETE_TASK', TOGGLE_TASK:'TOGGLE_TASK',
   ADD_SUBJECT_TASK:'ADD_SUBJECT_TASK', EDIT_SUBJECT_TASK:'EDIT_SUBJECT_TASK',
   DELETE_SUBJECT_TASK:'DELETE_SUBJECT_TASK', TICK_SUBJECT_TASK:'TICK_SUBJECT_TASK',
+  ADD_SUBJECT_COMMENT:'ADD_SUBJECT_COMMENT',
   SET_SME:'SET_SME',
   ADD_EVENT:'ADD_EVENT', EDIT_EVENT:'EDIT_EVENT', DELETE_EVENT:'DELETE_EVENT',
   UPDATE_ROADMAP:'UPDATE_ROADMAP', ADD_ROADMAP_EVENT:'ADD_ROADMAP_EVENT',
@@ -32,43 +31,73 @@ const A = {
   UPDATE_MEMBER_ROLE:'UPDATE_MEMBER_ROLE', ADD_CONTRIBUTION:'ADD_CONTRIBUTION',
   ADD_AUDIT:'ADD_AUDIT', ADD_TOAST:'ADD_TOAST', REMOVE_TOAST:'REMOVE_TOAST',
   UPDATE_SEMESTER_LABEL:'UPDATE_SEMESTER_LABEL',
+  // Trash
+  RESTORE_FROM_TRASH:'RESTORE_FROM_TRASH',
+  PERMANENT_DELETE_TRASH:'PERMANENT_DELETE_TRASH',
+  EMPTY_TRASH:'EMPTY_TRASH',
 };
 
 const init = {
   currentUser:null, isLoading:true,
-  members:[], grades:{}, tasks:[], smeMap:{}, subjectTasks:{},
+  members:[], grades:{}, tasks:[], smeMap:{}, subjectTasks:{}, subjectComments:{},
   calEvents:[], roadmap:[], votes:[], notifications:[],
   attendance:[], docs:{}, contributions:{},
   auditLogs:[], toasts:[], unreadCount:0, semesterLabels:{},
+  trash:[],
 };
 
-// PURE reducer — no side effects
+// ── Helpers ────────────────────────────────────────────────────────────────
+function makeTrashItem(type, data, meta, payload) {
+  return {
+    id: payload.trashId,
+    type,
+    data,
+    meta: meta || {},
+    deletedAt: payload.deletedAt,
+    deletedBy: payload.deletedBy || '',
+    deletedByName: payload.deletedByName || 'Unknown',
+  };
+}
+
+// PURE reducer
 function reducer(s, { type, payload }) {
   switch (type) {
     case A.SET_USER:    return { ...s, currentUser: payload };
     case A.SET_LOADING: return { ...s, isLoading: payload };
-    case A.INIT_DATA:   return { ...s, ...payload, unreadCount:(payload.notifications||[]).filter(n=>!n.read).length, isLoading:false };
+    case A.INIT_DATA:   return {
+      ...s, ...payload,
+      unreadCount: (payload.notifications||[]).filter(n=>!n.read).length,
+      isLoading: false,
+    };
 
     case A.UPDATE_PROFILE: {
       const members = s.members.map(m => m.id===payload.id ? {...m,...payload} : m);
       const user = s.currentUser?.id===payload.id ? {...s.currentUser,...payload} : s.currentUser;
       return { ...s, members, currentUser:user };
     }
-    case A.SYNC_GRADES: return { ...s, grades: { ...s.grades, [payload.userId]: payload.gradesData } };
+    case A.SYNC_GRADES: return { ...s, grades:{ ...s.grades, [payload.userId]:payload.gradesData } };
     case A.UPDATE_GRADE: {
       const { userId, subjectId, field, value } = payload;
       const prev = s.grades[userId]||{};
-      return { ...s, grades: { ...s.grades, [userId]: { ...prev, [subjectId]: { ...(prev[subjectId]||{}), [field]:value } } } };
+      return { ...s, grades:{ ...s.grades, [userId]:{ ...prev, [subjectId]:{ ...(prev[subjectId]||{}), [field]:value } } } };
     }
     case A.UPDATE_PROGRESS: {
       const { userId, subjectId, value } = payload;
       const prev = s.grades[userId]||{};
-      return { ...s, grades: { ...s.grades, [userId]: { ...prev, [subjectId]: { ...(prev[subjectId]||{}), myProgress:value } } } };
+      return { ...s, grades:{ ...s.grades, [userId]:{ ...prev, [subjectId]:{ ...(prev[subjectId]||{}), myProgress:value } } } };
     }
+
     case A.ADD_TASK:    return { ...s, tasks:[payload,...s.tasks] };
     case A.EDIT_TASK:   return { ...s, tasks:s.tasks.map(x=>x.id===payload.id?{...x,...payload}:x) };
-    case A.DELETE_TASK: return { ...s, tasks:s.tasks.filter(x=>x.id!==payload) };
+    case A.DELETE_TASK: {
+      const { id, trashId, deletedAt, deletedBy, deletedByName } = payload;
+      const item = s.tasks.find(t=>t.id===id);
+      if (!item) return { ...s, tasks:s.tasks.filter(x=>x.id!==id) };
+      const trashItem = makeTrashItem('task', item, {}, { trashId, deletedAt, deletedBy, deletedByName });
+      return { ...s, tasks:s.tasks.filter(x=>x.id!==id), trash:[...(s.trash||[]), trashItem] };
+    }
     case A.TOGGLE_TASK: return { ...s, tasks:s.tasks.map(x=>x.id===payload?{...x,done:!x.done}:x) };
+
     case A.ADD_SUBJECT_TASK: {
       const {subjectId,task}=payload;
       return { ...s, subjectTasks:{...s.subjectTasks,[subjectId]:[...(s.subjectTasks[subjectId]||[]),task]} };
@@ -78,28 +107,62 @@ function reducer(s, { type, payload }) {
       return { ...s, subjectTasks:{...s.subjectTasks,[subjectId]:(s.subjectTasks[subjectId]||[]).map(t=>t.id===task.id?{...t,...task}:t)} };
     }
     case A.DELETE_SUBJECT_TASK: {
-      const {subjectId,taskId}=payload;
-      return { ...s, subjectTasks:{...s.subjectTasks,[subjectId]:(s.subjectTasks[subjectId]||[]).filter(t=>t.id!==taskId)} };
+      const { subjectId, taskId, trashId, deletedAt, deletedBy, deletedByName } = payload;
+      const item = (s.subjectTasks[subjectId]||[]).find(t=>t.id===taskId);
+      const trashItem = item ? makeTrashItem('subjectTask', item, { subjectId }, { trashId, deletedAt, deletedBy, deletedByName }) : null;
+      return {
+        ...s,
+        subjectTasks:{...s.subjectTasks,[subjectId]:(s.subjectTasks[subjectId]||[]).filter(t=>t.id!==taskId)},
+        trash: trashItem ? [...(s.trash||[]), trashItem] : (s.trash||[]),
+      };
     }
     case A.TICK_SUBJECT_TASK: {
       const {subjectId,taskId,userId,done}=payload;
       return { ...s, subjectTasks:{...s.subjectTasks,[subjectId]:(s.subjectTasks[subjectId]||[]).map(t=>t.id===taskId?{...t,doneBy:{...(t.doneBy||{}),[userId]:done}}:t)} };
     }
+    case A.ADD_SUBJECT_COMMENT: {
+      const { subjectId, comment } = payload;
+      const prev = s.subjectComments[subjectId] || [];
+      return { ...s, subjectComments:{...s.subjectComments,[subjectId]:[...prev, comment]} };
+    }
+
     case A.SET_SME: return { ...s, smeMap:{...s.smeMap,[payload.subjectId]:payload.userId} };
-    case A.ADD_EVENT:    return { ...s, calEvents:[...s.calEvents,payload] };
-    case A.EDIT_EVENT:   return { ...s, calEvents:s.calEvents.map(e=>e.id===payload.id?payload:e) };
-    case A.DELETE_EVENT: return { ...s, calEvents:s.calEvents.filter(e=>e.id!==payload) };
+
+    case A.ADD_EVENT:  return { ...s, calEvents:[...s.calEvents,payload] };
+    case A.EDIT_EVENT: return { ...s, calEvents:s.calEvents.map(e=>e.id===payload.id?payload:e) };
+    case A.DELETE_EVENT: {
+      const { id, trashId, deletedAt, deletedBy, deletedByName } = payload;
+      const item = s.calEvents.find(e=>e.id===id);
+      const trashItem = item ? makeTrashItem('event', item, {}, { trashId, deletedAt, deletedBy, deletedByName }) : null;
+      return {
+        ...s,
+        calEvents: s.calEvents.filter(e=>e.id!==id),
+        trash: trashItem ? [...(s.trash||[]), trashItem] : (s.trash||[]),
+      };
+    }
+
     case A.UPDATE_ROADMAP: {
       const {year,eventId,field,value}=payload;
       return { ...s, roadmap:s.roadmap.map(y=>y.year===year?{...y,events:y.events.map(e=>e.id===eventId?{...e,[field]:value}:e)}:y) };
     }
     case A.ADD_ROADMAP_EVENT: return { ...s, roadmap:s.roadmap.map(y=>y.year===payload.year?{...y,events:[...y.events,payload.event]}:y) };
-    case A.DEL_ROADMAP_EVENT: return { ...s, roadmap:s.roadmap.map(y=>y.year===payload.year?{...y,events:y.events.filter(e=>e.id!==payload.eventId)}:y) };
+    case A.DEL_ROADMAP_EVENT: {
+      const { year, eventId, trashId, deletedAt, deletedBy, deletedByName } = payload;
+      const yearObj = s.roadmap.find(y=>y.year===year);
+      const item = yearObj?.events?.find(e=>e.id===eventId);
+      const trashItem = item ? makeTrashItem('roadmapEvent', item, { year }, { trashId, deletedAt, deletedBy, deletedByName }) : null;
+      return {
+        ...s,
+        roadmap: s.roadmap.map(y=>y.year===year?{...y,events:y.events.filter(e=>e.id!==eventId)}:y),
+        trash: trashItem ? [...(s.trash||[]), trashItem] : (s.trash||[]),
+      };
+    }
     case A.ADD_ROADMAP_YEAR: {
       if(s.roadmap.find(y=>y.year===payload))return s;
       return { ...s, roadmap:[...s.roadmap,{year:payload,events:[]}].sort((a,b)=>a.year-b.year) };
     }
     case A.DELETE_ROADMAP_YEAR: return { ...s, roadmap:s.roadmap.filter(y=>y.year!==payload) };
+
     case A.ADD_VOTE: return { ...s, votes:[payload,...s.votes] };
     case A.CAST_VOTE: {
       const {voteId,optionId,userId,multiSelect}=payload;
@@ -116,24 +179,33 @@ function reducer(s, { type, payload }) {
     }
     case A.CLOSE_VOTE:      return { ...s, votes:s.votes.map(x=>x.id===payload?{...x,closed:true}:x) };
     case A.ADD_VOTE_OPTION: return { ...s, votes:s.votes.map(x=>x.id===payload.voteId?{...x,options:[...x.options,{id:uid(),text:payload.text,votes:[]}]}:x) };
+
     case A.MARK_NOTIF: {
       const n=s.notifications.map(x=>x.id===payload?{...x,read:true}:x);
       return { ...s, notifications:n, unreadCount:n.filter(x=>!x.read).length };
     }
     case A.MARK_ALL_READ: return { ...s, notifications:s.notifications.map(x=>({...x,read:true})), unreadCount:0 };
-    case A.ADD_NOTIF: return { ...s, notifications:[payload,...s.notifications], unreadCount:s.unreadCount+1 };
+    case A.ADD_NOTIF:       return { ...s, notifications:[payload,...s.notifications], unreadCount:s.unreadCount+1 };
+
     case A.ADD_ATTENDANCE_SESSION: return { ...s, attendance:[payload,...s.attendance] };
     case A.CHECK_ATTENDANCE: {
       const {sessionId,userId,checked}=payload;
       return { ...s, attendance:s.attendance.map(sess=>sess.sessionId===sessionId?{...sess,present:checked?[...new Set([...sess.present,userId])]:sess.present.filter(u=>u!==userId)}:sess) };
     }
+
     case A.ADD_DOC: {
       const {subjectId,doc}=payload;
       return { ...s, docs:{...s.docs,[subjectId]:[...(s.docs[subjectId]||[]),doc]} };
     }
     case A.DELETE_DOC: {
-      const {subjectId,docId}=payload;
-      return { ...s, docs:{...s.docs,[subjectId]:(s.docs[subjectId]||[]).filter(x=>x.id!==docId)} };
+      const { subjectId, docId, trashId, deletedAt, deletedBy, deletedByName } = payload;
+      const item = (s.docs[subjectId]||[]).find(d=>d.id===docId);
+      const trashItem = item ? makeTrashItem('doc', item, { subjectId }, { trashId, deletedAt, deletedBy, deletedByName }) : null;
+      return {
+        ...s,
+        docs:{...s.docs,[subjectId]:(s.docs[subjectId]||[]).filter(x=>x.id!==docId)},
+        trash: trashItem ? [...(s.trash||[]), trashItem] : (s.trash||[]),
+      };
     }
     case A.RATE_DOC: {
       const {subjectId,docId,userId,stars}=payload;
@@ -144,6 +216,7 @@ function reducer(s, { type, payload }) {
         return {...doc,ratings,avgRating:Math.round(avg*10)/10};
       })}};
     }
+
     case A.UPDATE_MEMBER_ROLE: {
       const {memberId,role}=payload;
       if(s.members.find(m=>m.id===memberId)?.role==='super_admin')return s;
@@ -158,6 +231,37 @@ function reducer(s, { type, payload }) {
     case A.ADD_TOAST:    return { ...s, toasts:[...s.toasts,payload] };
     case A.REMOVE_TOAST: return { ...s, toasts:s.toasts.filter(t=>t.id!==payload) };
     case A.UPDATE_SEMESTER_LABEL: return { ...s, semesterLabels:{...s.semesterLabels,[payload.key]:payload.label} };
+
+    // ── Trash ──────────────────────────────────────────────────────────────
+    case A.RESTORE_FROM_TRASH: {
+      const item = (s.trash||[]).find(t=>t.id===payload);
+      if (!item) return s;
+      const newTrash = (s.trash||[]).filter(t=>t.id!==payload);
+      switch (item.type) {
+        case 'task':
+          return { ...s, trash:newTrash, tasks:[item.data,...s.tasks] };
+        case 'doc': {
+          const sid = item.meta.subjectId;
+          return { ...s, trash:newTrash, docs:{...s.docs,[sid]:[item.data,...(s.docs[sid]||[])]} };
+        }
+        case 'event':
+          return { ...s, trash:newTrash, calEvents:[...s.calEvents,item.data] };
+        case 'subjectTask': {
+          const sid = item.meta.subjectId;
+          return { ...s, trash:newTrash, subjectTasks:{...s.subjectTasks,[sid]:[...(s.subjectTasks[sid]||[]),item.data]} };
+        }
+        case 'roadmapEvent': {
+          const year = item.meta.year;
+          return { ...s, trash:newTrash, roadmap:s.roadmap.map(y=>y.year===year?{...y,events:[...y.events,item.data]}:y) };
+        }
+        default: return { ...s, trash:newTrash };
+      }
+    }
+    case A.PERMANENT_DELETE_TRASH:
+      return { ...s, trash:(s.trash||[]).filter(t=>t.id!==payload) };
+    case A.EMPTY_TRASH:
+      return { ...s, trash:[] };
+
     default: return s;
   }
 }
@@ -168,82 +272,84 @@ const timerMap  = {};
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, init);
 
-  // ── Boot: Firebase RTDB realtime listener ─────────────────────────────────
+  // ── Boot ──────────────────────────────────────────────────────────────────
   useEffect(() => {
-    // Restore session cache from localStorage first
     try {
       const stored = localStorage.getItem('2x18_current_user');
-      if (stored) dispatch({ type: A.SET_USER, payload: JSON.parse(stored) });
+      if (stored) dispatch({ type:A.SET_USER, payload:JSON.parse(stored) });
     } catch {}
 
-    // Firebase DB realtime listener (root)
     const unsubDB = onValue(ref(db, '/'), (snapshot) => {
       const val = snapshot.val() || {};
-      const members = val['2x18_members'] || MOCK_MEMBERS;
+      const members = val['2x18_members'] || [];
       const grades  = {};
       members.forEach(m => { if (m?.id) grades[m.id] = val[`${m.id}_grades`] || {}; });
-      dispatch({ type: A.INIT_DATA, payload: {
-        members, grades,
-        smeMap:         val['2x18_sme']            || MOCK_SME,
-        tasks:          val['2x18_tasks']           || [],
-        calEvents:      val['2x18_events']          || [],
-        roadmap:        val['2x18_roadmap']         || MOCK_ROADMAP,
-        votes:          val['2x18_votes']           || MOCK_VOTES,
-        notifications:  val['2x18_notifs']          || MOCK_NOTIFICATIONS,
-        attendance:     val['2x18_attendance']      || MOCK_ATTENDANCE,
-        contributions:  val['2x18_contributions']   || MOCK_CONTRIBUTIONS,
-        docs:           val['2x18_docs']            || {},
-        auditLogs:      val['2x18_audit']           || [],
-        subjectTasks:   val['2x18_subject_tasks']   || {},
-        semesterLabels: val['2x18_semester_labels'] || {},
+      dispatch({ type:A.INIT_DATA, payload: {
+        members,
+        grades,
+        smeMap:           val['2x18_sme']              || {},
+        tasks:            val['2x18_tasks']             || [],
+        calEvents:        val['2x18_events']            || [],
+        roadmap:          val['2x18_roadmap']           || [],
+        votes:            val['2x18_votes']             || [],
+        notifications:    val['2x18_notifs']            || [],
+        attendance:       val['2x18_attendance']        || [],
+        contributions:    val['2x18_contributions']     || {},
+        docs:             val['2x18_docs']              || {},
+        auditLogs:        val['2x18_audit']             || [],
+        subjectTasks:     val['2x18_subject_tasks']     || {},
+        subjectComments:  val['2x18_subject_comments']  || {},
+        semesterLabels:   val['2x18_semester_labels']   || {},
+        trash:            val['2x18_trash']             || [],
       }});
     }, (err) => {
-      // Firebase rules blocked → show app with mock data
       console.error('[Firebase DB] Access denied:', err.message);
       console.warn('%c⚠️  Firebase Rules cần được cập nhật!\nVào Console → Realtime Database → Rules → set ".read":true ".write":true', 'color:orange;font-weight:bold');
-      dispatch({ type: A.INIT_DATA, payload: {
-        members:MOCK_MEMBERS, grades:{}, smeMap:MOCK_SME, tasks:[],
-        calEvents:[], roadmap:MOCK_ROADMAP, votes:MOCK_VOTES,
-        notifications:MOCK_NOTIFICATIONS, attendance:MOCK_ATTENDANCE,
-        contributions:MOCK_CONTRIBUTIONS, docs:{}, auditLogs:[],
-        subjectTasks:{}, semesterLabels:{},
+      dispatch({ type:A.INIT_DATA, payload: {
+        members:[], grades:{}, smeMap:{}, tasks:[],
+        calEvents:[], roadmap:[], votes:[],
+        notifications:[], attendance:[], contributions:{},
+        docs:{}, auditLogs:[], subjectTasks:{}, subjectComments:{},
+        semesterLabels:{}, trash:[],
       }});
     });
 
-    // Firebase Auth state listener
     const unsubAuth = onAuthStateChanged(auth, (fbUser) => {
       if (!fbUser) {
         localStorage.removeItem('2x18_current_user');
-        dispatch({ type: A.SET_USER, payload: null });
+        dispatch({ type:A.SET_USER, payload:null });
       }
     });
 
     return () => { unsubDB(); unsubAuth(); };
   }, []);
 
-  // ── Auto-sync state to Firebase when it changes ───────────────────────────
+  // ── Auto-sync to Firebase ─────────────────────────────────────────────────
   useEffect(() => {
     if (state.isLoading || !state.members.length) return;
-    fbSet('2x18_members',       state.members);
-    fbSet('2x18_sme',           state.smeMap);
-    fbSet('2x18_tasks',         state.tasks);
-    fbSet('2x18_events',        state.calEvents);
-    fbSet('2x18_roadmap',       state.roadmap);
-    fbSet('2x18_votes',         state.votes);
-    fbSet('2x18_notifs',        state.notifications);
-    fbSet('2x18_attendance',    state.attendance);
-    fbSet('2x18_contributions', state.contributions);
-    fbSet('2x18_docs',          state.docs);
-    fbSet('2x18_audit',         state.auditLogs);
-    fbSet('2x18_subject_tasks', state.subjectTasks);
-    fbSet('2x18_semester_labels', state.semesterLabels);
+    fbSet('2x18_members',          state.members);
+    fbSet('2x18_sme',              state.smeMap);
+    fbSet('2x18_tasks',            state.tasks);
+    fbSet('2x18_events',           state.calEvents);
+    fbSet('2x18_roadmap',          state.roadmap);
+    fbSet('2x18_votes',            state.votes);
+    fbSet('2x18_notifs',           state.notifications);
+    fbSet('2x18_attendance',       state.attendance);
+    fbSet('2x18_contributions',    state.contributions);
+    fbSet('2x18_docs',             state.docs);
+    fbSet('2x18_audit',            state.auditLogs);
+    fbSet('2x18_subject_tasks',    state.subjectTasks);
+    fbSet('2x18_subject_comments', state.subjectComments);
+    fbSet('2x18_semester_labels',  state.semesterLabels);
+    fbSet('2x18_trash',            state.trash);
     Object.entries(state.grades).forEach(([uid, g]) => {
       if (uid && g) fbSet(`${uid}_grades`, g);
     });
   }, [ // eslint-disable-line
     state.members, state.smeMap, state.tasks, state.calEvents, state.roadmap,
     state.votes, state.notifications, state.attendance, state.contributions,
-    state.docs, state.auditLogs, state.subjectTasks, state.semesterLabels, state.grades
+    state.docs, state.auditLogs, state.subjectTasks, state.subjectComments,
+    state.semesterLabels, state.grades, state.trash
   ]);
 
   // ── Toast auto-dismiss ────────────────────────────────────────────────────
@@ -265,7 +371,14 @@ export function AppProvider({ children }) {
   const addAudit = useCallback((action,target='',detail='') =>
     dispatch({ type:A.ADD_AUDIT, payload:{id:uid(),action,target,detail,time:new Date().toISOString()} }), []);
 
-  // Helper: find profile by email across multiple email fields
+  // Helper for building trash payload
+  const trashMeta = useCallback(() => ({
+    trashId:     uid(),
+    deletedAt:   new Date().toISOString(),
+    deletedBy:   state.currentUser?.id    || '',
+    deletedByName: state.currentUser?.fullName || 'Unknown',
+  }), [state.currentUser]);
+
   const findProfile = useCallback((email) =>
     state.members.find(m => m.email===email || m.mailSchool===email || m.mailPersonal===email),
     [state.members]);
@@ -276,17 +389,22 @@ export function AppProvider({ children }) {
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
       const profile = findProfile(email) || {
-        id: cred.user.uid, email: cred.user.email,
-        fullName: cred.user.displayName || 'Thành viên',
-        role: 'member', mssv: '', phone: '', gender: '',
-        mailSchool: email,
+        id:cred.user.uid, email:cred.user.email,
+        fullName:cred.user.displayName||'Thành viên',
+        role:'member', mssv:'', phone:'', gender:'', mailSchool:email,
       };
       localStorage.setItem('2x18_current_user', JSON.stringify(profile));
       dispatch({ type:A.SET_USER, payload:profile });
       toast('Đăng nhập thành công! 👋', 'success');
     } catch (err) {
       dispatch({ type:A.SET_LOADING, payload:false });
-      const msg = { 'auth/user-not-found':'Tài khoản không tồn tại.', 'auth/wrong-password':'Mật khẩu không đúng.', 'auth/invalid-email':'Email không hợp lệ.', 'auth/invalid-credential':'Email hoặc mật khẩu không đúng.', 'auth/too-many-requests':'Quá nhiều lần thử. Thử lại sau.' }[err.code] || 'Đăng nhập thất bại.';
+      const msg = {
+        'auth/user-not-found':'Tài khoản không tồn tại.',
+        'auth/wrong-password':'Mật khẩu không đúng.',
+        'auth/invalid-email':'Email không hợp lệ.',
+        'auth/invalid-credential':'Email hoặc mật khẩu không đúng.',
+        'auth/too-many-requests':'Quá nhiều lần thử. Thử lại sau.',
+      }[err.code] || 'Đăng nhập thất bại.';
       toast(msg, 'error');
       throw new Error(msg);
     }
@@ -341,7 +459,10 @@ export function AppProvider({ children }) {
       return cred.user;
     } catch (err) {
       dispatch({ type:A.SET_LOADING, payload:false });
-      const msg = {'auth/email-already-in-use':'Email này đã có tài khoản.','auth/weak-password':'Mật khẩu quá yếu (≥ 6 ký tự).'}[err.code] || 'Đăng ký thất bại.';
+      const msg = {
+        'auth/email-already-in-use':'Email này đã có tài khoản.',
+        'auth/weak-password':'Mật khẩu quá yếu (≥ 6 ký tự).',
+      }[err.code] || 'Đăng ký thất bại.';
       toast(msg, 'error');
       throw new Error(msg);
     }
@@ -360,31 +481,60 @@ export function AppProvider({ children }) {
     localStorage.setItem('2x18_current_user', JSON.stringify({...state.currentUser,...p}));
   }, [addAudit, toast, state.currentUser]);
 
-  const syncGrades    = useCallback((userId,gradesData) => { dispatch({type:A.SYNC_GRADES,payload:{userId,gradesData}}); toast('Lưu bảng điểm!','success'); }, [toast]);
-  const updateGrade   = useCallback(p => dispatch({type:A.UPDATE_GRADE,   payload:p}), []);
-  const updateProgress= useCallback(p => dispatch({type:A.UPDATE_PROGRESS,payload:p}), []);
-  const addTask       = useCallback(t  => { dispatch({type:A.ADD_TASK,payload:{...t,id:uid(),done:false}}); addAudit('Thêm task',t.subjectId,t.task); toast('Thêm task!','success'); }, [addAudit,toast]);
-  const editTask      = useCallback(t  => dispatch({type:A.EDIT_TASK,  payload:t}), []);
-  const deleteTask    = useCallback(id => dispatch({type:A.DELETE_TASK,payload:id}), []);
-  const toggleTask    = useCallback(id => dispatch({type:A.TOGGLE_TASK,payload:id}), []);
+  const syncGrades     = useCallback((userId,gradesData) => { dispatch({type:A.SYNC_GRADES,payload:{userId,gradesData}}); toast('Lưu bảng điểm!','success'); }, [toast]);
+  const updateGrade    = useCallback(p => dispatch({type:A.UPDATE_GRADE,   payload:p}), []);
+  const updateProgress = useCallback(p => dispatch({type:A.UPDATE_PROGRESS,payload:p}), []);
+
+  const addTask    = useCallback(t  => { dispatch({type:A.ADD_TASK,payload:{...t,id:uid(),done:false}}); addAudit('Thêm task',t.subjectId,t.task); toast('Thêm task!','success'); }, [addAudit,toast]);
+  const editTask   = useCallback(t  => dispatch({type:A.EDIT_TASK,  payload:t}), []);
+  const deleteTask = useCallback(id => {
+    dispatch({ type:A.DELETE_TASK, payload:{ id, ...trashMeta() } });
+    toast('Đã chuyển vào thùng rác.', 'info');
+  }, [trashMeta, toast]);
+  const toggleTask = useCallback(id => dispatch({type:A.TOGGLE_TASK,payload:id}), []);
+
   const addSubjectTask    = useCallback((sid,t) => { dispatch({type:A.ADD_SUBJECT_TASK,payload:{subjectId:sid,task:{...t,id:uid(),doneBy:{}}}}); toast('Thêm mục!','success'); }, [toast]);
-  const editSubjectTask   = useCallback((sid,t) => dispatch({type:A.EDIT_SUBJECT_TASK,  payload:{subjectId:sid,task:t}}), []);
-  const deleteSubjectTask = useCallback((sid,id)=> dispatch({type:A.DELETE_SUBJECT_TASK,payload:{subjectId:sid,taskId:id}}), []);
-  const tickSubjectTask   = useCallback((sid,tid,userId,done) => dispatch({type:A.TICK_SUBJECT_TASK,payload:{subjectId:sid,taskId:tid,userId,done}}), []);
+  const editSubjectTask   = useCallback((sid,t) => dispatch({type:A.EDIT_SUBJECT_TASK,payload:{subjectId:sid,task:t}}), []);
+  const deleteSubjectTask = useCallback((sid,id) => {
+    dispatch({ type:A.DELETE_SUBJECT_TASK, payload:{ subjectId:sid, taskId:id, ...trashMeta() } });
+    toast('Đã chuyển vào thùng rác.', 'info');
+  }, [trashMeta, toast]);
+  const tickSubjectTask = useCallback((sid,tid,userId,done) => dispatch({type:A.TICK_SUBJECT_TASK,payload:{subjectId:sid,taskId:tid,userId,done}}), []);
+
+  const addSubjectComment = useCallback((subjectId, text) => {
+    const comment = {
+      id: uid(),
+      user: state.currentUser?.fullName || 'Ẩn danh',
+      text,
+      time: new Date().toLocaleTimeString('vi'),
+      date: new Date().toLocaleDateString('vi-VN'),
+    };
+    dispatch({ type:A.ADD_SUBJECT_COMMENT, payload:{ subjectId, comment } });
+  }, [state.currentUser]);
+
   const setSme   = useCallback(p  => { dispatch({type:A.SET_SME,payload:p}); addAudit('Đổi SME',p.subjectId); toast('Cập nhật SME!','success'); }, [addAudit,toast]);
   const addEvent    = useCallback(e  => dispatch({type:A.ADD_EVENT,  payload:{...e,id:uid()}}), []);
   const editEvent   = useCallback(e  => dispatch({type:A.EDIT_EVENT, payload:e}), []);
-  const deleteEvent = useCallback(id => dispatch({type:A.DELETE_EVENT,payload:id}), []);
+  const deleteEvent = useCallback(id => {
+    dispatch({ type:A.DELETE_EVENT, payload:{ id, ...trashMeta() } });
+    toast('Đã chuyển vào thùng rác.', 'info');
+  }, [trashMeta, toast]);
+
   const updateRoadmap     = useCallback(p    => dispatch({type:A.UPDATE_ROADMAP,   payload:p}), []);
   const addRoadmapEvent   = useCallback(p    => dispatch({type:A.ADD_ROADMAP_EVENT,payload:{...p,event:{...p.event,id:uid()}}}), []);
-  const delRoadmapEvent   = useCallback(p    => dispatch({type:A.DEL_ROADMAP_EVENT,payload:p}), []);
+  const delRoadmapEvent   = useCallback(p    => {
+    dispatch({ type:A.DEL_ROADMAP_EVENT, payload:{ ...p, ...trashMeta() } });
+    toast('Đã chuyển vào thùng rác.', 'info');
+  }, [trashMeta, toast]);
   const addRoadmapYear    = useCallback(year => dispatch({type:A.ADD_ROADMAP_YEAR, payload:year}), []);
   const deleteRoadmapYear = useCallback(year => dispatch({type:A.DELETE_ROADMAP_YEAR,payload:year}), []);
+
   const addVote       = useCallback(v  => dispatch({type:A.ADD_VOTE,      payload:{...v,id:uid()}}), []);
-  const castVote      = useCallback(p  => dispatch({type:A.CAST_VOTE,      payload:p}), []);
-  const closeVote     = useCallback(id => dispatch({type:A.CLOSE_VOTE,     payload:id}), []);
+  const castVote      = useCallback(p  => dispatch({type:A.CAST_VOTE,     payload:p}), []);
+  const closeVote     = useCallback(id => dispatch({type:A.CLOSE_VOTE,    payload:id}), []);
   const addVoteOption = useCallback(p  => dispatch({type:A.ADD_VOTE_OPTION,payload:p}), []);
-  const markNotif   = useCallback(id => dispatch({type:A.MARK_NOTIF,   payload:id}), []);
+
+  const markNotif   = useCallback(id => dispatch({type:A.MARK_NOTIF,  payload:id}), []);
   const markAllRead = useCallback(()  => dispatch({type:A.MARK_ALL_READ}), []);
   const addNotif    = useCallback(n   => dispatch({type:A.ADD_NOTIF,payload:{...n,id:uid(),read:false,time:new Date().toISOString()}}), []);
 
@@ -409,8 +559,12 @@ export function AppProvider({ children }) {
     toast(`Thêm "${doc.name}"! +20 điểm`,'success');
   }, [addAudit,toast,state.currentUser]);
 
-  const deleteDoc = useCallback((sid,did) => dispatch({type:A.DELETE_DOC,payload:{subjectId:sid,docId:did}}), []);
-  const rateDoc   = useCallback((sid,did,stars) => {
+  const deleteDoc = useCallback((sid,did) => {
+    dispatch({ type:A.DELETE_DOC, payload:{ subjectId:sid, docId:did, ...trashMeta() } });
+    toast('Đã chuyển vào thùng rác.', 'info');
+  }, [trashMeta, toast]);
+
+  const rateDoc = useCallback((sid,did,stars) => {
     dispatch({type:A.RATE_DOC,payload:{subjectId:sid,docId:did,userId:state.currentUser?.id,stars}});
     if (stars===5) {
       const doc=(state.docs[sid]||[]).find(d=>d.id===did);
@@ -423,6 +577,11 @@ export function AppProvider({ children }) {
   const updateRole          = useCallback(p => dispatch({type:A.UPDATE_MEMBER_ROLE,payload:p}), []);
   const addContribution     = useCallback(p => dispatch({type:A.ADD_CONTRIBUTION,  payload:p}), []);
   const updateSemesterLabel = useCallback((key,label) => dispatch({type:A.UPDATE_SEMESTER_LABEL,payload:{key,label}}), []);
+
+  // ── Trash actions ─────────────────────────────────────────────────────────
+  const restoreFromTrash      = useCallback(id => { dispatch({type:A.RESTORE_FROM_TRASH,     payload:id}); toast('Đã khôi phục!','success'); }, [toast]);
+  const permanentDeleteTrash  = useCallback(id => { dispatch({type:A.PERMANENT_DELETE_TRASH, payload:id}); toast('Đã xóa vĩnh viễn.','info'); }, [toast]);
+  const emptyTrash            = useCallback(()  => { dispatch({type:A.EMPTY_TRASH});                        toast('Đã dọn sạch thùng rác.','success'); }, [toast]);
 
   const exportMembersCSV = useCallback(() => {
     const h=['STT','MSSV','Họ tên','Giới tính','Email HUS','SĐT','Role'];
@@ -454,6 +613,7 @@ export function AppProvider({ children }) {
     updateProfile, syncGrades, updateGrade, updateProgress,
     addTask, editTask, deleteTask, toggleTask,
     addSubjectTask, editSubjectTask, deleteSubjectTask, tickSubjectTask,
+    addSubjectComment,
     setSme, addEvent, editEvent, deleteEvent,
     updateRoadmap, addRoadmapEvent, delRoadmapEvent, addRoadmapYear, deleteRoadmapYear,
     addVote, castVote, closeVote, addVoteOption,
@@ -461,6 +621,7 @@ export function AppProvider({ children }) {
     addAttendanceSession, checkAttendance,
     addDoc, deleteDoc, rateDoc,
     updateRole, addContribution, updateSemesterLabel,
+    restoreFromTrash, permanentDeleteTrash, emptyTrash,
     getMemberById, getSmeMember, isProfileComplete, exportMembersCSV,
   };
 

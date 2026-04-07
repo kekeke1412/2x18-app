@@ -2,22 +2,24 @@
 import React, { useState } from 'react';
 import {
   BookOpen, Search, ShieldCheck, User, ChevronDown, ChevronUp,
-  FileText, X, Star, MessageSquare, Send, Plus, Trash2, Check, Edit3, Link, Lock
+  FileText, X, Star, MessageSquare, Send, Plus, Trash2, Check, Edit3, Link
 } from 'lucide-react';
 import { subjectDatabase } from '../data';
 import { useApp } from '../context/AppContext';
 
 const progressColor = p => p>=80?'#22c55e':p>=50?'#3b82f6':p>=25?'#f59e0b':'#ef4444';
+
 const ProgressBar = ({ value, height=6 }) => (
   <div className="bg-gray-800 rounded-full overflow-hidden" style={{height}}>
-    <div className="h-full rounded-full transition-all duration-700" style={{width:`${value}%`,background:progressColor(value)}}/>
+    <div className="h-full rounded-full transition-all duration-700"
+      style={{width:`${Math.min(100,value)}%`,background:progressColor(value)}}/>
   </div>
 );
 
-// ── Add Doc Modal (URL only — Google Drive) ────────────────────────────────
+// ── Add Doc Modal ──────────────────────────────────────────────────────────
 function AddDocModal({ subject, onClose, onAdd }) {
   const [form, setForm] = useState({ name:'', url:'', type:'Slide bài giảng', private:false });
-  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+  const set   = (k,v) => setForm(f=>({...f,[k]:v}));
   const valid = form.name.trim() && form.url.trim();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onClose}>
@@ -27,23 +29,28 @@ function AddDocModal({ subject, onClose, onAdd }) {
           <button onClick={onClose} className="text-gray-500 hover:text-white"><X className="w-5 h-5"/></button>
         </div>
         <div className="px-5 py-4 space-y-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-gray-500 font-medium">Tên tài liệu *</label>
-            <input className="input-dark" placeholder="VD: Slide tuần 1–4..." value={form.name} onChange={e=>set('name',e.target.value)} autoFocus/>
+          <div>
+            <label className="text-xs text-gray-500 font-medium block mb-1">Tên tài liệu *</label>
+            <input className="input-dark" placeholder="VD: Slide tuần 1–4..."
+              value={form.name} onChange={e=>set('name',e.target.value)} autoFocus/>
           </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-gray-500 font-medium flex items-center gap-1"><Link className="w-3 h-3"/> Link Google Drive *</label>
-            <input className="input-dark" placeholder="https://drive.google.com/..." value={form.url} onChange={e=>set('url',e.target.value)}/>
-            <span className="text-[10px] text-gray-600">Paste link chia sẻ từ Google Drive / OneDrive...</span>
+          <div>
+            <label className="text-xs text-gray-500 font-medium flex items-center gap-1 mb-1">
+              <Link className="w-3 h-3"/> Link Google Drive *
+            </label>
+            <input className="input-dark" placeholder="https://drive.google.com/..."
+              value={form.url} onChange={e=>set('url',e.target.value)}/>
+            <span className="text-[10px] text-gray-600">Paste link chia sẻ từ Google Drive / OneDrive</span>
           </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-gray-500 font-medium">Loại</label>
+          <div>
+            <label className="text-xs text-gray-500 font-medium block mb-1">Loại</label>
             <select className="input-dark" value={form.type} onChange={e=>set('type',e.target.value)}>
               {['Slide bài giảng','Bài tập','Đề thi','Tóm tắt lý thuyết','Giáo trình','Paper','Khác'].map(t=><option key={t}>{t}</option>)}
             </select>
           </div>
           <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" className="w-4 h-4 accent-blue-600" checked={form.private} onChange={e=>set('private',e.target.checked)}/>
+            <input type="checkbox" className="w-4 h-4 accent-blue-600" checked={form.private}
+              onChange={e=>set('private',e.target.checked)}/>
             <span className="text-sm text-gray-400">Chỉ nhóm phụ trách xem được</span>
           </label>
         </div>
@@ -59,30 +66,34 @@ function AddDocModal({ subject, onClose, onAdd }) {
   );
 }
 
-// ── Subject Task Panel ─────────────────────────────────────────────────────
+// ── Subject Task Panel (Checklist) ─────────────────────────────────────────
+// isSme = true: có quyền thêm/sửa/xóa mục
+// member: chỉ tick checkbox
 function SubjectTaskPanel({ subjectId, isSme, currentUser }) {
   const { subjectTasks, addSubjectTask, editSubjectTask, deleteSubjectTask, tickSubjectTask } = useApp();
   const tasks = subjectTasks[subjectId] || [];
-  const [adding,  setAdding]  = useState(false);
-  const [newTitle,setNewTitle]= useState('');
-  const [editId,  setEditId]  = useState(null);
-  const [editText,setEditText]= useState('');
 
+  const [adding,   setAdding]   = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [editId,   setEditId]   = useState(null);
+  const [editText, setEditText] = useState('');
+
+  // Tiến độ tính từ checkbox của user hiện tại
   const myDone   = tasks.filter(t=>t.doneBy?.[currentUser?.id]).length;
-  const progress = tasks.length>0 ? Math.round(myDone/tasks.length*100) : 0;
+  const progress = tasks.length > 0 ? Math.round(myDone / tasks.length * 100) : 0;
 
   const doAdd = () => {
     if (!newTitle.trim()) return;
     addSubjectTask(subjectId, { title:newTitle.trim(), createdBy:currentUser?.fullName });
     setNewTitle(''); setAdding(false);
   };
-  const doEdit = (t) => { editSubjectTask(subjectId, {...t,title:editText}); setEditId(null); };
+  const doEdit = (t) => { editSubjectTask(subjectId, {...t, title:editText}); setEditId(null); };
 
   return (
     <div className="p-4 border-b border-gray-800/60">
       <div className="flex items-center justify-between mb-2">
         <h4 className="text-xs font-bold text-gray-400 flex items-center gap-1.5">
-          <Check className="w-3.5 h-3.5"/> Danh sách học ({myDone}/{tasks.length})
+          <Check className="w-3.5 h-3.5"/> Checklist học ({myDone}/{tasks.length})
         </h4>
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-bold" style={{color:progressColor(progress)}}>{progress}%</span>
@@ -94,11 +105,13 @@ function SubjectTaskPanel({ subjectId, isSme, currentUser }) {
           )}
         </div>
       </div>
+
       <ProgressBar value={progress} height={4}/>
 
       {adding && isSme && (
         <div className="flex gap-2 mt-2">
-          <input className="input-dark flex-1 py-1.5 text-xs" placeholder="Tên chương / mục / dạng bài..."
+          <input className="input-dark flex-1 py-1.5 text-xs"
+            placeholder="Tên chương / mục / dạng bài..."
             value={newTitle} onChange={e=>setNewTitle(e.target.value)}
             onKeyDown={e=>e.key==='Enter'&&doAdd()} autoFocus/>
           <button onClick={doAdd} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold">OK</button>
@@ -107,17 +120,20 @@ function SubjectTaskPanel({ subjectId, isSme, currentUser }) {
       )}
 
       <div className="space-y-1 mt-2 max-h-44 overflow-y-auto custom-scrollbar pr-1">
-        {tasks.length===0 ? (
+        {tasks.length === 0 ? (
           <div className="text-[10px] text-gray-600 italic py-2 text-center">
-            {isSme ? 'Thêm chương/mục để thành viên theo dõi tiến độ.' : 'SME chưa thêm mục học nào.'}
+            {isSme
+              ? 'Thêm chương / mục / dạng bài để thành viên theo dõi tiến độ.'
+              : 'SME chưa thêm checklist cho môn này.'}
           </div>
-        ) : tasks.map(t=>{
+        ) : tasks.map(t => {
           const done = !!t.doneBy?.[currentUser?.id];
           return (
             <div key={t.id} className={`group flex items-center gap-2 p-2 rounded-lg ${done?'bg-green-500/5 border border-green-500/10':'bg-[#111] border border-gray-800'}`}>
               <input type="checkbox" checked={done}
                 onChange={e=>tickSubjectTask(subjectId,t.id,currentUser?.id,e.target.checked)}
                 className="w-3.5 h-3.5 accent-green-500 cursor-pointer shrink-0"/>
+
               {editId===t.id && isSme ? (
                 <>
                   <input className="flex-1 bg-transparent text-xs text-white outline-none border-b border-blue-500"
@@ -128,11 +144,15 @@ function SubjectTaskPanel({ subjectId, isSme, currentUser }) {
                 </>
               ) : (
                 <>
-                  <span className={`flex-1 text-xs leading-snug ${done?'line-through text-gray-500':'text-gray-300'}`}>{t.title}</span>
+                  <span className={`flex-1 text-xs leading-snug ${done?'line-through text-gray-500':'text-gray-300'}`}>
+                    {t.title}
+                  </span>
                   {isSme && (
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                      <button onClick={()=>{setEditId(t.id);setEditText(t.title);}} className="text-gray-600 hover:text-blue-400"><Edit3 className="w-3 h-3"/></button>
-                      <button onClick={()=>deleteSubjectTask(subjectId,t.id)} className="text-gray-600 hover:text-red-400"><Trash2 className="w-3 h-3"/></button>
+                      <button onClick={()=>{setEditId(t.id);setEditText(t.title);}}
+                        className="text-gray-600 hover:text-blue-400"><Edit3 className="w-3 h-3"/></button>
+                      <button onClick={()=>deleteSubjectTask(subjectId,t.id)}
+                        className="text-gray-600 hover:text-red-400" title="Xóa (vào thùng rác)"><Trash2 className="w-3 h-3"/></button>
                     </div>
                   )}
                 </>
@@ -147,46 +167,63 @@ function SubjectTaskPanel({ subjectId, isSme, currentUser }) {
 
 // ── Subject Card ───────────────────────────────────────────────────────────
 function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, docs, members, currentUser, rateDoc }) {
-  const [expanded,setExpanded]=useState(false);
-  const [comment, setComment] =useState('');
-  const [comments,setComments]=useState(()=>JSON.parse(localStorage.getItem(`sme_cmt_${sub.id}`)||'[]'));
+  const { subjectTasks, subjectComments, addSubjectComment } = useApp();
+  const [expanded, setExpanded] = useState(false);
+  const [comment,  setComment]  = useState('');
 
-  const addComment = () => {
-    if(!comment.trim())return;
-    const c={id:Date.now(),user:currentUser?.fullName,text:comment,time:new Date().toLocaleTimeString('vi')};
-    const updated=[...comments,c];
-    setComments(updated); localStorage.setItem(`sme_cmt_${sub.id}`,JSON.stringify(updated));
+  // Tiến độ tính từ checklist (không dùng slider thủ công nữa)
+  const tasks    = subjectTasks[sub.id] || [];
+  const myDone   = tasks.filter(t=>t.doneBy?.[currentUser?.id]).length;
+  const progress = tasks.length > 0 ? Math.round(myDone / tasks.length * 100) : 0;
+
+  const comments = subjectComments[sub.id] || [];
+
+  const handleComment = () => {
+    if (!comment.trim()) return;
+    addSubjectComment(sub.id, comment.trim());
     setComment('');
   };
 
-  const statusBadge={'Đang học':'badge-blue','Đã học':'badge-green','Chưa học':'badge-gray','Được miễn':'badge-purple'}[grade?.status||'Chưa học'];
+  const statusBadge = {
+    'Đang học':'badge-blue','Đã học':'badge-green',
+    'Chưa học':'badge-gray','Được miễn':'badge-purple',
+  }[grade?.status||'Chưa học'];
 
   return (
     <div className={`bg-[#1a1a1a] border rounded-2xl overflow-hidden transition-all flex flex-col ${expanded?'border-blue-500/30':'border-gray-800/60'}`}>
       <div className="p-4">
+        {/* Header */}
         <div className="flex items-start gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="text-[10px] font-black text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/20">{sub.code}</span>
+              <span className="text-[10px] font-black text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-md border border-blue-500/20">
+                {sub.code}
+              </span>
               <span className={`badge ${statusBadge}`}>{grade?.status||'Chưa học'}</span>
               {isSme && <span className="badge badge-yellow">Phụ trách</span>}
             </div>
             <h3 className="font-bold text-white text-sm leading-tight">{sub.name}</h3>
             <div className="text-xs text-gray-600 mt-0.5">{sub.credits} TC · {sub.type}</div>
           </div>
-          <button onClick={()=>setExpanded(v=>!v)} className="p-1.5 hover:bg-[#252525] rounded-lg text-gray-500 shrink-0 border border-gray-800">
+          <button onClick={()=>setExpanded(v=>!v)}
+            className="p-1.5 hover:bg-[#252525] rounded-lg text-gray-500 shrink-0 border border-gray-800">
             {expanded?<ChevronUp className="w-4 h-4"/>:<ChevronDown className="w-4 h-4"/>}
           </button>
         </div>
 
+        {/* Tiến độ (tự động từ checklist) */}
         <div className="mt-3">
           <div className="flex justify-between text-xs mb-1">
             <span className="text-gray-500">Tiến độ của bạn</span>
-            <span className="font-bold" style={{color:progressColor(grade?.myProgress||0)}}>{grade?.myProgress||0}%</span>
+            <span className="font-bold" style={{color:progressColor(progress)}}>{progress}%</span>
           </div>
-          <ProgressBar value={grade?.myProgress||0}/>
+          <ProgressBar value={progress}/>
+          {tasks.length > 0 && (
+            <div className="text-[10px] text-gray-600 mt-1">{myDone}/{tasks.length} mục hoàn thành</div>
+          )}
         </div>
 
+        {/* SME + Upload */}
         <div className="flex items-center justify-between mt-3">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 bg-blue-600/20 rounded-full flex items-center justify-center text-[10px] font-bold text-blue-400 shrink-0">
@@ -211,22 +248,24 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
         </div>
       </div>
 
+      {/* Expanded: checklist + docs + comments */}
       {expanded && (
         <div className="border-t border-gray-800/60 bg-[#141414]">
-          {/* Subject task panel — SME creates, members tick */}
+
+          {/* Checklist — SME tạo/sửa/xóa, member tick */}
           <SubjectTaskPanel subjectId={sub.id} isSme={isSme||isCore} currentUser={currentUser}/>
 
-          {/* Docs list */}
+          {/* Tài liệu */}
           <div className="p-4 border-b border-gray-800/60">
             <h4 className="text-xs font-bold text-gray-400 mb-2 flex items-center gap-1.5">
               <FileText className="w-3.5 h-3.5"/> Tài liệu ({docs?.length||0}) · Google Drive
             </h4>
-            {(docs||[]).length===0 ? (
+            {(docs||[]).length === 0 ? (
               <div className="text-xs text-gray-600 italic text-center py-2">
-                Chưa có tài liệu{(isSme||isCore)?' — SME có thể thêm link Drive.':''}
+                Chưa có tài liệu{(isSme||isCore)?' — nhấn "Tài liệu" ở trên để thêm link Drive':''}
               </div>
             ) : (docs||[]).map(d=>(
-              <div key={d.id} className="flex items-center gap-3 p-2 bg-[#111] rounded-xl border border-gray-800 mb-2 hover:border-gray-700 transition-colors">
+              <div key={d.id} className="flex items-center gap-3 p-2 bg-[#111] rounded-xl border border-gray-800 mb-2 hover:border-gray-700 transition-colors group">
                 <FileText className="w-4 h-4 text-blue-400 shrink-0"/>
                 <div className="flex-1 min-w-0">
                   <a href={d.url} target="_blank" rel="noreferrer"
@@ -241,18 +280,20 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
                     </button>
                   ))}
                 </div>
-                {d.avgRating>0 && <span className="text-[10px] text-yellow-400 font-bold shrink-0">{d.avgRating}★</span>}
+                {d.avgRating>0 && (
+                  <span className="text-[10px] text-yellow-400 font-bold shrink-0">{d.avgRating}★</span>
+                )}
               </div>
             ))}
           </div>
 
-          {/* Comments */}
+          {/* Hỏi đáp SME (lưu Firebase qua addSubjectComment) */}
           <div className="p-4">
             <h4 className="text-xs font-bold text-gray-400 mb-2 flex items-center gap-1.5">
               <MessageSquare className="w-3.5 h-3.5"/> Hỏi đáp SME
             </h4>
             <div className="space-y-2 mb-2 max-h-28 overflow-y-auto custom-scrollbar">
-              {comments.length===0
+              {comments.length === 0
                 ? <div className="text-[10px] text-gray-600 italic">Chưa có bình luận.</div>
                 : comments.map(c=>(
                   <div key={c.id} className="bg-[#1a1a1a] p-2 rounded-lg border border-gray-800">
@@ -262,13 +303,14 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
                     </div>
                     <div className="text-xs text-gray-300">{c.text}</div>
                   </div>
-                ))}
+                ))
+              }
             </div>
             <div className="flex gap-2">
               <input value={comment} onChange={e=>setComment(e.target.value)}
-                onKeyDown={e=>e.key==='Enter'&&addComment()}
+                onKeyDown={e=>e.key==='Enter'&&handleComment()}
                 placeholder="Nhập bình luận..." className="input-dark flex-1 text-xs py-1.5 px-3"/>
-              <button onClick={addComment} className="p-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-white">
+              <button onClick={handleComment} className="p-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-white">
                 <Send className="w-4 h-4"/>
               </button>
             </div>
@@ -282,27 +324,21 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
 // ── Main ───────────────────────────────────────────────────────────────────
 export default function Subjects() {
   const { currentUser, isCore, smeMap, setSme, docs, addDoc, rateDoc, grades, myGrades, members } = useApp();
-  const [search,     setSearch]    = useState('');
-  const [filterType, setFilterType]= useState('learning');
-  const [uploadSub,  setUploadSub] = useState(null);
+  const [search,      setSearch]     = useState('');
+  const [filterType,  setFilterType] = useState('learning');
+  const [uploadSub,   setUploadSub]  = useState(null);
 
-  // ── Tab definitions với tên đúng theo yêu cầu ─────────────────────────
-  // "Đã học": các môn của tôi đã học
-  // "Đang học": các môn đang học
-  // "Phụ trách": các môn mình là SME
-  // "Tất cả (Core)": toàn bộ nhóm đang và đã học
   const filterTabs = [
-    { key:'done',      label:'Đã học' },
-    { key:'learning',  label:'Đang học' },
-    { key:'sme',       label:'Phụ trách' },
+    { key:'done',     label:'Đã học' },
+    { key:'learning', label:'Đang học' },
+    { key:'sme',      label:'Phụ trách' },
     ...(isCore ? [{ key:'all_core', label:'Tất cả (Core)' }] : []),
   ];
 
-  // Active subject IDs for core "all" view
   const activeInGroup = new Set();
   if (isCore) {
     Object.values(grades).forEach(uG => {
-      Object.entries(uG).forEach(([sid, g]) => {
+      Object.entries(uG).forEach(([sid,g]) => {
         if (g.status==='Đang học'||g.status==='Đã học'||g.status==='Được miễn') activeInGroup.add(sid);
       });
     });
@@ -312,10 +348,8 @@ export default function Subjects() {
     const q = search.toLowerCase();
     const matchSearch = sub.name.toLowerCase().includes(q) || sub.code.toLowerCase().includes(q);
     if (!matchSearch) return false;
-
     const myStatus = myGrades[sub.id]?.status;
     const isMySme  = smeMap[sub.id] === currentUser?.fullName;
-
     if (filterType==='done')     return myStatus==='Đã học'||myStatus==='Được miễn';
     if (filterType==='learning') return myStatus==='Đang học';
     if (filterType==='sme')      return isMySme;
@@ -324,11 +358,16 @@ export default function Subjects() {
   });
 
   const myLearning = subjectDatabase.filter(s=>myGrades[s.id]?.status==='Đang học');
-  const avgProg    = myLearning.length ? Math.round(myLearning.reduce((s,sub)=>s+(myGrades[sub.id]?.myProgress||0),0)/myLearning.length) : 0;
+
+  // Tiến độ trung bình: tính từ subjectTasks (hook dùng trong cards nhưng cần tính ở đây)
+  // Dùng myGrades.myProgress như trước cho phần header tổng hợp (nếu muốn dùng checklist thì cần hook riêng)
+  const avgProg = myLearning.length
+    ? Math.round(myLearning.reduce((sum,sub)=>sum+(myGrades[sub.id]?.myProgress||0),0)/myLearning.length)
+    : 0;
 
   return (
     <div className="h-full bg-[#121212] text-gray-200 flex flex-col overflow-hidden">
-      {/* Sticky header */}
+      {/* Header */}
       <div className="px-6 py-5 border-b border-gray-800/60 bg-[#141414] shrink-0">
         <div className="flex flex-col md:flex-row md:items-center gap-4">
           <div className="flex-1">
@@ -339,27 +378,21 @@ export default function Subjects() {
                 : <span className="badge badge-gray flex items-center gap-1"><User className="w-3 h-3"/>Member</span>}
             </div>
             <div className="text-sm text-gray-500">
-              Đang học <strong className="text-white">{myLearning.length}</strong> môn ·
-              Tiến độ TB <strong style={{color:progressColor(avgProg)}}>{avgProg}%</strong>
+              Đang học <strong className="text-white">{myLearning.length}</strong> môn
             </div>
           </div>
-
-          {/* ── FIX: search icon không bị trùng ── */}
           <div className="relative w-full md:w-64 shrink-0">
             <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10">
               <Search className="w-4 h-4 text-gray-600"/>
             </div>
             <input
-              className="w-full bg-[#1a1a1a] border border-gray-700 text-white rounded-xl py-2 pl-9 pr-4 text-sm
-                         placeholder-gray-600 outline-none focus:border-blue-500 transition-all"
+              className="w-full bg-[#1a1a1a] border border-gray-700 text-white rounded-xl py-2 pl-9 pr-4 text-sm placeholder-gray-600 outline-none focus:border-blue-500 transition-all"
               placeholder="Tìm mã / tên môn..."
               value={search}
               onChange={e=>setSearch(e.target.value)}
             />
           </div>
         </div>
-
-        {/* Filter tabs */}
         <div className="flex gap-1 mt-4 overflow-x-auto custom-scrollbar pb-1">
           {filterTabs.map(t=>(
             <button key={t.key} onClick={()=>setFilterType(t.key)}
@@ -373,8 +406,9 @@ export default function Subjects() {
         </div>
       </div>
 
+      {/* Grid */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-        {filtered.length>0 ? (
+        {filtered.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
             {filtered.map(sub=>(
               <SubjectCard key={sub.id}
@@ -391,9 +425,9 @@ export default function Subjects() {
             <BookOpen className="w-14 h-14 text-gray-700 mb-3"/>
             <p className="text-gray-500 font-medium">Không tìm thấy môn học nào</p>
             <p className="text-xs text-gray-600 mt-1">
-              {filterType==='done'    ? 'Chưa có môn nào được đánh dấu "Đã học" trong bảng điểm.' :
-               filterType==='learning'? 'Vào Hồ sơ & GPA để đăng ký trạng thái "Đang học".' :
-               filterType==='sme'     ? 'Bạn chưa được gán phụ trách môn nào.' :
+              {filterType==='done'    ?'Chưa có môn nào được đánh dấu "Đã học" trong bảng điểm.' :
+               filterType==='learning'?'Vào Hồ sơ & GPA để đăng ký trạng thái "Đang học".' :
+               filterType==='sme'     ?'Bạn chưa được gán phụ trách môn nào.' :
                'Không có môn nào khớp với tìm kiếm.'}
             </p>
           </div>
@@ -401,7 +435,11 @@ export default function Subjects() {
       </div>
 
       {uploadSub && (
-        <AddDocModal subject={uploadSub} onClose={()=>setUploadSub(null)} onAdd={(sid,form)=>addDoc(sid,form)}/>
+        <AddDocModal
+          subject={uploadSub}
+          onClose={()=>setUploadSub(null)}
+          onAdd={(sid,form)=>addDoc(sid,form)}
+        />
       )}
     </div>
   );
