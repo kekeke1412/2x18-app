@@ -1,7 +1,8 @@
 // src/context/AppContext.jsx
 import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef } from 'react';
 import { MOCK_MEMBERS, MOCK_SME, MOCK_VOTES, MOCK_NOTIFICATIONS, MOCK_ATTENDANCE, MOCK_CONTRIBUTIONS, MOCK_ROADMAP } from '../mockData';
-
+import { auth } from '../firebase';
+import { signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from 'firebase/auth';
 // BƯỚC THÊM VÀO: Import Firebase
 import { db, ref, set, onValue } from '../firebase';
 
@@ -342,16 +343,49 @@ export function AppProvider({ children }) {
   const addAudit = useCallback((action, target = '', detail = '') =>
     dispatch({ type: A.ADD_AUDIT, payload: { id: uid(), action, target, detail, time: new Date().toISOString() } }), []);
 
-  // ── AUTH ──────────────────────────────────────────────────────────────────
-  const login = useCallback((user) => {
-    localStorage.setItem('2x18_current_user', JSON.stringify(user));
-    dispatch({ type: A.SET_USER,  payload: user });
-  }, []);
+  // ── AUTH (Đã kết nối Firebase) ──────────────────────────────────────────────
+  
+  // 1. Hàm Đăng nhập
+  const login = useCallback(async (email, password) => {
+    try {
+      // Gọi Firebase kiểm tra pass
+      const userCred = await signInWithEmailAndPassword(auth, email, password);
+      
+      // Đối chiếu email với danh sách thành viên để lấy role (core/member) và mssv
+      const userProfile = state.members.find(m => m.email === email) 
+        || { id: userCred.user.uid, email: userCred.user.email, role: 'member' };
+      
+      localStorage.setItem('2x18_current_user', JSON.stringify(userProfile));
+      dispatch({ type: A.SET_USER, payload: userProfile });
+      toast('Đăng nhập thành công!', 'success');
+    } catch (error) {
+      toast('Sai tài khoản hoặc mật khẩu!', 'error');
+    }
+  }, [state.members, toast]);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem('2x18_current_user');
-    dispatch({ type: A.SET_USER, payload: null });
-  }, []);
+  // 2. Hàm Đăng xuất
+  const logout = useCallback(async () => {
+    try {
+      await signOut(auth); // Báo cho Firebase biết đã đăng xuất
+      localStorage.removeItem('2x18_current_user');
+      dispatch({ type: A.SET_USER, payload: null });
+      toast('Đã đăng xuất an toàn!', 'info');
+    } catch (error) {
+      toast('Lỗi đăng xuất!', 'error');
+    }
+  }, [toast]);
+
+  // 3. Hàm Đăng ký (Cho giao diện Đăng ký mới)
+  const register = useCallback(async (email, password) => {
+    try {
+      const userCred = await createUserWithEmailAndPassword(auth, email, password);
+      toast('Tạo tài khoản thành công! Hãy báo Core duyệt.', 'success');
+      return userCred.user;
+    } catch (error) {
+      toast('Lỗi: Email đã tồn tại hoặc pass quá ngắn (cần 6 ký tự).', 'error');
+      throw error;
+    }
+  }, [toast]);
 
   // (Phần khai báo hàm phía dưới này giữ nguyên hoàn toàn như cũ)
   const updateProfile = useCallback((p) => {
@@ -500,7 +534,7 @@ export function AppProvider({ children }) {
   const value = {
     ...state,
     isCore, isSuperAdmin, myGrades, myTasks,
-    login, logout, toast, rmToast, addAudit,
+    register, login, logout, toast, rmToast, addAudit,
     updateProfile, syncGrades, updateGrade, updateProgress,
     addTask, editTask, deleteTask, toggleTask,
     addSubjectTask, editSubjectTask, deleteSubjectTask, tickSubjectTask,
