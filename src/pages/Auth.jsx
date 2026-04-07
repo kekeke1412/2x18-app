@@ -1,240 +1,383 @@
 // src/pages/Auth.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, ArrowRight, Clock, CheckCircle, ChevronLeft, User, Mail, Phone, Hash } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Clock, CheckCircle, ChevronLeft } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
-const FInput = ({ label, icon: Icon, hint, ...props }) => (
-  <div className="flex flex-col gap-1.5">
-    {label && (
-      <label className="text-xs font-semibold text-gray-400 flex items-center gap-1.5">
-        {Icon && <Icon className="w-3 h-3"/>}
-        {label}
-      </label>
-    )}
-    <input
-      {...props}
-      className="w-full bg-[#252525] border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-white
-                 placeholder-gray-600 focus:outline-none focus:border-blue-500 focus:ring-1
-                 focus:ring-blue-500/30 transition-all"
-    />
-    {hint && <span className="text-[10px] text-gray-600">{hint}</span>}
-  </div>
-);
-
-// Icon Google SVG
-const GoogleIcon = () => (
-  <svg className="w-5 h-5" viewBox="0 0 24 24">
-    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+// Google Logo SVG
+const GoogleLogo = () => (
+  <svg width="18" height="18" viewBox="0 0 18 18">
+    <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
+    <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" fill="#34A853"/>
+    <path d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.548 0 9s.348 2.825.957 4.039l3.007-2.332z" fill="#FBBC05"/>
+    <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 6.293C4.672 4.166 6.656 3.58 9 3.58z" fill="#EA4335"/>
   </svg>
 );
 
+// Reusable input component — defined OUTSIDE to avoid focus loss
+const AuthInput = ({ label, hint, rightElement, error, ...props }) => (
+  <div className="space-y-1.5">
+    {label && <label className="block text-sm font-medium text-gray-300">{label}</label>}
+    <div className="relative">
+      <input
+        {...props}
+        className={`w-full h-11 px-4 rounded-xl text-sm text-white bg-[#1e1e1e] border transition-all outline-none
+          placeholder:text-gray-600
+          ${error
+            ? 'border-red-500/60 focus:border-red-400 focus:ring-2 focus:ring-red-500/20'
+            : 'border-gray-700/80 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+          }
+          ${rightElement ? 'pr-11' : ''}
+        `}
+      />
+      {rightElement && (
+        <div className="absolute inset-y-0 right-0 flex items-center pr-3.5">
+          {rightElement}
+        </div>
+      )}
+    </div>
+    {hint && <p className="text-xs text-gray-600">{hint}</p>}
+    {error && <p className="text-xs text-red-400">{error}</p>}
+  </div>
+);
+
 export default function Auth() {
-  const navigate = useNavigate();
-  const { login, register, loginWithGoogle } = useApp();
+  const navigate  = useNavigate();
+  const { login, loginWithGoogle, register } = useApp();
 
-  const [tab,        setTab]       = useState('login');
-  const [showPass,   setShowPass]  = useState(false);
-  const [showPass2,  setShowPass2] = useState(false);
-  const [loading,    setLoading]   = useState(false);
-  const [error,      setError]     = useState('');
-  const [pending,    setPending]   = useState(null);
+  const [tab,     setTab]    = useState('login'); // 'login' | 'register' | 'pending'
+  const [loading, setLoading]= useState(false);
+  const [gLoading,setGLoad]  = useState(false);
+  const [errors,  setErrors] = useState({});
+  const [pending, setPending]= useState(null);
 
-  const [lf, setLf] = useState({ email: '', password: '' });
-  const setL = (k, v) => setLf(p => ({ ...p, [k]: v }));
+  const [showP,  setShowP]  = useState(false);
+  const [showP2, setShowP2] = useState(false);
 
-  const [rf, setRf] = useState({
-    ho: '', ten: '', mssv: '', email: '', phone: '',
-    password: '', password2: '', reason: '',
-  });
-  const setR = (k, v) => setRf(p => ({ ...p, [k]: v }));
+  const [lf, setLf] = useState({ email:'', password:'' });
+  const setL = (k, v) => { setLf(p=>({...p,[k]:v})); if(errors[k]) setErrors(e=>({...e,[k]:''})); };
 
-  // ── Đăng nhập thường ──
+  const [rf, setRf] = useState({ ho:'', ten:'', mssv:'', email:'', phone:'', password:'', password2:'', reason:'' });
+  const setR = (k, v) => { setRf(p=>({...p,[k]:v})); if(errors[k]) setErrors(e=>({...e,[k]:''})); };
+
+  const switchTab = (t) => { setTab(t); setErrors({}); };
+
+  // ── Login ─────────────────────────────────────────────────────────────────
   const handleLogin = async () => {
-    setError('');
-    if (!lf.email || !lf.password) { setError('Vui lòng nhập email và mật khẩu.'); return; }
+    const e = {};
+    if (!lf.email)    e.email    = 'Vui lòng nhập email.';
+    if (!lf.password) e.password = 'Vui lòng nhập mật khẩu.';
+    if (Object.keys(e).length) { setErrors(e); return; }
+
     setLoading(true);
     try {
-      await login(lf.email, lf.password);
+      await login(lf.email.trim(), lf.password);
       navigate('/dashboard', { replace: true });
     } catch (err) {
-      // Lỗi đã được Toast trong AppContext
+      setErrors({ form: err.message });
     } finally {
       setLoading(false);
     }
   };
 
-  // ── Đăng nhập Google ──
-  const handleGoogleLogin = async () => {
-    setLoading(true);
+  // ── Google Login ──────────────────────────────────────────────────────────
+  const handleGoogle = async () => {
+    setGLoad(true);
     try {
       await loginWithGoogle();
       navigate('/dashboard', { replace: true });
-    } catch (err) {
-      // Lỗi đã được Toast trong AppContext
-    } finally {
-      setLoading(false);
-    }
+    } catch {}
+    finally { setGLoad(false); }
   };
 
-  // ── Đăng ký ──
+  // ── Register ──────────────────────────────────────────────────────────────
   const handleRegister = async () => {
-    setError('');
-    const { ho, ten, mssv, email, phone, password, password2 } = rf;
-    if (!ho.trim() || !ten.trim()) { setError('Vui lòng nhập họ và tên.'); return; }
-    if (!mssv.trim())              { setError('Vui lòng nhập MSSV.'); return; }
-    if (!email.includes('@'))      { setError('Email không hợp lệ.'); return; }
-    if (!phone.trim())             { setError('Vui lòng nhập số điện thoại.'); return; }
-    if (password.length < 6)       { setError('Mật khẩu tối thiểu 6 ký tự.'); return; }
-    if (password !== password2)    { setError('Mật khẩu xác nhận không khớp.'); return; }
-    
+    const e = {};
+    if (!rf.ho.trim())       e.ho       = 'Nhập họ.';
+    if (!rf.ten.trim())      e.ten      = 'Nhập tên.';
+    if (!rf.mssv.trim())     e.mssv     = 'Nhập MSSV.';
+    if (!rf.email.includes('@')) e.email = 'Email không hợp lệ.';
+    if (!rf.phone.trim())    e.phone    = 'Nhập số điện thoại.';
+    if (rf.password.length < 6) e.password = 'Tối thiểu 6 ký tự.';
+    if (rf.password !== rf.password2) e.password2 = 'Mật khẩu xác nhận không khớp.';
+    if (Object.keys(e).length) { setErrors(e); return; }
+
     setLoading(true);
     try {
-      await register(rf); // Gọi Firebase tạo user
-      setPending({ name: `${ho.trim()} ${ten.trim()}`, mssv: mssv.trim(), email: email.trim() });
+      await register(rf);
+      setPending({ name:`${rf.ho.trim()} ${rf.ten.trim()}`, mssv:rf.mssv.trim(), email:rf.email.trim() });
       setTab('pending');
     } catch (err) {
-      // Lỗi đã được Toast trong AppContext
+      setErrors({ form: err.message });
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0e0e0e] p-4">
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[300px] bg-blue-600/8 rounded-full blur-3xl pointer-events-none"/>
+  const Spinner = () => <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"/>;
 
-      <div className="relative w-full max-w-sm">
-        <div className="text-center mb-7">
-          <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl flex items-center justify-center mx-auto mb-3 font-black text-xl shadow-2xl shadow-blue-900/40">
+  return (
+    <div className="min-h-screen bg-[#080810] flex">
+      {/* ── Left panel (desktop only) ── */}
+      <div className="hidden lg:flex lg:w-[420px] xl:w-[500px] bg-gradient-to-br from-blue-950 via-[#0d0d20] to-[#080810] flex-col justify-between p-12 border-r border-white/5 shrink-0">
+        {/* Brand */}
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-black text-white text-lg shadow-lg shadow-blue-900/50">
             2X
           </div>
-          <h1 className="text-2xl font-black text-white">2X18 CORE</h1>
-          <p className="text-gray-500 text-xs mt-1">Nhóm học tập bán dẫn · HUS K2024</p>
+          <div>
+            <div className="text-white font-black text-lg leading-none">2X18 CORE</div>
+            <div className="text-blue-400/60 text-xs mt-0.5">HUS Bán dẫn K2024</div>
+          </div>
         </div>
 
-        <div className="bg-[#1a1a1a] border border-gray-800 rounded-2xl overflow-hidden shadow-2xl">
-          {tab !== 'pending' && (
-            <div className="flex border-b border-gray-800">
-              {[['login','Đăng nhập'],['register','Đăng ký']].map(([t, l]) => (
-                <button key={t} onClick={() => { setTab(t); setError(''); }}
-                  className={`flex-1 py-3.5 text-sm font-semibold transition-all ${
-                    tab === t
-                      ? 'text-white border-b-2 border-blue-500 bg-[#1e1e1e]'
-                      : 'text-gray-500 hover:text-gray-300'
-                  }`}>
-                  {l}
-                </button>
-              ))}
+        {/* Feature highlights */}
+        <div className="space-y-8">
+          <div>
+            <h2 className="text-3xl font-black text-white leading-tight mb-3">
+              Quản lý nhóm học tập<br/>
+              <span className="text-blue-400">thông minh hơn</span>
+            </h2>
+            <p className="text-gray-400 text-sm leading-relaxed">
+              Theo dõi GPA, điểm danh, tài liệu và tiến độ học tập của 16 thành viên — tất cả trong một nơi.
+            </p>
+          </div>
+
+          {[
+            { icon:'📊', title:'Tracking GPA realtime', desc:'So sánh CPA cá nhân với nhóm theo từng học kỳ.' },
+            { icon:'🎯', title:'Hệ thống SME & Tài liệu', desc:'Phân công chuyên gia, chia sẻ tài liệu qua Google Drive.' },
+            { icon:'🏅', title:'Chiến Tích & Huy Hiệu', desc:'Gamification — cộng điểm cống hiến mỗi khi đóng góp.' },
+          ].map(f => (
+            <div key={f.title} className="flex items-start gap-4">
+              <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-xl shrink-0">{f.icon}</div>
+              <div>
+                <div className="text-sm font-bold text-white mb-0.5">{f.title}</div>
+                <div className="text-xs text-gray-500 leading-relaxed">{f.desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="text-xs text-gray-700">
+          © 2025 2X18 CORE · Khoa Vật lý, HUS
+        </div>
+      </div>
+
+      {/* ── Right panel — Auth form ── */}
+      <div className="flex-1 flex flex-col items-center justify-center p-6 overflow-y-auto">
+        {/* Mobile brand */}
+        <div className="lg:hidden flex items-center gap-2 mb-8">
+          <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center font-black text-white">2X</div>
+          <div className="text-white font-black text-lg">2X18 CORE</div>
+        </div>
+
+        <div className="w-full max-w-[400px]">
+
+          {/* ─── LOGIN ─────────────────────────────────────────────── */}
+          {tab === 'login' && (
+            <div className="space-y-6">
+              <div>
+                <h1 className="text-2xl font-black text-white mb-1">Chào mừng trở lại</h1>
+                <p className="text-gray-500 text-sm">
+                  Chưa có tài khoản?{' '}
+                  <button onClick={()=>switchTab('register')} className="text-blue-400 hover:text-blue-300 font-semibold transition-colors">
+                    Đăng ký ngay
+                  </button>
+                </p>
+              </div>
+
+              {/* Google button */}
+              <button onClick={handleGoogle} disabled={gLoading||loading}
+                className="w-full h-11 flex items-center justify-center gap-3 bg-white hover:bg-gray-50 disabled:opacity-60 text-gray-800 font-semibold text-sm rounded-xl border border-gray-200 transition-all shadow-sm">
+                {gLoading ? <Spinner/> : <GoogleLogo/>}
+                <span>{gLoading ? 'Đang xử lý...' : 'Tiếp tục với Google'}</span>
+              </button>
+
+              {/* Divider */}
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-gray-800"/>
+                <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-widest">Hoặc dùng email</span>
+                <div className="flex-1 h-px bg-gray-800"/>
+              </div>
+
+              {/* Form error */}
+              {errors.form && (
+                <div className="flex items-start gap-2.5 p-3 bg-red-500/8 border border-red-500/25 rounded-xl">
+                  <svg className="w-4 h-4 text-red-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+                  </svg>
+                  <p className="text-red-400 text-sm">{errors.form}</p>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <AuthInput
+                  label="Email" type="email" placeholder="email@hus.edu.vn"
+                  value={lf.email} onChange={e=>setL('email',e.target.value)}
+                  onKeyDown={e=>e.key==='Enter'&&handleLogin()}
+                  error={errors.email} autoComplete="email"
+                />
+                <AuthInput
+                  label="Mật khẩu" type={showP?'text':'password'} placeholder="••••••••"
+                  value={lf.password} onChange={e=>setL('password',e.target.value)}
+                  onKeyDown={e=>e.key==='Enter'&&handleLogin()}
+                  error={errors.password} autoComplete="current-password"
+                  rightElement={
+                    <button type="button" onClick={()=>setShowP(v=>!v)} className="text-gray-500 hover:text-gray-300 transition-colors">
+                      {showP ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}
+                    </button>
+                  }
+                />
+              </div>
+
+              <button onClick={handleLogin} disabled={loading||gLoading}
+                className="w-full h-11 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:opacity-60 text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-blue-900/30">
+                {loading ? <><Spinner/><span>Đang đăng nhập...</span></> : <><span>Đăng nhập</span><ArrowRight className="w-4 h-4"/></>}
+              </button>
+
+              <p className="text-center text-xs text-gray-700">
+                Bằng cách đăng nhập, bạn đồng ý với các điều khoản sử dụng của nhóm 2X18.
+              </p>
             </div>
           )}
 
-          <div className="p-6">
-            {error && (
-              <div className="mb-4 bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-4 py-2.5 rounded-xl font-medium">
-                {error}
+          {/* ─── REGISTER ──────────────────────────────────────────── */}
+          {tab === 'register' && (
+            <div className="space-y-5">
+              <div>
+                <h1 className="text-2xl font-black text-white mb-1">Tạo tài khoản</h1>
+                <p className="text-gray-500 text-sm">
+                  Đã có tài khoản?{' '}
+                  <button onClick={()=>switchTab('login')} className="text-blue-400 hover:text-blue-300 font-semibold transition-colors">
+                    Đăng nhập
+                  </button>
+                </p>
               </div>
-            )}
 
-            {/* ── LOGIN TAB ── */}
-            {tab === 'login' && (
-              <div className="space-y-4">
-                <FInput
-                  label="Email" type="email" placeholder="email@hus.edu.vn"
-                  value={lf.email} onChange={e => setL('email', e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleLogin()}
+              {/* Google button */}
+              <button onClick={handleGoogle} disabled={gLoading||loading}
+                className="w-full h-11 flex items-center justify-center gap-3 bg-white hover:bg-gray-50 disabled:opacity-60 text-gray-800 font-semibold text-sm rounded-xl border border-gray-200 transition-all shadow-sm">
+                {gLoading ? <Spinner/> : <GoogleLogo/>}
+                <span>{gLoading ? 'Đang xử lý...' : 'Đăng ký với Google'}</span>
+              </button>
+
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-gray-800"/>
+                <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-widest">Hoặc điền form</span>
+                <div className="flex-1 h-px bg-gray-800"/>
+              </div>
+
+              {errors.form && (
+                <div className="flex items-start gap-2.5 p-3 bg-red-500/8 border border-red-500/25 rounded-xl">
+                  <svg className="w-4 h-4 text-red-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+                  </svg>
+                  <p className="text-red-400 text-sm">{errors.form}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <AuthInput label="Họ *" placeholder="Nguyễn" value={rf.ho} onChange={e=>setR('ho',e.target.value)} error={errors.ho}/>
+                <AuthInput label="Tên *" placeholder="Văn A" value={rf.ten} onChange={e=>setR('ten',e.target.value)} error={errors.ten}/>
+              </div>
+              <AuthInput label="MSSV *" placeholder="25000001" value={rf.mssv} onChange={e=>setR('mssv',e.target.value)} error={errors.mssv}/>
+              <AuthInput label="Email HUS *" type="email" placeholder="email@hus.edu.vn" value={rf.email} onChange={e=>setR('email',e.target.value)} error={errors.email} autoComplete="email"/>
+              <AuthInput label="Số điện thoại *" type="tel" placeholder="0912 345 678" value={rf.phone} onChange={e=>setR('phone',e.target.value)} error={errors.phone}/>
+
+              <AuthInput
+                label="Mật khẩu *" type={showP?'text':'password'} placeholder="Tối thiểu 6 ký tự"
+                value={rf.password} onChange={e=>setR('password',e.target.value)} error={errors.password}
+                autoComplete="new-password"
+                rightElement={
+                  <button type="button" onClick={()=>setShowP(v=>!v)} className="text-gray-500 hover:text-gray-300">
+                    {showP?<EyeOff className="w-4 h-4"/>:<Eye className="w-4 h-4"/>}
+                  </button>
+                }
+              />
+              <AuthInput
+                label="Xác nhận mật khẩu *" type={showP2?'text':'password'} placeholder="Nhập lại mật khẩu"
+                value={rf.password2} onChange={e=>setR('password2',e.target.value)} error={errors.password2}
+                onKeyDown={e=>e.key==='Enter'&&handleRegister()}
+                autoComplete="new-password"
+                rightElement={
+                  <button type="button" onClick={()=>setShowP2(v=>!v)} className="text-gray-500 hover:text-gray-300">
+                    {showP2?<EyeOff className="w-4 h-4"/>:<Eye className="w-4 h-4"/>}
+                  </button>
+                }
+              />
+
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-gray-300">
+                  Lý do tham gia <span className="text-gray-600 font-normal">(Core Team sẽ đọc)</span>
+                </label>
+                <textarea rows={3}
+                  className="w-full px-4 py-3 rounded-xl text-sm text-white bg-[#1e1e1e] border border-gray-700/80 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none placeholder:text-gray-600 resize-none transition-all"
+                  placeholder="VD: Mình đang học Vật lý bán dẫn và muốn tham gia nhóm để học cùng..."
+                  value={rf.reason} onChange={e=>setR('reason',e.target.value)}
                 />
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-400">Mật khẩu</label>
-                  <div className="relative">
-                    <input
-                      type={showPass ? 'text' : 'password'} placeholder="••••••••"
-                      value={lf.password} onChange={e => setL('password', e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && handleLogin()}
-                      className="w-full bg-[#252525] border border-gray-700 rounded-xl px-4 py-2.5 pr-10 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all"
-                    />
-                    <button onClick={() => setShowPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
-                      {showPass ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}
-                    </button>
-                  </div>
-                </div>
-                
-                <button onClick={handleLogin} disabled={loading}
-                  className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 transition-all">
-                  {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/> : <><span>Đăng nhập</span><ArrowRight className="w-4 h-4"/></>}
-                </button>
-
-                <div className="flex items-center gap-3 my-4">
-                  <div className="flex-1 h-px bg-gray-800"></div>
-                  <span className="text-xs text-gray-500 font-medium">HOẶC</span>
-                  <div className="flex-1 h-px bg-gray-800"></div>
-                </div>
-
-                <button onClick={handleGoogleLogin} disabled={loading}
-                  className="w-full bg-white hover:bg-gray-100 disabled:opacity-50 text-gray-900 font-bold py-2.5 rounded-xl flex items-center justify-center gap-3 transition-all">
-                  <GoogleIcon />
-                  <span>Đăng nhập với Google</span>
-                </button>
               </div>
-            )}
 
-            {/* ── REGISTER TAB ── */}
-            {tab === 'register' && (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <FInput label="Họ *" placeholder="Nguyễn" value={rf.ho} onChange={e => setR('ho', e.target.value)}/>
-                  <FInput label="Tên *" placeholder="Văn A" value={rf.ten} onChange={e => setR('ten', e.target.value)}/>
-                </div>
-                <FInput label="MSSV *" icon={Hash} placeholder="25000001" value={rf.mssv} onChange={e => setR('mssv', e.target.value)}/>
-                <FInput label="Email HUS *" icon={Mail} type="email" placeholder="email@hus.edu.vn" value={rf.email} onChange={e => setR('email', e.target.value)}/>
-                <FInput label="Số điện thoại *" icon={Phone} type="tel" placeholder="0912 345 678" value={rf.phone} onChange={e => setR('phone', e.target.value)}/>
-                
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-400">Mật khẩu * <span className="text-gray-600 font-normal">(≥ 6 ký tự)</span></label>
-                  <div className="relative">
-                    <input type={showPass ? 'text' : 'password'} placeholder="••••••••" value={rf.password} onChange={e => setR('password', e.target.value)} className="w-full bg-[#252525] border border-gray-700 rounded-xl px-4 py-2.5 pr-10 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-all" />
-                    <button onClick={() => setShowPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">{showPass ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}</button>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-400">Xác nhận mật khẩu *</label>
-                  <div className="relative">
-                    <input type={showPass2 ? 'text' : 'password'} placeholder="••••••••" value={rf.password2} onChange={e => setR('password2', e.target.value)} onKeyDown={e => e.key === 'Enter' && handleRegister()} className="w-full bg-[#252525] border border-gray-700 rounded-xl px-4 py-2.5 pr-10 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition-all" />
-                    <button onClick={() => setShowPass2(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">{showPass2 ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}</button>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-400">Lý do tham gia</label>
-                  <textarea rows={3} placeholder="VD: Mình muốn học nhóm..." value={rf.reason} onChange={e => setR('reason', e.target.value)} className="w-full bg-[#252525] border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 resize-none" />
-                </div>
-
-                <button onClick={handleRegister} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all">
-                  {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/> : <><span>Gửi đơn đăng ký</span><ArrowRight className="w-4 h-4"/></>}
-                </button>
+              {/* Role info banner */}
+              <div className="flex items-start gap-3 p-3.5 bg-blue-500/5 border border-blue-500/15 rounded-xl">
+                <svg className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  Tài khoản mới sẽ là <strong className="text-white">Thành viên</strong> sau khi được Core duyệt.
+                  Chỉ Super Admin mới có thể nâng lên <strong className="text-blue-400">Core Team</strong>.
+                </p>
               </div>
-            )}
 
-            {/* ── PENDING STATE ── */}
-            {tab === 'pending' && pending && (
-              <div className="text-center py-2 fade-in space-y-4">
-                <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/20 rounded-full flex items-center justify-center mx-auto">
-                  <Clock className="w-8 h-8 text-amber-400"/>
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-white mb-1">Đơn đã gửi thành công!</h3>
-                  <p className="text-sm text-gray-400 leading-relaxed">Core nhóm 2X18 sẽ xét duyệt và phản hồi trong vòng <strong className="text-white">1–2 ngày</strong>.</p>
-                </div>
-                <button onClick={() => { setTab('login'); setError(''); setPending(null); }} className="w-full flex items-center justify-center gap-2 border border-gray-700 text-gray-300 font-medium py-2.5 rounded-xl hover:bg-[#252525] text-sm transition-all">
-                  <ChevronLeft className="w-4 h-4"/> Quay lại đăng nhập
-                </button>
+              <button onClick={handleRegister} disabled={loading||gLoading}
+                className="w-full h-11 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:opacity-60 text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-blue-900/30">
+                {loading ? <><Spinner/><span>Đang gửi...</span></> : <><span>Gửi đơn đăng ký</span><ArrowRight className="w-4 h-4"/></>}
+              </button>
+            </div>
+          )}
+
+          {/* ─── PENDING ───────────────────────────────────────────── */}
+          {tab === 'pending' && pending && (
+            <div className="space-y-6 text-center">
+              <div className="w-20 h-20 bg-green-500/10 border-2 border-green-500/20 rounded-full flex items-center justify-center mx-auto">
+                <CheckCircle className="w-10 h-10 text-green-400"/>
               </div>
-            )}
-          </div>
+
+              <div>
+                <h2 className="text-2xl font-black text-white mb-2">Đơn đã gửi thành công!</h2>
+                <p className="text-gray-400 text-sm leading-relaxed">
+                  Core Team 2X18 sẽ xem xét và phản hồi trong vòng{' '}
+                  <strong className="text-white">1–2 ngày</strong>.
+                  Kết quả sẽ được thông báo qua email.
+                </p>
+              </div>
+
+              {/* Submitted info */}
+              <div className="bg-[#1e1e1e] border border-gray-800 rounded-2xl overflow-hidden text-left">
+                <div className="px-4 py-3 border-b border-gray-800">
+                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Thông tin đã gửi</span>
+                </div>
+                <div className="divide-y divide-gray-800/60">
+                  {[['Họ tên', pending.name], ['MSSV', pending.mssv], ['Email', pending.email]].map(([k,v])=>(
+                    <div key={k} className="flex justify-between items-center px-4 py-3">
+                      <span className="text-xs text-gray-500">{k}</span>
+                      <span className="text-sm font-semibold text-white">{v}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Status badge */}
+              <div className="flex items-center justify-center gap-2 py-3 px-4 bg-amber-500/8 border border-amber-500/20 rounded-xl">
+                <Clock className="w-4 h-4 text-amber-400 shrink-0"/>
+                <span className="text-sm font-medium text-amber-300">Đang chờ Core Team xét duyệt...</span>
+              </div>
+
+              <button onClick={()=>{switchTab('login');setPending(null);}}
+                className="w-full h-11 flex items-center justify-center gap-2 border border-gray-700 hover:border-gray-600 hover:bg-white/5 text-gray-300 font-medium text-sm rounded-xl transition-all">
+                <ChevronLeft className="w-4 h-4"/> Quay lại đăng nhập
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
