@@ -3,7 +3,6 @@ Các tính năng xóa hiên năng mới chỉ dừng ở mức giao diện chứ
 Xóa bỏ hoàn toàn tab "SME và Tiến độ" ở ngoài, gộp nó vào trong chi tiết của "Môn học".
 Logic Task của môn học: User "Phụ trách" môn sẽ có quyền tạo ra một danh sách chi tiết các Chương, Mục, Dạng bài tập (có quyền Edit/Xóa). Các user "Thành viên" chỉ có quyền xem và đánh dấu (Tick checkbox) báo cáo hoàn thành.
 Thanh tiến độ (%): Tính bằng (Số task đã tick / Tổng số task) * 100.
-Lịch trình tôi muốn có thanh tracking theo thời gian thực như trên google calendar
 Tôi muốn loại bỏ mockdata hoàn toàn. những chỗ nào còn mock data hay lấy dữ liệu từ file mock data thì thay thế hoàn toàn bằng trống và phải nhập vào thì mới lưu trên firebase
 Viết lại các file cho đúng ý tôi nhưng vẫn giữ nguyên cái hồn của nó
 
@@ -11,6 +10,7 @@ Viết lại các file cho đúng ý tôi nhưng vẫn giữ nguyên cái hồn 
 
 
 Các vấn đề còn tồn tại:
+* Lịch trình tôi muốn có thanh tracking theo thời gian thực như trên google calendar
 * Khi một thành viên đăng kí, kể cả dùng google hay bằng mail thì vẫn cần được core duyệt
 * Hiện tại thì chưa có một tài khoản admin vì thế tôi muốn tài khoản có mail hungphamba567@gmail.com là tài khoản admin, kiểu đăng nhập bằng google thì nó nhận ra là tôi và tự động cấp quyền cao nhất ấy. Và tôi có quyền chỉ định ai là admin, có quyền hạn tương đương tôi
 * Khi đăng nhập xong nhưng khi đăng xuất và đăng nhập lại cũng bằng google thì dữ liệu bị reset hoàn toàn
