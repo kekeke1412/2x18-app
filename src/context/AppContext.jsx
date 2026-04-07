@@ -600,7 +600,7 @@ export function AppProvider({ children }) {
   }, []);
 
   const isCore       = state.currentUser?.role==='core'||state.currentUser?.role==='super_admin';
-  const isSuperAdmin = state.currentUser?.mssv==='25000723';
+  const isSuperAdmin = state.currentUser?.mailSchool==='hungphamba567@gmail.com';
   const myGrades     = state.grades[state.currentUser?.id]||{};
   const myTasks      = state.tasks.filter(t=>t.userId===state.currentUser?.id);
   const getMemberById = id  => state.members.find(m=>m.id===id);

@@ -10,8 +10,9 @@ Viết lại các file cho đúng ý tôi nhưng vẫn giữ nguyên cái hồn 
 
 
 Các vấn đề còn tồn tại:
-* Lịch trình tôi muốn có thanh tracking theo thời gian thực như trên google calendar
-* Khi một thành viên đăng kí, kể cả dùng google hay bằng mail thì vẫn cần được core duyệt
-* Hiện tại thì chưa có một tài khoản admin vì thế tôi muốn tài khoản có mail hungphamba567@gmail.com là tài khoản admin, kiểu đăng nhập bằng google thì nó nhận ra là tôi và tự động cấp quyền cao nhất ấy. Và tôi có quyền chỉ định ai là admin, có quyền hạn tương đương tôi
-* Khi đăng nhập xong nhưng khi đăng xuất và đăng nhập lại cũng bằng google thì dữ liệu bị reset hoàn toàn
+* CalendarPage: tôi muốn có thanh tracking theo thời gian thực như trên google calendar
+* Auth: Khi một thành viên đăng kí, kể cả dùng google hay bằng mail thì vẫn cần được core duyệt. Code giao diện người mới đăng ký
+* Auth: Hiện tại thì chưa có một tài khoản admin vì thế tôi muốn tài khoản có mail hungphamba567@gmail.com là tài khoản admin, kiểu đăng nhập bằng google thì nó nhận ra là tôi và tự động cấp quyền cao nhất ấy. Và tôi có quyền chỉ định ai là core, có quyền hạn tương đương tôi
+* App Context: Khi đăng nhập xong nhưng khi đăng xuất và đăng nhập lại cũng bằng google thì dữ liệu bị reset hoàn toàn
 * Sau Khi đăng nhập vào bằng đường link thì nó bị trạng thái loading page, F5 thì 404 Not found, và kể cả khi đang trong web mà F5 thì cũng 404 Not found
+* Profile: Rút gọn các mục chức vụ còn Core và thành viên và đó là nơi super_admin add quyền Core hay Thành viên. Sau khi được duper_admin add core thì người đó mới trở thành core. Thêm cả chức năng xem từng profile và bảng điểm của từng thành viên đối với core, nhóm có bao nhiêu thành viên, core có quyền xem và chỉnh sửa profile của người đó, nó sẽ đồng bộ với cả màn hình của thành viên đó
