@@ -10,8 +10,8 @@ import { useApp } from '../context/AppContext';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 const BLOOD_TYPES = ['A+','A−','B+','B−','AB+','AB−','O+','O−'];
-const GENDERS     = ['Nam','Nữ','Khác'];
-const ROLES       = ['Core Team','Phó nhóm','Thư ký','Thành viên'];
+const GENDERS     = ['Nam','Nữ'];
+const ROLES       = ['Core Team', 'Thành viên'];
 const SEMESTERS   = [1,2,3,4,5,6,7,8];
 const STATUS_OPTS = ['Chưa học','Đang học','Đã học','Được miễn','Không học'];
 
@@ -27,13 +27,29 @@ const ETHNICITIES = [
 
 // 34 tỉnh/thành sau sáp nhập 2025
 const PROVINCES_34 = [
-  'Hà Nội','Hải Phòng','TP. Hồ Chí Minh','Đà Nẵng','Cần Thơ',
-  'Quảng Ninh','Bắc Giang','Thái Nguyên','Phú Thọ','Lào Cai',
-  'Sơn La','Cao Bằng','Hưng Yên','Hà Nam','Thanh Hóa',
-  'Nghệ An','Quảng Bình','Thừa Thiên Huế','Quảng Ngãi','Phú Yên',
-  'Ninh Thuận','Kon Tum','Đắk Lắk','Lâm Đồng','Đồng Nai',
-  'Long An','Bến Tre','An Giang','Kiên Giang','Sóc Trăng',
-  'Hậu Giang','Bình Thuận','Tây Ninh','Bình Phước',
+  "Tuyên Quang",
+  "Lào Cai",
+  "Thái Nguyên",
+  "Phú Thọ",
+  "Bắc Ninh",
+  "Hưng Yên",
+  "TP. Hải Phòng",
+  "Ninh Bình",
+  "Quảng Trị",
+  "TP. Đà Nẵng",
+  "Quảng Ngãi",
+  "Gia Lai",
+  "Khánh Hòa",
+  "Lâm Đồng",
+  "Đắk Lắk",
+  "TP. Hồ Chí Minh",
+  "Đồng Nai",
+  "Tây Ninh",
+  "TP. Cần Thơ",
+  "Vĩnh Long",
+  "Đồng Tháp",
+  "Cà Mau",
+  "An Giang"
 ];
 
 // Date helpers: store yyyy-mm-dd, display dd/mm/yyyy
@@ -119,7 +135,7 @@ function exportGradesToCSV(profile, grades) {
   const url  = URL.createObjectURL(blob);
   const a    = Object.assign(document.createElement('a'), {
     href: url,
-    download: `BangDiem_${profile.fullName || 'SinhVien'}_${profile.mssv || ''}.csv`,
+    download: `BangDiem_${profile.fullName || 'SinhVien'}_${profile.msv || ''}.csv`,
   });
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
@@ -284,7 +300,7 @@ export default function Profile() {
                   : savedProfile.fullName || 'Thành viên'}
               </h1>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <span className="text-xs text-gray-500">{savedProfile.mssv||'MSSV'}</span>
+                <span className="text-xs text-gray-500">{savedProfile.msv||'MSV'}</span>
                 {savedProfile.role && <span className="badge badge-blue">{savedProfile.role}</span>}
                 {isComplete
                   ? <span className="badge badge-green flex items-center gap-1"><CheckCircle2 className="w-2.5 h-2.5"/>Hồ sơ đầy đủ</span>
@@ -381,7 +397,7 @@ export default function Profile() {
             <Section icon={User} title="Thông tin cơ bản">
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <Field label="STT"       value={profile.stt}       onChange={v=>setP('stt',v)}       disabled={!isEditing}/>
-                <Field label="MSSV *"    value={profile.mssv}      onChange={v=>setP('mssv',v)}      disabled={!isEditing}/>
+                <Field label="MSV *"    value={profile.msv}      onChange={v=>setP('msv',v)}      disabled={!isEditing}/>
                 <Field label="Chức vụ"   value={profile.role}      onChange={v=>setP('role',v)}      options={ROLES}      disabled={!isEditing}/>
                 <Field label="Họ và tên *" value={profile.fullName} onChange={v=>setP('fullName',v)} disabled={!isEditing}/>
                 <Field label="Giới tính *" value={profile.gender}   onChange={v=>setP('gender',v)}   options={GENDERS}    disabled={!isEditing}/>
