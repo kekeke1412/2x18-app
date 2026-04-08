@@ -1,123 +1,403 @@
 // src/pages/Gamification.jsx
-// ── "Chiến Tích & Huy Hiệu" — tên gamification hay hơn "Vinh danh" ──────────
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import { db, ref, set, onValue } from '../firebase';
+import { uid } from '../context/AppContext';
 
+/* ═══════════════════════════════════════════════════════════════
+   HỆ THỐNG RANK — 20 bậc (Đồng I→III … Tinh Anh I→III, Huyền Thoại, Cao Thủ)
+═══════════════════════════════════════════════════════════════ */
+const RANKS = [
+  { id:'d1', tier:'Đồng',       sub:'I',   min:0,    max:19,       color:'#b87333', glow:'rgba(184,115,51,0.55)', bg:'rgba(184,115,51,0.09)' },
+  { id:'d2', tier:'Đồng',       sub:'II',  min:20,   max:39,       color:'#c08840', glow:'rgba(192,136,64,0.55)', bg:'rgba(192,136,64,0.09)' },
+  { id:'d3', tier:'Đồng',       sub:'III', min:40,   max:59,       color:'#d09050', glow:'rgba(208,144,80,0.55)', bg:'rgba(208,144,80,0.09)' },
+  { id:'s1', tier:'Bạc',        sub:'I',   min:60,   max:89,       color:'#9ca3af', glow:'rgba(156,163,175,0.55)', bg:'rgba(156,163,175,0.08)' },
+  { id:'s2', tier:'Bạc',        sub:'II',  min:90,   max:119,      color:'#b0b7c0', glow:'rgba(176,183,192,0.55)', bg:'rgba(176,183,192,0.08)' },
+  { id:'s3', tier:'Bạc',        sub:'III', min:120,  max:149,      color:'#c8cfd8', glow:'rgba(200,207,216,0.55)', bg:'rgba(200,207,216,0.08)' },
+  { id:'g1', tier:'Vàng',       sub:'I',   min:150,  max:199,      color:'#fbbf24', glow:'rgba(251,191,36,0.55)',  bg:'rgba(251,191,36,0.08)' },
+  { id:'g2', tier:'Vàng',       sub:'II',  min:200,  max:249,      color:'#fcd34d', glow:'rgba(252,211,77,0.55)',  bg:'rgba(252,211,77,0.08)' },
+  { id:'g3', tier:'Vàng',       sub:'III', min:250,  max:299,      color:'#fde68a', glow:'rgba(253,230,138,0.55)', bg:'rgba(253,230,138,0.08)' },
+  { id:'p1', tier:'Bạch Kim',   sub:'I',   min:300,  max:374,      color:'#bfdbfe', glow:'rgba(191,219,254,0.5)',  bg:'rgba(191,219,254,0.06)' },
+  { id:'p2', tier:'Bạch Kim',   sub:'II',  min:375,  max:449,      color:'#c8e8ff', glow:'rgba(200,232,255,0.5)',  bg:'rgba(200,232,255,0.06)' },
+  { id:'p3', tier:'Bạch Kim',   sub:'III', min:450,  max:549,      color:'#ddf0ff', glow:'rgba(221,240,255,0.5)',  bg:'rgba(221,240,255,0.06)' },
+  { id:'k1', tier:'Kim Cương',  sub:'I',   min:550,  max:649,      color:'#38bdf8', glow:'rgba(56,189,248,0.6)',   bg:'rgba(56,189,248,0.08)' },
+  { id:'k2', tier:'Kim Cương',  sub:'II',  min:650,  max:799,      color:'#0ea5e9', glow:'rgba(14,165,233,0.6)',   bg:'rgba(14,165,233,0.08)' },
+  { id:'k3', tier:'Kim Cương',  sub:'III', min:800,  max:999,      color:'#7dd3fc', glow:'rgba(125,211,252,0.6)',  bg:'rgba(125,211,252,0.09)' },
+  { id:'e1', tier:'Tinh Anh',   sub:'I',   min:1000, max:1199,     color:'#c084fc', glow:'rgba(192,132,252,0.6)',  bg:'rgba(192,132,252,0.09)' },
+  { id:'e2', tier:'Tinh Anh',   sub:'II',  min:1200, max:1499,     color:'#a855f7', glow:'rgba(168,85,247,0.6)',   bg:'rgba(168,85,247,0.09)' },
+  { id:'e3', tier:'Tinh Anh',   sub:'III', min:1500, max:1899,     color:'#d946ef', glow:'rgba(217,70,239,0.6)',   bg:'rgba(217,70,239,0.09)' },
+  { id:'hl', tier:'Huyền Thoại',sub:null,  min:1900, max:2499,     color:'#fb923c', glow:'rgba(251,146,60,0.65)',  bg:'rgba(251,146,60,0.1)'  },
+  { id:'ct', tier:'Cao Thủ',    sub:null,  min:2500, max:Infinity, color:'#fde047', glow:'rgba(253,224,71,0.7)',   bg:'rgba(253,224,71,0.1)'  },
+];
+
+const EMBLEMS = {
+  'Đồng':'◈','Bạc':'◻','Vàng':'✦','Bạch Kim':'❋',
+  'Kim Cương':'◆','Tinh Anh':'⬟','Huyền Thoại':'⊛','Cao Thủ':'⚜',
+};
+
+/* helpers (avoid findLast for older envs) */
+function getRankInfo(pts) {
+  const p = Math.max(0, Number(pts) || 0);
+  let idx = 0;
+  for (let i = 0; i < RANKS.length; i++) { if (p >= RANKS[i].min) idx = i; }
+  return RANKS[idx];
+}
+function getNextRank(pts) {
+  const p = Math.max(0, Number(pts) || 0);
+  let idx = 0;
+  for (let i = 0; i < RANKS.length; i++) { if (p >= RANKS[i].min) idx = i; }
+  return idx < RANKS.length - 1 ? RANKS[idx + 1] : null;
+}
+function getRankProgress(pts) {
+  const p = Math.max(0, Number(pts) || 0);
+  let idx = 0;
+  for (let i = 0; i < RANKS.length; i++) { if (p >= RANKS[i].min) idx = i; }
+  if (idx >= RANKS.length - 1) return 100;
+  const cur = RANKS[idx], nxt = RANKS[idx + 1];
+  return Math.round(((p - cur.min) / (nxt.min - cur.min)) * 100);
+}
+function toArr(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v.filter(Boolean);
+  if (typeof v === 'object') return Object.values(v).filter(Boolean);
+  return [];
+}
+
+/* ── Avatar ── */
+function Avatar({ m, size = 34, isMe = false }) {
+  if (m?.avatarUrl)
+    return (
+      <img src={m.avatarUrl} alt={m.fullName}
+        style={{ width:size, height:size, borderRadius:'50%', objectFit:'cover', flexShrink:0,
+          border:`2px solid ${isMe ? '#3b82f6' : '#2a2a2e'}` }}
+        onError={e => { e.target.style.display = 'none'; }} />
+    );
+  return (
+    <div style={{ width:size, height:size, borderRadius:'50%', flexShrink:0, display:'flex',
+      alignItems:'center', justifyContent:'center', fontWeight:900, fontSize:size * 0.36,
+      background: isMe ? 'rgba(59,130,246,0.18)' : '#1c1c22',
+      border:`2px solid ${isMe ? '#3b82f6' : '#2a2a2e'}`, color: isMe ? '#60a5fa' : '#555' }}>
+      {m?.avatar || m?.fullName?.[0] || '?'}
+    </div>
+  );
+}
+
+/* ── Rank Badge ── */
+function RankBadge({ pts, size = 'sm' }) {
+  const r   = getRankInfo(pts);
+  const lbl = r.sub ? `${r.tier} ${r.sub}` : r.tier;
+  const emb = EMBLEMS[r.tier] || '◆';
+  const cfg = { sm:{fs:9,px:6,py:2,gap:3,esz:10}, md:{fs:11,px:10,py:3,gap:4,esz:13}, lg:{fs:14,px:14,py:5,gap:5,esz:17} };
+  const c   = cfg[size] || cfg.sm;
+  return (
+    <span style={{ display:'inline-flex', alignItems:'center', gap:c.gap, padding:`${c.py}px ${c.px}px`,
+      borderRadius:7, background:r.bg, border:`1px solid ${r.glow}`, color:r.color,
+      fontWeight:800, fontSize:c.fs, whiteSpace:'nowrap', boxShadow:`0 0 8px ${r.glow}`, letterSpacing:'0.02em' }}>
+      <span style={{ fontSize:c.esz }}>{emb}</span>{lbl}
+    </span>
+  );
+}
+
+/* ── Leaderboard row ── */
+function LbRow({ m, i, currentUser, onRevoke }) {
+  const isMe = m.id === currentUser?.id;
+  const medals = ['🥇','🥈','🥉'];
+  return (
+    <div style={{ display:'flex', alignItems:'center', gap:10, padding:'11px 16px',
+      borderBottom:'1px solid rgba(255,255,255,0.04)',
+      background: isMe ? 'rgba(59,130,246,0.06)' : 'transparent', transition:'background .15s' }}
+      onMouseEnter={e=>{ if(!isMe) e.currentTarget.style.background='rgba(255,255,255,0.025)'; }}
+      onMouseLeave={e=>{ if(!isMe) e.currentTarget.style.background=isMe?'rgba(59,130,246,0.06)':'transparent'; }}>
+      <div style={{ width:28, textAlign:'center', fontWeight:900, fontSize:13, flexShrink:0,
+        color: i<3 ? ['#fbbf24','#9ca3af','#b87333'][i] : '#374151' }}>
+        {i < 3 ? medals[i] : `#${i+1}`}
+      </div>
+      <Avatar m={m} size={34} isMe={isMe} />
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:5, flexWrap:'wrap' }}>
+          <span style={{ fontSize:13, fontWeight:700, color:isMe?'#60a5fa':'#e2e8f0',
+            overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:150 }}>{m.fullName}</span>
+          {isMe && <span style={{ fontSize:8, fontWeight:900, color:'#3b82f6', letterSpacing:1 }}>BẠN</span>}
+          {m.myTitles.map(t => (
+            <span key={t.id} title={t.desc}
+              style={{ fontSize:9, padding:'1px 6px', borderRadius:4, fontWeight:700,
+                background:`${t.color}18`, border:`1px solid ${t.color}55`, color:t.color }}>
+              {t.icon} {t.name}
+            </span>
+          ))}
+        </div>
+        <div style={{ fontSize:10, color:'#374151', marginTop:1 }}>{m.mssv}</div>
+      </div>
+      <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+        <RankBadge pts={m.points} size="sm" />
+        <span style={{ fontSize:15, fontWeight:900, minWidth:38, textAlign:'right',
+          color:m.rankInfo.color, textShadow:`0 0 12px ${m.rankInfo.glow}` }}>{m.points}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MAIN EXPORT
+══════════════════════════════════════════════════════════════ */
 export default function Gamification() {
-  // ── FIX: contributions đọc trực tiếp từ Context state
-  // → khi ADD_CONTRIBUTION dispatch, component này re-render ngay ──────────────
-  const { members, contributions, currentUser } = useApp();
-  const [tab, setTab] = useState('leaderboard');
+  const { members, contributions, currentUser, isSuperAdmin, isCore } = useApp();
+  const [tab, setTab]         = useState('current');
+  const [titles, setTitles]   = useState([]);
+  const [awards, setAwards]   = useState({});
+  const [seasons, setSeasons] = useState([]);
+  const [selSeason, setSelSeason] = useState(null);
 
-  // Tính bảng xếp hạng từ contributions trong Context
-  const ranked = useMemo(() => {
-    return [...members]
-      .map(m => ({
-        ...m,
-        // ── FIX: ép kiểu Number để không bị cộng string ──
-        points: Number(contributions[m.id]) || 0,
-      }))
-      .sort((a, b) => b.points - a.points);
-  }, [members, contributions]);
+  /* admin state */
+  const [showAdmin, setShowAdmin]   = useState(false);
+  const [aTab, setATab]             = useState('award');
+  const [newTitle, setNewTitle]     = useState({ name:'', icon:'🏅', color:'#ffd700', desc:'' });
+  const [awardForm, setAwardForm]   = useState({ userId:'', titleId:'' });
+  const [seasonName, setSeasonName] = useState('');
+  const [confirmReset, setConfirmReset] = useState(false);
 
-  const myRank   = ranked.findIndex(m => m.id === currentUser?.id) + 1;
-  // ── FIX: luôn đọc từ contributions[currentUser.id] mới nhất ──
-  const myPoints = Number(contributions[currentUser?.id]) || 0;
+  /* ── subscribe firebase ── */
+  useEffect(() => {
+    const u1 = onValue(ref(db,'gamif_titles'), snap => {
+      setTitles(toArr(snap.val()));
+    });
+    const u2 = onValue(ref(db,'gamif_awards'), snap => {
+      const v = snap.val() || {};
+      const norm = {};
+      Object.entries(v).forEach(([id, val]) => { norm[id] = toArr(val); });
+      setAwards(norm);
+    });
+    const u3 = onValue(ref(db,'gamif_seasons'), snap => {
+      const arr = toArr(snap.val()).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+      setSeasons(arr);
+    });
+    return () => { u1(); u2(); u3(); };
+  }, []);
 
-  const badgeFor = pts => {
-    if (pts >= 500) return { icon:'🏆', label:'Truyền Nhân', color:'text-yellow-400 bg-yellow-500/10 border-yellow-500/30' };
-    if (pts >= 350) return { icon:'💎', label:'Cốt Cán',    color:'text-blue-400   bg-blue-500/10   border-blue-500/30'   };
-    if (pts >= 200) return { icon:'⭐', label:'Năng Nổ',     color:'text-purple-400 bg-purple-500/10 border-purple-500/30' };
-    if (pts >= 100) return { icon:'🔥', label:'Đang Lên',    color:'text-orange-400 bg-orange-500/10 border-orange-500/30' };
-    return                { icon:'🌱', label:'Khởi Đầu',   color:'text-green-400  bg-green-500/10  border-green-500/30'  };
+  const activeMembers = useMemo(() => members.filter(m => m.status !== 'pending'), [members]);
+
+  const ranked = useMemo(() => activeMembers.map(m => ({
+    ...m,
+    points:   Number(contributions[m.id]) || 0,
+    rankInfo: getRankInfo(Number(contributions[m.id]) || 0),
+    progress: getRankProgress(Number(contributions[m.id]) || 0),
+    myTitles: (awards[m.id] || []).map(tid => titles.find(t => t.id === tid)).filter(Boolean),
+  })).sort((a,b) => b.points - a.points), [activeMembers, contributions, awards, titles]);
+
+  const me     = ranked.find(m => m.id === currentUser?.id);
+  const myRank = ranked.findIndex(m => m.id === currentUser?.id) + 1;
+  const canAdmin = isSuperAdmin || isCore;
+
+  const seasonRanked = useMemo(() => {
+    if (!selSeason) return [];
+    const s = seasons.find(x => x.id === selSeason);
+    if (!s) return [];
+    return activeMembers.map(m => ({
+      ...m,
+      points:   Number(s.snapshot?.[m.id]) || 0,
+      rankInfo: getRankInfo(Number(s.snapshot?.[m.id]) || 0),
+      myTitles: toArr(s.awardSnapshot?.[m.id]).map(tid =>
+        toArr(s.titleSnapshot).find(t => t.id === tid) || titles.find(t => t.id === tid)
+      ).filter(Boolean),
+    })).sort((a,b) => b.points - a.points);
+  }, [selSeason, seasons, activeMembers, titles]);
+
+  /* ── admin handlers ── */
+  const handleAddTitle = () => {
+    if (!newTitle.name.trim()) return;
+    const t = { id:uid(), ...newTitle, createdAt:new Date().toISOString() };
+    const map = {};
+    [...titles, t].forEach(x => { map[x.id] = x; });
+    set(ref(db,'gamif_titles'), map);
+    setNewTitle({ name:'', icon:'🏅', color:'#ffd700', desc:'' });
+  };
+  const handleDeleteTitle = id => {
+    const map = {};
+    titles.filter(t => t.id !== id).forEach(t => { map[t.id] = t; });
+    set(ref(db,'gamif_titles'), Object.keys(map).length ? map : null);
+  };
+  const handleAward = () => {
+    if (!awardForm.userId || !awardForm.titleId) return;
+    const cur = awards[awardForm.userId] || [];
+    if (cur.includes(awardForm.titleId)) return;
+    set(ref(db, `gamif_awards/${awardForm.userId}`), [...cur, awardForm.titleId]);
+    setAwardForm({ userId:'', titleId:'' });
+  };
+  const handleRevoke = (userId, titleId) => {
+    const cur = (awards[userId] || []).filter(id => id !== titleId);
+    set(ref(db, `gamif_awards/${userId}`), cur.length ? cur : null);
+  };
+  const handleResetSeason = () => {
+    if (!seasonName.trim()) return;
+    const snapshot = {};
+    activeMembers.forEach(m => { snapshot[m.id] = Number(contributions[m.id]) || 0; });
+    const awardSnapshot = {};
+    Object.entries(awards).forEach(([id, tids]) => { awardSnapshot[id] = tids; });
+    const titleSnapshot = {};
+    titles.forEach(t => { titleSnapshot[t.id] = t; });
+    const season = {
+      id: uid(), name:seasonName.trim(),
+      createdAt:new Date().toISOString(), createdBy:currentUser?.fullName||'Admin',
+      snapshot, awardSnapshot, titleSnapshot,
+    };
+    const seasonsMap = {};
+    seasons.forEach(s => { seasonsMap[s.id] = s; });
+    seasonsMap[season.id] = season;
+    set(ref(db,'gamif_seasons'), seasonsMap);
+    const reset = {};
+    activeMembers.forEach(m => { reset[m.id] = 0; });
+    set(ref(db,'2x18_contributions'), reset);
+    set(ref(db,'gamif_awards'), null);
+    setSeasonName(''); setConfirmReset(false); setShowAdmin(false);
   };
 
-  const medalColor = i => ['text-yellow-400', 'text-gray-300', 'text-amber-600'][i] || 'text-gray-600';
+  /* ──────────────────── INPUT STYLE ──────────────────── */
+  const inputSt = {
+    width:'100%', padding:'8px 11px', borderRadius:8, boxSizing:'border-box',
+    background:'#09090b', border:'1px solid #27272a', color:'#e4e4e7', fontSize:12,
+    outline:'none',
+  };
+  const btnPrimary = {
+    width:'100%', padding:'9px', borderRadius:8, background:'#1d4ed8',
+    border:'none', color:'#fff', fontSize:12, fontWeight:800, cursor:'pointer',
+  };
 
+  /* ══════════════════════════════════════════════════════
+     RENDER
+  ══════════════════════════════════════════════════════ */
   return (
-    <div className="h-full bg-[#121212] text-gray-200 flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-800/60 bg-[#141414] shrink-0">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
+    <div style={{ height:'100%', display:'flex', flexDirection:'column', overflow:'hidden',
+      background:'#09090b', color:'#e4e4e7', fontFamily:"'Segoe UI', system-ui, sans-serif", position:'relative' }}>
+
+      {/* ambient bg glow */}
+      <div aria-hidden style={{ position:'absolute', inset:0, pointerEvents:'none', overflow:'hidden', zIndex:0 }}>
+        <div style={{ position:'absolute', top:'-20%', left:'-10%', width:520, height:520, borderRadius:'50%',
+          background:'radial-gradient(circle, rgba(124,58,237,0.06) 0%, transparent 70%)' }}/>
+        <div style={{ position:'absolute', bottom:'-15%', right:'-8%', width:460, height:460, borderRadius:'50%',
+          background:'radial-gradient(circle, rgba(14,165,233,0.06) 0%, transparent 70%)' }}/>
+        <div style={{ position:'absolute', top:'40%', right:'25%', width:300, height:300, borderRadius:'50%',
+          background:'radial-gradient(circle, rgba(251,146,60,0.04) 0%, transparent 70%)' }}/>
+      </div>
+
+      {/* ── HEADER ── */}
+      <div style={{ position:'relative', zIndex:1, padding:'13px 22px',
+        borderBottom:'1px solid rgba(255,255,255,0.06)', flexShrink:0,
+        background:'rgba(9,9,11,0.92)', backdropFilter:'blur(8px)' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, flexWrap:'wrap' }}>
           <div>
-            <h1 className="text-xl font-black text-white flex items-center gap-2">
-              🏅 Chiến Tích & Huy Hiệu
+            <h1 style={{ margin:0, fontSize:19, fontWeight:900, letterSpacing:'-0.02em',
+              background:'linear-gradient(120deg,#fbbf24 0%,#f97316 50%,#ec4899 100%)',
+              WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>
+              ⚜ Chiến Tích & Vinh Danh
             </h1>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Bảng vàng đóng góp nhóm 2X18 · Cập nhật realtime
+            <p style={{ margin:'2px 0 0', fontSize:10, color:'#52525b', letterSpacing:'0.03em' }}>
+              HỆ THỐNG RANK · NHÓM 2X18 · LIVE
             </p>
           </div>
-          <div className="flex items-center gap-1 bg-[#1e1e1e] border border-gray-800 rounded-xl overflow-hidden">
-            {[['leaderboard','Bảng vàng'],['badges','Huy hiệu'],['how','Cách tính']].map(([v, l]) => (
-              <button key={v} onClick={() => setTab(v)}
-                className={`px-3 py-1.5 text-xs font-bold transition-all ${tab === v ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}>
-                {l}
+          <div style={{ display:'flex', alignItems:'center', gap:7 }}>
+            {canAdmin && (
+              <button onClick={() => setShowAdmin(true)} style={{ padding:'6px 12px', fontSize:10, fontWeight:800,
+                color:'#fb923c', border:'1px solid rgba(251,146,60,0.28)', borderRadius:8,
+                background:'rgba(251,146,60,0.06)', cursor:'pointer', letterSpacing:'0.04em' }}>
+                ⚙ QUẢN LÝ
               </button>
-            ))}
+            )}
+            <div style={{ display:'flex', background:'#111113', border:'1px solid #1f1f23', borderRadius:10, overflow:'hidden' }}>
+              {[['current','Kỳ này'],['history','Lịch sử'],['titles','Danh hiệu'],['howto','Cách tính']].map(([v,l]) => (
+                <button key={v} onClick={() => setTab(v)} style={{
+                  padding:'6px 11px', fontSize:10, fontWeight:800, letterSpacing:'0.03em',
+                  cursor:'pointer', border:'none', outline:'none', transition:'all .2s',
+                  background: tab===v ? '#2563eb' : 'transparent',
+                  color: tab===v ? '#fff' : '#52525b',
+                }}>{l}</button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-        {/* My badge card — hiển thị điểm live */}
-        <div className="mb-5 bg-gradient-to-br from-blue-900/30 via-[#1a1a1a] to-[#1a1a1a] border border-blue-500/20 rounded-2xl p-5 flex items-center justify-between gap-4">
-          <div>
-            <div className="text-xs text-gray-500 font-bold uppercase tracking-wider">Điểm cống hiến của bạn</div>
-            {/* ── FIX: điểm này luôn sync với Context state ── */}
-            <div className="text-4xl font-black text-blue-400 mt-1">{myPoints}</div>
-            <div className="text-xs text-gray-500 mt-0.5">
-              Hạng #{myRank > 0 ? myRank : '—'} / {members.length} thành viên
-            </div>
-          </div>
-          {(() => {
-            const b = badgeFor(myPoints);
-            return (
-              <div className={`flex flex-col items-center px-5 py-3 rounded-2xl border ${b.color}`}>
-                <span className="text-3xl">{b.icon}</span>
-                <span className="text-xs font-bold mt-1">{b.label}</span>
-              </div>
-            );
-          })()}
-        </div>
+      {/* ── BODY ── */}
+      <div style={{ flex:1, overflowY:'auto', padding:'18px 22px', position:'relative', zIndex:1 }}>
 
-        {/* ── Leaderboard ── */}
-        {tab === 'leaderboard' && (
-          <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl overflow-hidden">
-            {/* Top 3 highlight */}
+        {/* ════════ CURRENT SEASON ════════ */}
+        {tab === 'current' && (
+          <>
+            {/* My rank card */}
+            {me && (() => {
+              const next = getNextRank(me.points);
+              return (
+                <div style={{ marginBottom:18, padding:'18px 22px', borderRadius:16,
+                  background:`linear-gradient(135deg, ${me.rankInfo.bg} 0%, rgba(255,255,255,0.015) 100%)`,
+                  border:`1px solid ${me.rankInfo.glow}`, boxShadow:`0 0 28px ${me.rankInfo.glow}`,
+                  display:'flex', gap:18, alignItems:'center', flexWrap:'wrap' }}>
+                  <Avatar m={me} size={54} isMe />
+                  <div style={{ flex:1, minWidth:200 }}>
+                    <div style={{ fontSize:10, color:'#52525b', fontWeight:800, letterSpacing:'0.08em', marginBottom:5 }}>RANK CỦA BẠN</div>
+                    <RankBadge pts={me.points} size="lg" />
+                    <div style={{ marginTop:9, display:'flex', alignItems:'center', gap:7 }}>
+                      <div style={{ flex:1, height:5, background:'rgba(255,255,255,0.06)', borderRadius:99, overflow:'hidden' }}>
+                        <div style={{ height:'100%', borderRadius:99, transition:'width .6s ease',
+                          width:`${me.progress}%`,
+                          background:`linear-gradient(90deg, ${me.rankInfo.color}aa, ${me.rankInfo.color})` }}/>
+                      </div>
+                      <span style={{ fontSize:9, color:'#52525b', fontWeight:700 }}>{me.progress}%</span>
+                      {next && <span style={{ fontSize:9, color:'#3f3f46' }}>→ {next.sub?`${next.tier} ${next.sub}`:next.tier} ({next.min - me.points} điểm)</span>}
+                    </div>
+                    {me.myTitles.length > 0 && (
+                      <div style={{ marginTop:7, display:'flex', gap:5, flexWrap:'wrap' }}>
+                        {me.myTitles.map(t => (
+                          <span key={t.id} style={{ fontSize:10, padding:'2px 8px', borderRadius:5, fontWeight:700,
+                            background:`${t.color}18`, border:`1px solid ${t.color}44`, color:t.color }}>
+                            {t.icon} {t.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ textAlign:'right' }}>
+                    <div style={{ fontSize:40, fontWeight:900, lineHeight:1, color:me.rankInfo.color,
+                      textShadow:`0 0 24px ${me.rankInfo.glow}` }}>{me.points}</div>
+                    <div style={{ fontSize:10, color:'#52525b', marginTop:2 }}>điểm · #{myRank} / {ranked.length}</div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Top 3 podium */}
             {ranked.length >= 3 && (
-              <div className="grid grid-cols-3 gap-4 p-5 border-b border-gray-800/60 bg-[#1e1e1e]">
-                {[ranked[1], ranked[0], ranked[2]].map((m, i) => {
-                  if (!m) return <div key={i}/>;
-                  const b      = badgeFor(m.points);
-                  const isMe   = m.id === currentUser?.id;
-                  const podium = [1, 0, 2][i]; // vị trí thật: 2nd, 1st, 3rd
-                  const medals = ['🥈','🥇','🥉'];
-                  const heights = ['h-16','h-20','h-14'];
+              <div style={{ marginBottom:14, padding:'18px 20px', borderRadius:16,
+                background:'linear-gradient(180deg,#111113,#0f0f11)',
+                border:'1px solid rgba(255,255,255,0.05)',
+                display:'grid', gridTemplateColumns:'1fr 1.15fr 1fr', gap:10 }}>
+                {[ranked[1], ranked[0], ranked[2]].map((m, ci) => {
+                  if (!m) return <div key={ci}/>;
+                  const isMe  = m.id === currentUser?.id;
+                  const pIdx  = [1,0,2][ci];
+                  const meds  = ['🥈','🥇','🥉'];
+                  const hts   = [56,72,46];
+                  const podGrd = [
+                    'linear-gradient(to top,rgba(160,160,176,0.22),transparent)',
+                    'linear-gradient(to top,rgba(251,191,36,0.25),transparent)',
+                    'linear-gradient(to top,rgba(184,115,51,0.2),transparent)',
+                  ];
+                  const podBdr = ['rgba(160,160,176,0.3)','rgba(251,191,36,0.35)','rgba(184,115,51,0.28)'];
                   return (
-                    <div key={m.id} className={`flex flex-col items-center gap-2 ${i === 1 ? '-mt-2' : ''}`}>
-                      {m.avatarUrl ? (
-                        <img src={m.avatarUrl} alt={m.fullName}
-                          className={`w-12 h-12 rounded-full object-cover border-2 shrink-0 ${isMe ? 'border-blue-400' : 'border-gray-700'}`}
-                          onError={(e) => { e.target.style.display = 'none'; }} />
-                      ) : (
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm border-2 shrink-0 ${
-                          isMe ? 'bg-blue-600/30 border-blue-400 text-blue-300' : 'bg-[#252525] border-gray-700 text-gray-300'
-                        }`}>
-                          {m.avatar || '?'}
-                        </div>
-                      )}
-                      <div className="text-center">
-                        <div className={`text-xs font-bold ${isMe ? 'text-blue-300' : 'text-gray-200'}`}>
+                    <div key={m.id} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:5,
+                      marginTop: ci===1 ? 0 : 14 }}>
+                      <Avatar m={m} size={ci===1?50:38} isMe={isMe} />
+                      <div style={{ textAlign:'center' }}>
+                        <div style={{ fontSize:11, fontWeight:700, color:isMe?'#60a5fa':'#d4d4d8',
+                          overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:90 }}>
                           {m.fullName.split(' ').pop()}
                         </div>
-                        <div className="text-lg font-black text-blue-400">{m.points}</div>
+                        <RankBadge pts={m.points} size="sm" />
+                        <div style={{ fontSize:14, fontWeight:900, marginTop:2,
+                          color:m.rankInfo.color, textShadow:`0 0 10px ${m.rankInfo.glow}` }}>{m.points}</div>
                       </div>
-                      <div className={`w-full ${heights[i]} bg-gradient-to-t rounded-t-xl flex items-end justify-center pb-1 ${
-                        podium === 0 ? 'from-yellow-500/30 to-yellow-400/10' :
-                        podium === 1 ? 'from-gray-400/20 to-gray-300/5' :
-                        'from-amber-600/20 to-amber-500/5'
-                      }`}>
-                        <span className="text-lg">{medals[i]}</span>
+                      <div style={{ width:'100%', height:hts[ci], borderRadius:'8px 8px 0 0',
+                        background:podGrd[ci], border:`1px solid ${podBdr[ci]}`, borderBottom:'none',
+                        display:'flex', alignItems:'flex-end', justifyContent:'center', paddingBottom:6 }}>
+                        <span style={{ fontSize:18 }}>{meds[ci]}</span>
                       </div>
                     </div>
                   );
@@ -126,115 +406,382 @@ export default function Gamification() {
             )}
 
             {/* Full list */}
-            <div className="divide-y divide-gray-800/40">
-              {ranked.map((m, i) => {
-                const b    = badgeFor(m.points);
-                const isMe = m.id === currentUser?.id;
-                return (
-                  <div key={m.id} className={`flex items-center gap-4 px-5 py-3.5 transition-colors ${
-                    isMe ? 'bg-blue-500/5' : 'hover:bg-[#1e1e1e]'
-                  }`}>
-                    <div className={`text-sm font-black w-7 text-center shrink-0 ${medalColor(i)}`}>
-                      {i < 3 ? ['🥇','🥈','🥉'][i] : `#${i + 1}`}
-                    </div>
-                    {m.avatarUrl ? (
-                      <img src={m.avatarUrl} alt={m.fullName}
-                        className={`w-8 h-8 rounded-full object-cover border shrink-0 ${isMe ? 'border-blue-500/30' : 'border-gray-700'}`}
-                        onError={(e) => { e.target.style.display = 'none'; }} />
-                    ) : (
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                        isMe ? 'bg-blue-600/30 text-blue-300 border border-blue-500/30' : 'bg-[#252525] text-gray-400'
-                      }`}>
-                        {m.avatar || '?'}
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className={`text-sm font-bold truncate ${isMe ? 'text-blue-300' : 'text-gray-200'}`}>
-                        {m.fullName}
-                        {isMe && <span className="text-[10px] text-blue-400 ml-1">(bạn)</span>}
-                      </div>
-                      <div className="text-[10px] text-gray-600">{m.role} · {m.mssv}</div>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className={`text-[10px] px-2 py-0.5 rounded-lg border ${b.color}`}>
-                        {b.icon} {b.label}
-                      </span>
-                      <span className="text-base font-black text-blue-400 min-w-[40px] text-right">
-                        {m.points}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
+            <div style={{ background:'#111113', border:'1px solid rgba(255,255,255,0.05)', borderRadius:16, overflow:'hidden' }}>
+              {ranked.map((m, i) => <LbRow key={m.id} m={m} i={i} currentUser={currentUser} onRevoke={isSuperAdmin ? handleRevoke : null} />)}
             </div>
+          </>
+        )}
+
+        {/* ════════ HISTORY ════════ */}
+        {tab === 'history' && (
+          <div>
+            {seasons.length === 0 ? (
+              <div style={{ textAlign:'center', padding:'52px 0', color:'#3f3f46' }}>
+                <div style={{ fontSize:36, marginBottom:10 }}>📭</div>
+                <div style={{ fontSize:13 }}>Chưa có kỳ học nào được lưu</div>
+                {canAdmin && <div style={{ fontSize:11, marginTop:4, color:'#27272a' }}>Vào "Quản lý → Reset kỳ" để lưu kỳ hiện tại</div>}
+              </div>
+            ) : (
+              <>
+                <div style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
+                  {seasons.map(s => (
+                    <button key={s.id} onClick={() => setSelSeason(s.id === selSeason ? null : s.id)} style={{
+                      padding:'9px 14px', borderRadius:10, fontSize:12, fontWeight:700, cursor:'pointer',
+                      background: selSeason===s.id ? 'rgba(37,99,235,0.18)' : 'rgba(255,255,255,0.03)',
+                      border:`1px solid ${selSeason===s.id ? 'rgba(37,99,235,0.5)' : 'rgba(255,255,255,0.07)'}`,
+                      color: selSeason===s.id ? '#60a5fa' : '#71717a', transition:'all .2s',
+                    }}>
+                      📅 {s.name}
+                      <div style={{ fontSize:9, fontWeight:400, color:'#3f3f46', marginTop:2 }}>
+                        {new Date(s.createdAt).toLocaleDateString('vi-VN')} · {s.createdBy}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                {selSeason ? (
+                  <div style={{ background:'#111113', border:'1px solid rgba(255,255,255,0.05)', borderRadius:16, overflow:'hidden' }}>
+                    <div style={{ padding:'11px 16px', borderBottom:'1px solid rgba(255,255,255,0.05)',
+                      background:'rgba(255,255,255,0.02)', fontSize:12, fontWeight:800, color:'#a1a1aa' }}>
+                      {seasons.find(s=>s.id===selSeason)?.name} — Snapshot cuối kỳ
+                    </div>
+                    {seasonRanked.map((m, i) => {
+                      const isMe = m.id === currentUser?.id;
+                      const medals = ['🥇','🥈','🥉'];
+                      return (
+                        <div key={m.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'11px 16px',
+                          borderBottom:'1px solid rgba(255,255,255,0.04)',
+                          background: isMe?'rgba(59,130,246,0.05)':'transparent' }}>
+                          <div style={{ width:28, textAlign:'center', fontWeight:900, fontSize:13, flexShrink:0,
+                            color: i<3?['#fbbf24','#9ca3af','#b87333'][i]:'#374151' }}>
+                            {i<3 ? medals[i] : `#${i+1}`}
+                          </div>
+                          <Avatar m={m} size={32} isMe={isMe} />
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ fontSize:13, fontWeight:700, color:isMe?'#60a5fa':'#d4d4d8',
+                              overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                              {m.fullName} {isMe&&<span style={{fontSize:8,color:'#3b82f6',fontWeight:900}}> BẠN</span>}
+                            </div>
+                            {m.myTitles.length>0 && (
+                              <div style={{ display:'flex', gap:4, marginTop:2, flexWrap:'wrap' }}>
+                                {m.myTitles.map(t => t && (
+                                  <span key={t.id} style={{ fontSize:9, padding:'1px 5px', borderRadius:4,
+                                    background:`${t.color}18`, border:`1px solid ${t.color}44`, color:t.color, fontWeight:700 }}>
+                                    {t.icon} {t.name}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+                            <RankBadge pts={m.points} size="sm" />
+                            <span style={{ fontSize:15, fontWeight:900, minWidth:36, textAlign:'right',
+                              color:m.rankInfo.color }}>{m.points}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ textAlign:'center', padding:'28px 0', color:'#3f3f46', fontSize:12 }}>
+                    Chọn một kỳ học để xem bảng xếp hạng
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
 
-        {/* ── Badges ── */}
-        {tab === 'badges' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[
-              { icon:'🏆', label:'Truyền Nhân', req:500,  desc:'Đạt 500+ điểm cống hiến — bậc cao nhất' },
-              { icon:'💎', label:'Cốt Cán',    req:350,  desc:'Đạt 350+ điểm — Luôn tích cực, đáng tin' },
-              { icon:'⭐', label:'Năng Nổ',     req:200,  desc:'Đạt 200+ điểm — Thường xuyên đóng góp' },
-              { icon:'🔥', label:'Đang Lên',    req:100,  desc:'Đạt 100+ điểm — Bắt đầu tỏa sáng' },
-              { icon:'🌱', label:'Khởi Đầu',   req:0,    desc:'Thành viên mới, bắt đầu hành trình' },
-              { icon:'📚', label:'Thủ Thư',     req:null, desc:'Upload 5+ tài liệu được đánh giá tốt' },
-              { icon:'⏰', label:'Đúng Giờ',    req:null, desc:'Điểm danh đầy đủ 10 buổi liên tiếp' },
-              { icon:'🎯', label:'Mục Tiêu',   req:null, desc:'Hoàn thành 100% task trong 1 tháng' },
-            ].map(b => {
-              const earned = b.req !== null ? myPoints >= b.req : false;
-              return (
-                <div key={b.label} className={`flex items-center gap-4 p-4 rounded-2xl border transition-all ${
-                  earned
-                    ? 'border-yellow-500/25 bg-yellow-500/5 shadow-sm'
-                    : 'border-gray-800/40 bg-[#1a1a1a] opacity-50'
-                }`}>
-                  <span className="text-3xl shrink-0">{b.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className={`font-bold text-sm ${earned ? 'text-yellow-400' : 'text-gray-500'}`}>{b.label}</div>
-                    <div className="text-xs text-gray-600 mt-0.5 leading-relaxed">{b.desc}</div>
-                    {b.req !== null && !earned && (
-                      <div className="text-[10px] text-gray-600 mt-1">
-                        Cần thêm <strong className="text-gray-400">{b.req - myPoints}</strong> điểm
-                        <div className="mt-1 h-1 bg-gray-800 rounded-full overflow-hidden w-24">
-                          <div className="h-full bg-blue-500/40 rounded-full" style={{ width: `${Math.min(100, myPoints / b.req * 100)}%` }}/>
+        {/* ════════ TITLES SHOWCASE ════════ */}
+        {tab === 'titles' && (
+          <div>
+            {titles.length === 0 ? (
+              <div style={{ textAlign:'center', padding:'52px 0', color:'#3f3f46' }}>
+                <div style={{ fontSize:36, marginBottom:10 }}>🏅</div>
+                <div style={{ fontSize:13 }}>Chưa có danh hiệu nào được tạo</div>
+                {canAdmin && <div style={{ fontSize:11, marginTop:4, color:'#27272a' }}>Vào "Quản lý" để thêm danh hiệu</div>}
+              </div>
+            ) : (
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))', gap:12 }}>
+                {titles.map(t => {
+                  const holders = Object.entries(awards)
+                    .filter(([, tids]) => tids.includes(t.id))
+                    .map(([uid]) => activeMembers.find(m => m.id === uid))
+                    .filter(Boolean);
+                  return (
+                    <div key={t.id} style={{ padding:'16px', borderRadius:14,
+                      background:`${t.color}08`, border:`1px solid ${t.color}35`,
+                      boxShadow:`0 0 16px ${t.color}18` }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
+                        <span style={{ fontSize:28 }}>{t.icon}</span>
+                        <div>
+                          <div style={{ fontSize:14, fontWeight:900, color:t.color }}>{t.name}</div>
+                          <div style={{ fontSize:10, color:'#3f3f46', fontWeight:600 }}>Danh hiệu độc quyền</div>
                         </div>
                       </div>
-                    )}
-                  </div>
-                  {earned && <span className="badge badge-green shrink-0">Đạt được</span>}
-                </div>
-              );
-            })}
+                      {t.desc && <div style={{ fontSize:12, color:'#71717a', marginBottom:10, lineHeight:1.55 }}>{t.desc}</div>}
+                      {holders.length > 0 ? (
+                        <div>
+                          <div style={{ fontSize:9, color:'#3f3f46', fontWeight:800, letterSpacing:'0.06em', marginBottom:5, textTransform:'uppercase' }}>
+                            Người sở hữu ({holders.length})
+                          </div>
+                          <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
+                            {holders.map(m => (
+                              <div key={m.id} style={{ display:'flex', alignItems:'center', gap:4, padding:'2px 7px', borderRadius:6, background:'rgba(255,255,255,0.04)' }}>
+                                <Avatar m={m} size={16} />
+                                <span style={{ fontSize:11, color:'#d4d4d8' }}>{m.fullName.split(' ').pop()}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ fontSize:11, color:'#27272a' }}>Chưa ai sở hữu</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
-        {/* ── Cách tính điểm ── */}
-        {tab === 'how' && (
-          <div className="space-y-3 max-w-lg">
-            <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-sm text-blue-300 leading-relaxed">
-              💡 Điểm cống hiến được cộng <strong>tự động realtime</strong> khi bạn thực hiện các hành động dưới đây. Điểm được lưu vào localStorage và đồng bộ trong suốt phiên làm việc.
+        {/* ════════ HOW TO ════════ */}
+        {tab === 'howto' && (
+          <div>
+            <h3 style={{ margin:'0 0 12px', fontSize:13, fontWeight:900, color:'#a1a1aa', letterSpacing:'0.06em', textTransform:'uppercase' }}>
+              Bảng Hạng — 20 Bậc
+            </h3>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(145px,1fr))', gap:7, marginBottom:24 }}>
+              {RANKS.map(r => (
+                <div key={r.id} style={{ padding:'9px 12px', borderRadius:10, background:r.bg, border:`1px solid ${r.glow}`,
+                  display:'flex', alignItems:'center', gap:7 }}>
+                  <span style={{ fontSize:15, color:r.color }}>{EMBLEMS[r.tier]||'◆'}</span>
+                  <div>
+                    <div style={{ fontSize:11, fontWeight:800, color:r.color }}>{r.tier}{r.sub?` ${r.sub}`:''}</div>
+                    <div style={{ fontSize:9, color:'#3f3f46' }}>{r.min}–{r.max===Infinity?'∞':r.max} điểm</div>
+                  </div>
+                </div>
+              ))}
             </div>
-            {[
-              { pts:'+20', action:'Upload tài liệu mới cho nhóm',          icon:'📄' },
-              { pts:'+30', action:'Tài liệu được ai đó đánh giá 5 sao',   icon:'⭐' },
-              { pts:'+10', action:'Điểm danh buổi họp SME (1 lần/buổi)',  icon:'✅' },
-              { pts:'+15', action:'Hoàn thành task đúng hạn',             icon:'⏰' },
-              { pts:'+30', action:'Tiến độ môn học đạt 100%',            icon:'📈' },
-              { pts:'+5',  action:'Tham gia bình chọn nhóm',              icon:'🗳️' },
-              { pts:'+100',action:'Tổ chức buổi học nhóm thành công',     icon:'🎓' },
-            ].map(r => (
-              <div key={r.action}
-                className="flex items-center gap-4 p-4 bg-[#1a1a1a] border border-gray-800/60 rounded-xl hover:border-gray-700 transition-colors">
-                <span className="text-2xl shrink-0">{r.icon}</span>
-                <div className="flex-1 text-sm text-gray-300">{r.action}</div>
-                <span className="text-green-400 font-black text-sm shrink-0">{r.pts}</span>
-              </div>
-            ))}
+            <h3 style={{ margin:'0 0 12px', fontSize:13, fontWeight:900, color:'#a1a1aa', letterSpacing:'0.06em', textTransform:'uppercase' }}>
+              Cách Tích Điểm
+            </h3>
+            <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+              {[
+                ['+20','📄','Upload tài liệu mới cho nhóm'],
+                ['+30','⭐','Tài liệu được đánh giá 5 sao'],
+                ['+10','✅','Điểm danh buổi họp SME (1 lần/buổi)'],
+                ['+15','⏰','Hoàn thành task đúng hạn'],
+                ['+30','📈','Tiến độ môn học đạt 100%'],
+                ['+5', '🗳️','Tham gia bình chọn nhóm'],
+                ['+100','🎓','Tổ chức buổi học nhóm thành công'],
+              ].map(([pts,icon,action]) => (
+                <div key={action} style={{ display:'flex', alignItems:'center', gap:12, padding:'11px 14px',
+                  borderRadius:10, background:'rgba(255,255,255,0.025)', border:'1px solid rgba(255,255,255,0.05)' }}>
+                  <span style={{ fontSize:18 }}>{icon}</span>
+                  <span style={{ flex:1, fontSize:12, color:'#d4d4d8' }}>{action}</span>
+                  <span style={{ fontSize:14, fontWeight:900, color:'#4ade80' }}>{pts}</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
+
+      {/* ══════════ ADMIN MODAL ══════════ */}
+      {showAdmin && canAdmin && (
+        <div style={{ position:'fixed', inset:0, zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center',
+          background:'rgba(0,0,0,0.72)', backdropFilter:'blur(5px)' }}
+          onClick={e => { if(e.target===e.currentTarget){setShowAdmin(false);setConfirmReset(false);} }}>
+          <div style={{ width:'min(520px,94vw)', maxHeight:'82vh', overflowY:'auto',
+            background:'#111113', border:'1px solid rgba(255,255,255,0.09)', borderRadius:18, padding:'22px' }}>
+
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
+              <h2 style={{ margin:0, fontSize:15, fontWeight:900, color:'#e4e4e7' }}>⚙ Quản lý Gamification</h2>
+              <button onClick={()=>{setShowAdmin(false);setConfirmReset(false);}}
+                style={{ background:'none', border:'none', color:'#52525b', fontSize:18, cursor:'pointer' }}>✕</button>
+            </div>
+
+            {/* modal tabs */}
+            <div style={{ display:'flex', gap:3, marginBottom:18, background:'#09090b', borderRadius:9, padding:3 }}>
+              {[['award','🏅 Trao danh hiệu'],['titles','✏️ Quản lý danh hiệu'],['season','🔄 Reset kỳ']].map(([v,l]) => (
+                <button key={v} onClick={()=>setATab(v)} style={{
+                  flex:1, padding:'7px 6px', fontSize:10, fontWeight:800, borderRadius:7, border:'none', cursor:'pointer',
+                  background: aTab===v ? '#1d4ed8' : 'transparent',
+                  color: aTab===v ? '#fff' : '#52525b', transition:'all .2s',
+                }}>{l}</button>
+              ))}
+            </div>
+
+            {/* ─── Award tab ─── */}
+            {aTab === 'award' && (
+              <div>
+                <div style={{ padding:14, background:'rgba(255,255,255,0.025)', borderRadius:10,
+                  border:'1px solid rgba(255,255,255,0.06)', marginBottom:14 }}>
+                  <div style={{ fontSize:11, fontWeight:800, color:'#71717a', marginBottom:10 }}>Trao danh hiệu cho thành viên</div>
+                  <div style={{ display:'flex', flexDirection:'column', gap:7 }}>
+                    <select value={awardForm.userId} onChange={e=>setAwardForm(f=>({...f,userId:e.target.value}))} style={inputSt}>
+                      <option value="">Chọn thành viên…</option>
+                      {activeMembers.map(m=><option key={m.id} value={m.id}>{m.fullName} ({m.mssv})</option>)}
+                    </select>
+                    <select value={awardForm.titleId} onChange={e=>setAwardForm(f=>({...f,titleId:e.target.value}))} style={inputSt}>
+                      <option value="">Chọn danh hiệu…</option>
+                      {titles.map(t=><option key={t.id} value={t.id}>{t.icon} {t.name}</option>)}
+                    </select>
+                    <button onClick={handleAward} style={btnPrimary}>Trao danh hiệu</button>
+                  </div>
+                </div>
+                <div style={{ fontSize:11, fontWeight:800, color:'#52525b', marginBottom:7, letterSpacing:'0.04em' }}>DANH HIỆU ĐÃ TRAO</div>
+                <div style={{ display:'flex', flexDirection:'column', gap:5, maxHeight:200, overflowY:'auto' }}>
+                  {Object.entries(awards).flatMap(([uid, tids]) => {
+                    const m = activeMembers.find(x=>x.id===uid);
+                    if (!m || !tids?.length) return [];
+                    return tids.map(tid => {
+                      const t = titles.find(x=>x.id===tid);
+                      if (!t) return null;
+                      return (
+                        <div key={uid+tid} style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 10px',
+                          borderRadius:8, background:'rgba(255,255,255,0.025)', border:'1px solid rgba(255,255,255,0.05)' }}>
+                          <span style={{ fontSize:15 }}>{t.icon}</span>
+                          <span style={{ flex:1, fontSize:12, color:'#d4d4d8' }}>{m.fullName}</span>
+                          <span style={{ fontSize:10, color:'#71717a' }}>{t.name}</span>
+                          {isSuperAdmin && (
+                            <button onClick={()=>handleRevoke(uid,tid)}
+                              style={{ padding:'2px 8px', borderRadius:5, fontSize:9, fontWeight:800, cursor:'pointer',
+                                background:'rgba(239,68,68,0.1)', border:'1px solid rgba(239,68,68,0.3)', color:'#f87171' }}>
+                              Thu hồi
+                            </button>
+                          )}
+                        </div>
+                      );
+                    }).filter(Boolean);
+                  })}
+                  {Object.values(awards).every(a=>!a?.length) && (
+                    <div style={{ fontSize:12, color:'#27272a', textAlign:'center', padding:'14px 0' }}>Chưa có danh hiệu nào được trao</div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ─── Titles management ─── */}
+            {aTab === 'titles' && (
+              <div>
+                <div style={{ padding:14, background:'rgba(255,255,255,0.025)', borderRadius:10,
+                  border:'1px solid rgba(255,255,255,0.06)', marginBottom:14 }}>
+                  <div style={{ fontSize:11, fontWeight:800, color:'#71717a', marginBottom:10 }}>Thêm danh hiệu mới</div>
+                  <div style={{ display:'flex', flexDirection:'column', gap:7 }}>
+                    <div style={{ display:'flex', gap:7 }}>
+                      <input value={newTitle.icon} onChange={e=>setNewTitle(f=>({...f,icon:e.target.value}))}
+                        placeholder="🏅" maxLength={4}
+                        style={{ ...inputSt, width:50, textAlign:'center', fontSize:18, padding:'6px' }} />
+                      <input value={newTitle.name} onChange={e=>setNewTitle(f=>({...f,name:e.target.value}))}
+                        placeholder="Tên danh hiệu…"
+                        style={{ ...inputSt, flex:1 }} />
+                      <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+                        <span style={{ fontSize:9, color:'#52525b', fontWeight:700 }}>MÀU</span>
+                        <input type="color" value={newTitle.color} onChange={e=>setNewTitle(f=>({...f,color:e.target.value}))}
+                          style={{ width:32, height:32, borderRadius:6, border:'none', cursor:'pointer', padding:0, background:'none' }} />
+                      </div>
+                    </div>
+                    <input value={newTitle.desc} onChange={e=>setNewTitle(f=>({...f,desc:e.target.value}))}
+                      placeholder="Mô tả ngắn (tuỳ chọn)…" style={inputSt} />
+                    {/* Preview */}
+                    {newTitle.name.trim() && (
+                      <div style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 10px', borderRadius:8,
+                        background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.06)' }}>
+                        <span style={{ fontSize:10, color:'#52525b' }}>Xem trước:</span>
+                        <span style={{ fontSize:12, padding:'2px 8px', borderRadius:5, fontWeight:800,
+                          background:`${newTitle.color}18`, border:`1px solid ${newTitle.color}44`, color:newTitle.color }}>
+                          {newTitle.icon} {newTitle.name}
+                        </span>
+                      </div>
+                    )}
+                    <button onClick={handleAddTitle}
+                      style={{ ...btnPrimary, background:'#065f46' }}>+ Thêm danh hiệu</button>
+                  </div>
+                </div>
+                <div style={{ fontSize:11, fontWeight:800, color:'#52525b', marginBottom:7, letterSpacing:'0.04em' }}>
+                  DANH HIỆU HIỆN CÓ ({titles.length})
+                </div>
+                <div style={{ display:'flex', flexDirection:'column', gap:5, maxHeight:220, overflowY:'auto' }}>
+                  {titles.map(t => (
+                    <div key={t.id} style={{ display:'flex', alignItems:'center', gap:9, padding:'9px 12px', borderRadius:8,
+                      background:`${t.color}06`, border:`1px solid ${t.color}28` }}>
+                      <span style={{ fontSize:18 }}>{t.icon}</span>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:12, fontWeight:800, color:t.color }}>{t.name}</div>
+                        {t.desc&&<div style={{ fontSize:10, color:'#3f3f46', marginTop:1 }}>{t.desc}</div>}
+                      </div>
+                      {isSuperAdmin && (
+                        <button onClick={()=>handleDeleteTitle(t.id)}
+                          style={{ padding:'2px 8px', borderRadius:5, fontSize:9, fontWeight:800, cursor:'pointer',
+                            background:'rgba(239,68,68,0.1)', border:'1px solid rgba(239,68,68,0.3)', color:'#f87171' }}>
+                          Xóa
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {titles.length===0 && <div style={{ fontSize:12, color:'#27272a', textAlign:'center', padding:'14px 0' }}>Chưa có danh hiệu</div>}
+                </div>
+              </div>
+            )}
+
+            {/* ─── Season reset ─── */}
+            {aTab === 'season' && (
+              <div>
+                <div style={{ padding:14, background:'rgba(251,191,36,0.04)', borderRadius:10,
+                  border:'1px solid rgba(251,191,36,0.18)', marginBottom:14 }}>
+                  <div style={{ fontSize:11, fontWeight:900, color:'#fbbf24', marginBottom:5 }}>⚠ Reset Kỳ Học</div>
+                  <div style={{ fontSize:12, color:'#71717a', lineHeight:1.6 }}>
+                    Thao tác này sẽ <strong style={{color:'#fcd34d'}}>lưu snapshot toàn bộ điểm + danh hiệu</strong> kỳ hiện tại,
+                    sau đó <strong style={{color:'#fca5a5'}}>reset điểm về 0 và xóa danh hiệu đã trao</strong>. Không thể hoàn tác.
+                  </div>
+                </div>
+                <input value={seasonName} onChange={e=>setSeasonName(e.target.value)}
+                  placeholder="Tên kỳ học (vd: Kỳ I 2024-2025)…"
+                  style={{ ...inputSt, marginBottom:10 }} />
+                {!confirmReset ? (
+                  <button onClick={()=>seasonName.trim()&&setConfirmReset(true)} style={{
+                    width:'100%', padding:'10px', borderRadius:8, fontSize:12, fontWeight:800, cursor:'pointer',
+                    background: seasonName.trim() ? 'rgba(239,68,68,0.1)' : 'rgba(255,255,255,0.03)',
+                    border:`1px solid ${seasonName.trim() ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.05)'}`,
+                    color: seasonName.trim() ? '#f87171' : '#27272a',
+                  }}>Lưu Snapshot & Reset Kỳ</button>
+                ) : (
+                  <div style={{ display:'flex', gap:8 }}>
+                    <button onClick={()=>setConfirmReset(false)}
+                      style={{ flex:1, padding:'10px', borderRadius:8, background:'rgba(255,255,255,0.04)', border:'1px solid #27272a', color:'#71717a', fontSize:12, fontWeight:800, cursor:'pointer' }}>
+                      Huỷ
+                    </button>
+                    <button onClick={handleResetSeason}
+                      style={{ flex:2, padding:'10px', borderRadius:8, background:'rgba(239,68,68,0.15)', border:'1px solid rgba(239,68,68,0.45)', color:'#f87171', fontSize:12, fontWeight:900, cursor:'pointer' }}>
+                      ✓ Xác nhận Reset
+                    </button>
+                  </div>
+                )}
+                {seasons.length > 0 && (
+                  <div style={{ marginTop:18 }}>
+                    <div style={{ fontSize:10, color:'#3f3f46', fontWeight:800, letterSpacing:'0.06em', marginBottom:7, textTransform:'uppercase' }}>Các kỳ đã lưu</div>
+                    <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+                      {seasons.map(s => (
+                        <div key={s.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 12px', borderRadius:8, background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.05)' }}>
+                          <span style={{ fontSize:13 }}>📅</span>
+                          <div style={{ flex:1 }}>
+                            <div style={{ fontSize:12, fontWeight:700, color:'#d4d4d8' }}>{s.name}</div>
+                            <div style={{ fontSize:10, color:'#3f3f46' }}>{new Date(s.createdAt).toLocaleDateString('vi-VN')} · {s.createdBy}</div>
+                          </div>
+                          <div style={{ fontSize:10, color:'#52525b' }}>
+                            {Object.keys(s.snapshot||{}).length} thành viên
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

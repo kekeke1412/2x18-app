@@ -109,7 +109,7 @@ function Sidebar({ onClose }) {
           <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center font-black text-sm">2X</div>
           <div>
             <div className="text-white font-black text-base leading-none">2X18</div>
-            <div className="text-gray-500 text-[10px] mt-0.5">HUS K2024</div>
+            <div className="text-gray-500 text-[10px] mt-0.5">HUS K70</div>
           </div>
         </div>
         {onClose && (
