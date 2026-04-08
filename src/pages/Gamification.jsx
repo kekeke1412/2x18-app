@@ -95,11 +95,17 @@ export default function Gamification() {
                   const heights = ['h-16','h-20','h-14'];
                   return (
                     <div key={m.id} className={`flex flex-col items-center gap-2 ${i === 1 ? '-mt-2' : ''}`}>
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm border-2 ${
-                        isMe ? 'bg-blue-600/30 border-blue-400 text-blue-300' : 'bg-[#252525] border-gray-700 text-gray-300'
-                      }`}>
-                        {m.avatar}
-                      </div>
+                      {m.avatarUrl ? (
+                        <img src={m.avatarUrl} alt={m.fullName}
+                          className={`w-12 h-12 rounded-full object-cover border-2 shrink-0 ${isMe ? 'border-blue-400' : 'border-gray-700'}`}
+                          onError={(e) => { e.target.style.display = 'none'; }} />
+                      ) : (
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm border-2 shrink-0 ${
+                          isMe ? 'bg-blue-600/30 border-blue-400 text-blue-300' : 'bg-[#252525] border-gray-700 text-gray-300'
+                        }`}>
+                          {m.avatar || '?'}
+                        </div>
+                      )}
                       <div className="text-center">
                         <div className={`text-xs font-bold ${isMe ? 'text-blue-300' : 'text-gray-200'}`}>
                           {m.fullName.split(' ').pop()}
@@ -131,11 +137,17 @@ export default function Gamification() {
                     <div className={`text-sm font-black w-7 text-center shrink-0 ${medalColor(i)}`}>
                       {i < 3 ? ['🥇','🥈','🥉'][i] : `#${i + 1}`}
                     </div>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                      isMe ? 'bg-blue-600/30 text-blue-300 border border-blue-500/30' : 'bg-[#252525] text-gray-400'
-                    }`}>
-                      {m.avatar}
-                    </div>
+                    {m.avatarUrl ? (
+                      <img src={m.avatarUrl} alt={m.fullName}
+                        className={`w-8 h-8 rounded-full object-cover border shrink-0 ${isMe ? 'border-blue-500/30' : 'border-gray-700'}`}
+                        onError={(e) => { e.target.style.display = 'none'; }} />
+                    ) : (
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                        isMe ? 'bg-blue-600/30 text-blue-300 border border-blue-500/30' : 'bg-[#252525] text-gray-400'
+                      }`}>
+                        {m.avatar || '?'}
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className={`text-sm font-bold truncate ${isMe ? 'text-blue-300' : 'text-gray-200'}`}>
                         {m.fullName}
