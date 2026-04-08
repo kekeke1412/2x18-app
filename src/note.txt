@@ -18,5 +18,8 @@ HƯNG: 19h 8/4/2026: Đã  fix
 * Profile: Tôi muốn hồ sơ khi chỉnh sửa than thiện hơn với người dùng, phần mail mà dùng để đăng nhập sẽ là mail cá nhân, còn 2 loại mail HUS và mail VNU thì phải điền. Chỉ cần điền MSV, Họ và tên, giới tính, ngày sinh, dân tộc, nhóm máu, nơi sinh, liên hệ sđt, mail vnu, hus, facebook là được mở khóa các truy cập khác. Hiện tại khi tôi điền xong nó không mở khóa các tính năng khác. CPA tích lũy dùng điểm hệ 4 và chỉ khi người dùng chọn đã học thì mới tính điểm. Vẫn phải giữ nguyên code, chỉ chỉnh sửa và thêm tính năng thôi
 
 HƯNG: h 8/4/2026: 
-* Subject: Tôi muốn ai chọn đang học hoặc đã học môn nào thì nó sẽ hiện lên trong khung môn đấy để tất cả mọi người đều có thể nắm bắt được
-* Profile: Phần bảng điểm, tôi muốn làm danh sách môn học lấy từ data.js và sắp xếp theo 
+* Subject: Tôi muốn ai chọn đang học hoặc đã học môn nào thì nó sẽ hiện lên trong khung môn đấy để tất cả mọi người đều có thể nắm bắt được. Lỗi nữa, sau khi thêm tài liệu thì nó không hiện lên trên khung để mọi người cùng xem và truy cập được. Fix nó 
+* Profile: Phần bảng điểm, tôi muốn danh sách môn học lấy từ data.js được sắp xếp theo từng khối kiến thức một để mọi người nhìn không bị rối.  
+* AppContext: Khi tôi đăng xuất và đăng nhập lại, màn hình dashboard bị reset nhưng khi F5 lại trang, nó lại load data về được. Fix cho tôi. Có vẻ như tính năng nào cũng bị vậy nó không hiện data mỗi khi vào trang mà phải F5 thì nó mới hiện 
+* Votingt: Khi tôi tạo bình chọn xong nó bị trắng màn, dù có F5 thì nó cũng không hiện * Roadmap: Tình trạng tương tự Vote, sau khi tạo mốc mới thì nó trắng màn 
+* Attendance: Khi tôi tạo một buổi họp nhóm mới, nó không thể nhấn Ok sau khi đã điền xong. Fix nó

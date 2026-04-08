@@ -377,10 +377,58 @@ function GradesTable({ profile, grades, onSave, canEdit }) {
               </tr>
             </thead>
             <tbody>
-              {subjectDatabase.map(sub => (
-                <GradeRow key={sub.id} subject={sub} grades={localGrades}
-                  onGradeChange={handleChange} isEditing={isEditing}/>
-              ))}
+              {(() => {
+                // Group subjects by their `type` field, preserving order of first appearance
+                const groups = [];
+                const groupMap = {};
+                subjectDatabase.forEach((sub, i) => {
+                  const key = sub.type;
+                  if (!groupMap[key]) {
+                    groupMap[key] = { label: key, subjects: [] };
+                    groups.push(groupMap[key]);
+                  }
+                  groupMap[key].subjects.push({ ...sub, idx: i + 1 });
+                });
+
+                // Color accent per group (cycles through a palette)
+                const groupColors = [
+                  'text-sky-400 bg-sky-500/10 border-sky-500/20',
+                  'text-violet-400 bg-violet-500/10 border-violet-500/20',
+                  'text-amber-400 bg-amber-500/10 border-amber-500/20',
+                  'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+                  'text-rose-400 bg-rose-500/10 border-rose-500/20',
+                  'text-cyan-400 bg-cyan-500/10 border-cyan-500/20',
+                  'text-orange-400 bg-orange-500/10 border-orange-500/20',
+                  'text-pink-400 bg-pink-500/10 border-pink-500/20',
+                ];
+
+                return groups.map((group, gi) => {
+                  const colorCls = groupColors[gi % groupColors.length];
+                  const totalCredits = group.subjects.reduce((s, sub) => s + sub.credits, 0);
+                  return (
+                    <React.Fragment key={group.label}>
+                      {/* Group header row */}
+                      <tr className="bg-[#1e1e1e]">
+                        <td colSpan={10} className="px-4 py-2 border-y border-gray-800/60">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border ${colorCls}`}>
+                              {group.label}
+                            </span>
+                            <span className="text-[10px] text-gray-600 font-medium">
+                              {group.subjects.length} môn · {totalCredits} tín chỉ
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                      {/* Subject rows */}
+                      {group.subjects.map(sub => (
+                        <GradeRow key={sub.id} subject={sub} grades={localGrades}
+                          onGradeChange={handleChange} isEditing={isEditing}/>
+                      ))}
+                    </React.Fragment>
+                  );
+                });
+              })()}
             </tbody>
           </table>
         </div>
