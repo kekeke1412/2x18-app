@@ -1,12 +1,15 @@
 // src/context/AppContext.jsx
-import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef } from 'react';
 import { auth, db, ref, set, onValue } from '../firebase';
+import { get } from 'firebase/database';
 import {
   signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword,
   GoogleAuthProvider, signInWithPopup, onAuthStateChanged,
 } from 'firebase/auth';
 
 export const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+const SUPER_ADMIN_EMAIL = 'hungphamba567@gmail.com';
 
 const fbSet = (path, data) => {
   try { set(ref(db, path), data); } catch (e) { console.warn('[fbSet]', path, e?.message); }
@@ -28,10 +31,10 @@ const A = {
   MARK_NOTIF:'MARK_NOTIF', ADD_NOTIF:'ADD_NOTIF', MARK_ALL_READ:'MARK_ALL_READ',
   ADD_ATTENDANCE_SESSION:'ADD_ATTENDANCE_SESSION', CHECK_ATTENDANCE:'CHECK_ATTENDANCE',
   ADD_DOC:'ADD_DOC', DELETE_DOC:'DELETE_DOC', RATE_DOC:'RATE_DOC',
-  UPDATE_MEMBER_ROLE:'UPDATE_MEMBER_ROLE', ADD_CONTRIBUTION:'ADD_CONTRIBUTION',
+  UPDATE_MEMBER_ROLE:'UPDATE_MEMBER_ROLE', REMOVE_MEMBER:'REMOVE_MEMBER',
+  ADD_CONTRIBUTION:'ADD_CONTRIBUTION',
   ADD_AUDIT:'ADD_AUDIT', ADD_TOAST:'ADD_TOAST', REMOVE_TOAST:'REMOVE_TOAST',
   UPDATE_SEMESTER_LABEL:'UPDATE_SEMESTER_LABEL',
-  // Trash
   RESTORE_FROM_TRASH:'RESTORE_FROM_TRASH',
   PERMANENT_DELETE_TRASH:'PERMANENT_DELETE_TRASH',
   EMPTY_TRASH:'EMPTY_TRASH',
@@ -49,17 +52,14 @@ const init = {
 // ── Helpers ────────────────────────────────────────────────────────────────
 function makeTrashItem(type, data, meta, payload) {
   return {
-    id: payload.trashId,
-    type,
-    data,
-    meta: meta || {},
+    id: payload.trashId, type, data, meta: meta || {},
     deletedAt: payload.deletedAt,
     deletedBy: payload.deletedBy || '',
     deletedByName: payload.deletedByName || 'Unknown',
   };
 }
 
-// PURE reducer
+// ── Reducer ────────────────────────────────────────────────────────────────
 function reducer(s, { type, payload }) {
   switch (type) {
     case A.SET_USER:    return { ...s, currentUser: payload };
@@ -122,8 +122,7 @@ function reducer(s, { type, payload }) {
     }
     case A.ADD_SUBJECT_COMMENT: {
       const { subjectId, comment } = payload;
-      const prev = s.subjectComments[subjectId] || [];
-      return { ...s, subjectComments:{...s.subjectComments,[subjectId]:[...prev, comment]} };
+      return { ...s, subjectComments:{...s.subjectComments,[subjectId]:[...(s.subjectComments[subjectId]||[]), comment]} };
     }
 
     case A.SET_SME: return { ...s, smeMap:{...s.smeMap,[payload.subjectId]:payload.userId} };
@@ -135,8 +134,7 @@ function reducer(s, { type, payload }) {
       const item = s.calEvents.find(e=>e.id===id);
       const trashItem = item ? makeTrashItem('event', item, {}, { trashId, deletedAt, deletedBy, deletedByName }) : null;
       return {
-        ...s,
-        calEvents: s.calEvents.filter(e=>e.id!==id),
+        ...s, calEvents: s.calEvents.filter(e=>e.id!==id),
         trash: trashItem ? [...(s.trash||[]), trashItem] : (s.trash||[]),
       };
     }
@@ -202,8 +200,7 @@ function reducer(s, { type, payload }) {
       const item = (s.docs[subjectId]||[]).find(d=>d.id===docId);
       const trashItem = item ? makeTrashItem('doc', item, { subjectId }, { trashId, deletedAt, deletedBy, deletedByName }) : null;
       return {
-        ...s,
-        docs:{...s.docs,[subjectId]:(s.docs[subjectId]||[]).filter(x=>x.id!==docId)},
+        ...s, docs:{...s.docs,[subjectId]:(s.docs[subjectId]||[]).filter(x=>x.id!==docId)},
         trash: trashItem ? [...(s.trash||[]), trashItem] : (s.trash||[]),
       };
     }
@@ -222,6 +219,8 @@ function reducer(s, { type, payload }) {
       if(s.members.find(m=>m.id===memberId)?.role==='super_admin')return s;
       return { ...s, members:s.members.map(m=>m.id===memberId?{...m,role}:m) };
     }
+    case A.REMOVE_MEMBER:
+      return { ...s, members: s.members.filter(m => m.id !== payload) };
     case A.ADD_CONTRIBUTION: {
       const {userId,points}=payload;
       if(!userId||!points||points<=0)return s;
@@ -232,20 +231,17 @@ function reducer(s, { type, payload }) {
     case A.REMOVE_TOAST: return { ...s, toasts:s.toasts.filter(t=>t.id!==payload) };
     case A.UPDATE_SEMESTER_LABEL: return { ...s, semesterLabels:{...s.semesterLabels,[payload.key]:payload.label} };
 
-    // ── Trash ──────────────────────────────────────────────────────────────
     case A.RESTORE_FROM_TRASH: {
       const item = (s.trash||[]).find(t=>t.id===payload);
       if (!item) return s;
       const newTrash = (s.trash||[]).filter(t=>t.id!==payload);
       switch (item.type) {
-        case 'task':
-          return { ...s, trash:newTrash, tasks:[item.data,...s.tasks] };
+        case 'task':         return { ...s, trash:newTrash, tasks:[item.data,...s.tasks] };
         case 'doc': {
           const sid = item.meta.subjectId;
           return { ...s, trash:newTrash, docs:{...s.docs,[sid]:[item.data,...(s.docs[sid]||[])]} };
         }
-        case 'event':
-          return { ...s, trash:newTrash, calEvents:[...s.calEvents,item.data] };
+        case 'event':        return { ...s, trash:newTrash, calEvents:[...s.calEvents,item.data] };
         case 'subjectTask': {
           const sid = item.meta.subjectId;
           return { ...s, trash:newTrash, subjectTasks:{...s.subjectTasks,[sid]:[...(s.subjectTasks[sid]||[]),item.data]} };
@@ -271,14 +267,18 @@ const timerMap  = {};
 
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, init);
+  // Ref to track if we should sync currentUser from members
+  const skipSyncRef = useRef(false);
 
   // ── Boot ──────────────────────────────────────────────────────────────────
   useEffect(() => {
+    // Restore currentUser from localStorage optimistically
     try {
       const stored = localStorage.getItem('2x18_current_user');
       if (stored) dispatch({ type:A.SET_USER, payload:JSON.parse(stored) });
     } catch {}
 
+    // Live Firebase listener
     const unsubDB = onValue(ref(db, '/'), (snapshot) => {
       const val = snapshot.val() || {};
       const members = val['2x18_members'] || [];
@@ -304,12 +304,11 @@ export function AppProvider({ children }) {
       }});
     }, (err) => {
       console.error('[Firebase DB] Access denied:', err.message);
-      console.warn('%c⚠️  Firebase Rules cần được cập nhật!\nVào Console → Realtime Database → Rules → set ".read":true ".write":true', 'color:orange;font-weight:bold');
       dispatch({ type:A.INIT_DATA, payload: {
         members:[], grades:{}, smeMap:{}, tasks:[],
         calEvents:[], roadmap:[], votes:[],
         notifications:[], attendance:[], contributions:{},
-        docs:{}, auditLogs:[], subjectTasks:{}, subjectComments:{},
+        docs:{}, auditLogs:{}, subjectTasks:{}, subjectComments:{},
         semesterLabels:{}, trash:[],
       }});
     });
@@ -324,7 +323,25 @@ export function AppProvider({ children }) {
     return () => { unsubDB(); unsubAuth(); };
   }, []);
 
-  // ── Auto-sync to Firebase ─────────────────────────────────────────────────
+  // ── Sync currentUser from members (so Core edits propagate to member) ─────
+  useEffect(() => {
+    if (skipSyncRef.current) { skipSyncRef.current = false; return; }
+    const cu = state.currentUser;
+    if (!cu || state.isLoading) return;
+    const fresh = state.members.find(m => m.id === cu.id);
+    if (!fresh) return;
+    // Sync only meaningful fields
+    const hasChange = ['role','status','fullName','phone','gender','mssv','mailSchool'].some(
+      f => fresh[f] !== cu[f]
+    );
+    if (hasChange) {
+      const merged = { ...cu, ...fresh };
+      dispatch({ type:A.SET_USER, payload:merged });
+      localStorage.setItem('2x18_current_user', JSON.stringify(merged));
+    }
+  }, [state.members]); // eslint-disable-line
+
+  // ── Auto-sync to Firebase (debounced) ─────────────────────────────────────
   useEffect(() => {
     if (state.isLoading || !state.members.length) return;
     fbSet('2x18_members',          state.members);
@@ -364,14 +381,12 @@ export function AppProvider({ children }) {
     });
   }, [state.toasts]);
 
-  // ── Actions ───────────────────────────────────────────────────────────────
+  // ── Core helpers ──────────────────────────────────────────────────────────
   const toast    = useCallback((msg, type='info', duration=3500) =>
     dispatch({ type:A.ADD_TOAST, payload:{id:uid(),msg,type,duration} }), []);
   const rmToast  = useCallback(id => dispatch({ type:A.REMOVE_TOAST, payload:id }), []);
   const addAudit = useCallback((action,target='',detail='') =>
     dispatch({ type:A.ADD_AUDIT, payload:{id:uid(),action,target,detail,time:new Date().toISOString()} }), []);
-
-  // Helper for building trash payload
   const trashMeta = useCallback(() => ({
     trashId:     uid(),
     deletedAt:   new Date().toISOString(),
@@ -379,37 +394,54 @@ export function AppProvider({ children }) {
     deletedByName: state.currentUser?.fullName || 'Unknown',
   }), [state.currentUser]);
 
-  const findProfile = useCallback((email) =>
-    state.members.find(m => m.email===email || m.mailSchool===email || m.mailPersonal===email),
-    [state.members]);
-
   // ── AUTH ──────────────────────────────────────────────────────────────────
+  /**
+   * Returns normally on success.
+   * Throws Error('PENDING') if account is awaiting approval.
+   */
   const login = useCallback(async (email, password) => {
     dispatch({ type:A.SET_LOADING, payload:true });
     try {
-      const cred = await signInWithEmailAndPassword(auth, email, password);
-      const profile = findProfile(email) || {
-        id:cred.user.uid, email:cred.user.email,
-        fullName:cred.user.displayName||'Thành viên',
-        role:'member', mssv:'', phone:'', gender:'', mailSchool:email,
-      };
+      await signInWithEmailAndPassword(auth, email, password);
+      // Always read fresh from Firebase to avoid stale closure
+      const snap = await get(ref(db, '2x18_members'));
+      const members = snap.val() || [];
+      const profile = members.find(m => m.email===email || m.mailSchool===email || m.mailPersonal===email);
+
+      if (!profile) {
+        await signOut(auth);
+        dispatch({ type:A.SET_LOADING, payload:false });
+        const msg = 'Tài khoản chưa được đăng ký trong nhóm 2X18.';
+        toast(msg, 'error');
+        throw new Error(msg);
+      }
+      if (profile.status === 'pending') {
+        await signOut(auth);
+        dispatch({ type:A.SET_LOADING, payload:false });
+        throw new Error('PENDING');
+      }
+
       localStorage.setItem('2x18_current_user', JSON.stringify(profile));
       dispatch({ type:A.SET_USER, payload:profile });
       toast('Đăng nhập thành công! 👋', 'success');
     } catch (err) {
       dispatch({ type:A.SET_LOADING, payload:false });
+      if (err.message === 'PENDING') throw err;
       const msg = {
-        'auth/user-not-found':'Tài khoản không tồn tại.',
-        'auth/wrong-password':'Mật khẩu không đúng.',
-        'auth/invalid-email':'Email không hợp lệ.',
-        'auth/invalid-credential':'Email hoặc mật khẩu không đúng.',
-        'auth/too-many-requests':'Quá nhiều lần thử. Thử lại sau.',
-      }[err.code] || 'Đăng nhập thất bại.';
-      toast(msg, 'error');
+        'auth/user-not-found':     'Tài khoản không tồn tại.',
+        'auth/wrong-password':     'Mật khẩu không đúng.',
+        'auth/invalid-email':      'Email không hợp lệ.',
+        'auth/invalid-credential': 'Email hoặc mật khẩu không đúng.',
+        'auth/too-many-requests':  'Quá nhiều lần thử. Thử lại sau.',
+      }[err.code] || err.message || 'Đăng nhập thất bại.';
+      if (msg !== 'PENDING') toast(msg, 'error');
       throw new Error(msg);
     }
-  }, [findProfile, toast]);
+  }, [toast]);
 
+  /**
+   * Returns { status: 'ok' } or { status: 'pending', name, email }.
+   */
   const loginWithGoogle = useCallback(async () => {
     dispatch({ type:A.SET_LOADING, payload:true });
     try {
@@ -417,28 +449,57 @@ export function AppProvider({ children }) {
       provider.setCustomParameters({ prompt:'select_account' });
       const result = await signInWithPopup(auth, provider);
       const email  = result.user.email;
-      let profile  = findProfile(email);
+      const isSA   = email === SUPER_ADMIN_EMAIL;
+
+      // Fresh read from Firebase — avoids stale closure bug entirely
+      const snap = await get(ref(db, '2x18_members'));
+      const currentMembers = snap.val() || [];
+      let profile = currentMembers.find(m =>
+        m.email === email || m.mailSchool === email || m.mailPersonal === email
+      );
+
       if (!profile) {
+        // Brand-new user — create profile, set pending (unless super admin)
         profile = {
-          id:result.user.uid, email, mailSchool:email,
-          fullName:result.user.displayName||'Thành viên',
-          avatarUrl:result.user.photoURL||'',
-          role:'member', mssv:'', phone:'', gender:'', status:'pending',
-          avatar:(result.user.displayName||'NT').split(' ').map(w=>w[0]).slice(-2).join('').toUpperCase(),
+          id:          result.user.uid,
+          email,
+          mailSchool:  email,
+          fullName:    result.user.displayName || 'Thành viên',
+          avatarUrl:   result.user.photoURL    || '',
+          avatar:      (result.user.displayName||'NT').split(' ').map(w=>w[0]).slice(-2).join('').toUpperCase(),
+          role:        isSA ? 'super_admin' : 'member',
+          status:      isSA ? 'active'      : 'pending',
+          mssv:        '',
+          phone:       '',
+          gender:      '',
+          registeredAt: new Date().toISOString(),
         };
-        const updated = [...state.members, profile];
-        dispatch({ type:A.INIT_DATA, payload:{...state, members:updated, isLoading:false} });
-        fbSet('2x18_members', updated);
+        // Write only the members array — DO NOT dispatch INIT_DATA to avoid wiping state
+        await set(ref(db, '2x18_members'), [...currentMembers, profile]);
+      } else if (isSA && (profile.role !== 'super_admin' || profile.status !== 'active')) {
+        // Ensure super admin always has correct role & status
+        profile = { ...profile, role: 'super_admin', status: 'active' };
+        await set(ref(db, '2x18_members'), currentMembers.map(m => m.email === email ? profile : m));
       }
+
+      dispatch({ type:A.SET_LOADING, payload:false });
+
+      if (profile.status === 'pending') {
+        // Sign out from Firebase Auth — they haven't been approved yet
+        await signOut(auth).catch(() => {});
+        return { status: 'pending', name: profile.fullName, email: profile.email };
+      }
+
       localStorage.setItem('2x18_current_user', JSON.stringify(profile));
       dispatch({ type:A.SET_USER, payload:profile });
       toast('Đăng nhập Google thành công! 🎉', 'success');
+      return { status: 'ok' };
     } catch (err) {
       dispatch({ type:A.SET_LOADING, payload:false });
       if (err.code !== 'auth/popup-closed-by-user') toast('Lỗi đăng nhập Google. Thử lại.', 'error');
       throw err;
     }
-  }, [findProfile, state, toast]);
+  }, [toast]);
 
   const register = useCallback(async (userData) => {
     const { email, password, ho, ten, mssv, phone, reason } = userData;
@@ -446,60 +507,103 @@ export function AppProvider({ children }) {
     try {
       const cred = await createUserWithEmailAndPassword(auth, email, password);
       const newMember = {
-        id:cred.user.uid, email, mailSchool:email,
-        fullName:`${ho.trim()} ${ten.trim()}`,
-        mssv:mssv.trim(), phone:phone.trim(),
-        role:'member', status:'pending', reason:reason||'',
-        gender:'', avatar:(ho.trim()[0]+(ten.trim().split(' ').pop()[0]||'')).toUpperCase(),
+        id:       cred.user.uid,
+        email,
+        mailSchool: email,
+        fullName: `${ho.trim()} ${ten.trim()}`,
+        mssv:     mssv.trim(),
+        phone:    phone.trim(),
+        role:     'member',
+        status:   'pending',
+        reason:   reason || '',
+        gender:   '',
+        avatar:   (ho.trim()[0] + (ten.trim().split(' ').pop()[0]||'')).toUpperCase(),
+        registeredAt: new Date().toISOString(),
       };
-      const updated = [...state.members, newMember];
-      fbSet('2x18_members', updated);
+      // Read current members fresh then append — avoid stale closure
+      const snap = await get(ref(db, '2x18_members'));
+      const currentMembers = snap.val() || [];
+      await set(ref(db, '2x18_members'), [...currentMembers, newMember]);
+      // Sign out immediately — they need approval first
+      await signOut(auth).catch(() => {});
       dispatch({ type:A.SET_LOADING, payload:false });
       toast('Đã gửi đơn! Chờ Core Team duyệt trong 1–2 ngày 📩', 'success');
-      return cred.user;
+      return newMember;
     } catch (err) {
       dispatch({ type:A.SET_LOADING, payload:false });
       const msg = {
-        'auth/email-already-in-use':'Email này đã có tài khoản.',
-        'auth/weak-password':'Mật khẩu quá yếu (≥ 6 ký tự).',
+        'auth/email-already-in-use': 'Email này đã có tài khoản.',
+        'auth/weak-password':        'Mật khẩu quá yếu (≥ 6 ký tự).',
       }[err.code] || 'Đăng ký thất bại.';
       toast(msg, 'error');
       throw new Error(msg);
     }
-  }, [state.members, toast]);
+  }, [toast]);
 
   const logout = useCallback(async () => {
-    await signOut(auth).catch(()=>{});
+    await signOut(auth).catch(() => {});
     localStorage.removeItem('2x18_current_user');
     dispatch({ type:A.SET_USER, payload:null });
   }, []);
 
+  // ── Profile actions ───────────────────────────────────────────────────────
+  /** Update own profile */
   const updateProfile = useCallback((p) => {
+    skipSyncRef.current = true; // prevent loop from member sync effect
     dispatch({ type:A.UPDATE_PROFILE, payload:p });
     addAudit('Cập nhật hồ sơ', p.fullName||'');
     toast('Lưu hồ sơ thành công! ✓', 'success');
     localStorage.setItem('2x18_current_user', JSON.stringify({...state.currentUser,...p}));
   }, [addAudit, toast, state.currentUser]);
 
-  const syncGrades     = useCallback((userId,gradesData) => { dispatch({type:A.SYNC_GRADES,payload:{userId,gradesData}}); toast('Lưu bảng điểm!','success'); }, [toast]);
-  const updateGrade    = useCallback(p => dispatch({type:A.UPDATE_GRADE,   payload:p}), []);
-  const updateProgress = useCallback(p => dispatch({type:A.UPDATE_PROGRESS,payload:p}), []);
+  /** Core/SuperAdmin update another member's profile */
+  const updateMemberProfile = useCallback((memberId, data) => {
+    dispatch({ type:A.UPDATE_PROFILE, payload:{ id:memberId, ...data } });
+    addAudit('Core cập nhật hồ sơ', data.fullName || memberId);
+    toast('Đã lưu hồ sơ thành viên!', 'success');
+  }, [addAudit, toast]);
+
+  /** SuperAdmin approve pending member */
+  const approveUser = useCallback(async (memberId) => {
+    try {
+      const snap = await get(ref(db, '2x18_members'));
+      const members = snap.val() || [];
+      const updated = members.map(m => m.id === memberId ? { ...m, status:'active' } : m);
+      await set(ref(db, '2x18_members'), updated);
+      dispatch({ type:A.UPDATE_PROFILE, payload:{ id:memberId, status:'active' } });
+      toast('Đã duyệt thành viên! ✓', 'success');
+    } catch {
+      toast('Lỗi khi duyệt. Thử lại.', 'error');
+    }
+  }, [toast]);
+
+  /** SuperAdmin / Core reject pending member */
+  const rejectUser = useCallback(async (memberId) => {
+    try {
+      const snap = await get(ref(db, '2x18_members'));
+      const members = snap.val() || [];
+      const updated = members.filter(m => m.id !== memberId);
+      await set(ref(db, '2x18_members'), updated);
+      dispatch({ type:A.REMOVE_MEMBER, payload:memberId });
+      toast('Đã từ chối đơn đăng ký.', 'info');
+    } catch {
+      toast('Lỗi khi từ chối. Thử lại.', 'error');
+    }
+  }, [toast]);
+
+  const syncGrades      = useCallback((userId,gradesData) => { dispatch({type:A.SYNC_GRADES,payload:{userId,gradesData}}); toast('Lưu bảng điểm!','success'); }, [toast]);
+  const updateGrade     = useCallback(p => dispatch({type:A.UPDATE_GRADE,   payload:p}), []);
+  const updateProgress  = useCallback(p => dispatch({type:A.UPDATE_PROGRESS,payload:p}), []);
 
   const addTask    = useCallback(t  => { dispatch({type:A.ADD_TASK,payload:{...t,id:uid(),done:false}}); addAudit('Thêm task',t.subjectId,t.task); toast('Thêm task!','success'); }, [addAudit,toast]);
   const editTask   = useCallback(t  => dispatch({type:A.EDIT_TASK,  payload:t}), []);
-  const deleteTask = useCallback(id => {
-    dispatch({ type:A.DELETE_TASK, payload:{ id, ...trashMeta() } });
-    toast('Đã chuyển vào thùng rác.', 'info');
-  }, [trashMeta, toast]);
+  const deleteTask = useCallback(id => { dispatch({ type:A.DELETE_TASK, payload:{ id, ...trashMeta() } }); toast('Đã chuyển vào thùng rác.', 'info'); }, [trashMeta, toast]);
   const toggleTask = useCallback(id => dispatch({type:A.TOGGLE_TASK,payload:id}), []);
 
   const addSubjectTask    = useCallback((sid,t) => { dispatch({type:A.ADD_SUBJECT_TASK,payload:{subjectId:sid,task:{...t,id:uid(),doneBy:{}}}}); toast('Thêm mục!','success'); }, [toast]);
   const editSubjectTask   = useCallback((sid,t) => dispatch({type:A.EDIT_SUBJECT_TASK,payload:{subjectId:sid,task:t}}), []);
-  const deleteSubjectTask = useCallback((sid,id) => {
-    dispatch({ type:A.DELETE_SUBJECT_TASK, payload:{ subjectId:sid, taskId:id, ...trashMeta() } });
-    toast('Đã chuyển vào thùng rác.', 'info');
-  }, [trashMeta, toast]);
-  const tickSubjectTask = useCallback((sid,tid,userId,done) => dispatch({type:A.TICK_SUBJECT_TASK,payload:{subjectId:sid,taskId:tid,userId,done}}), []);
+  const deleteSubjectTask = useCallback((sid,id) => { dispatch({ type:A.DELETE_SUBJECT_TASK, payload:{ subjectId:sid, taskId:id, ...trashMeta() } }); toast('Đã chuyển vào thùng rác.', 'info'); }, [trashMeta, toast]);
+  const tickSubjectTask   = useCallback((sid,tid,userId,done) => dispatch({type:A.TICK_SUBJECT_TASK,payload:{subjectId:sid,taskId:tid,userId,done}}), []);
 
   const addSubjectComment = useCallback((subjectId, text) => {
     const comment = {
@@ -515,17 +619,11 @@ export function AppProvider({ children }) {
   const setSme   = useCallback(p  => { dispatch({type:A.SET_SME,payload:p}); addAudit('Đổi SME',p.subjectId); toast('Cập nhật SME!','success'); }, [addAudit,toast]);
   const addEvent    = useCallback(e  => dispatch({type:A.ADD_EVENT,  payload:{...e,id:uid()}}), []);
   const editEvent   = useCallback(e  => dispatch({type:A.EDIT_EVENT, payload:e}), []);
-  const deleteEvent = useCallback(id => {
-    dispatch({ type:A.DELETE_EVENT, payload:{ id, ...trashMeta() } });
-    toast('Đã chuyển vào thùng rác.', 'info');
-  }, [trashMeta, toast]);
+  const deleteEvent = useCallback(id => { dispatch({ type:A.DELETE_EVENT, payload:{ id, ...trashMeta() } }); toast('Đã chuyển vào thùng rác.', 'info'); }, [trashMeta, toast]);
 
   const updateRoadmap     = useCallback(p    => dispatch({type:A.UPDATE_ROADMAP,   payload:p}), []);
   const addRoadmapEvent   = useCallback(p    => dispatch({type:A.ADD_ROADMAP_EVENT,payload:{...p,event:{...p.event,id:uid()}}}), []);
-  const delRoadmapEvent   = useCallback(p    => {
-    dispatch({ type:A.DEL_ROADMAP_EVENT, payload:{ ...p, ...trashMeta() } });
-    toast('Đã chuyển vào thùng rác.', 'info');
-  }, [trashMeta, toast]);
+  const delRoadmapEvent   = useCallback(p    => { dispatch({ type:A.DEL_ROADMAP_EVENT, payload:{ ...p, ...trashMeta() } }); toast('Đã chuyển vào thùng rác.', 'info'); }, [trashMeta, toast]);
   const addRoadmapYear    = useCallback(year => dispatch({type:A.ADD_ROADMAP_YEAR, payload:year}), []);
   const deleteRoadmapYear = useCallback(year => dispatch({type:A.DELETE_ROADMAP_YEAR,payload:year}), []);
 
@@ -559,10 +657,7 @@ export function AppProvider({ children }) {
     toast(`Thêm "${doc.name}"! +20 điểm`,'success');
   }, [addAudit,toast,state.currentUser]);
 
-  const deleteDoc = useCallback((sid,did) => {
-    dispatch({ type:A.DELETE_DOC, payload:{ subjectId:sid, docId:did, ...trashMeta() } });
-    toast('Đã chuyển vào thùng rác.', 'info');
-  }, [trashMeta, toast]);
+  const deleteDoc = useCallback((sid,did) => { dispatch({ type:A.DELETE_DOC, payload:{ subjectId:sid, docId:did, ...trashMeta() } }); toast('Đã chuyển vào thùng rác.', 'info'); }, [trashMeta, toast]);
 
   const rateDoc = useCallback((sid,did,stars) => {
     dispatch({type:A.RATE_DOC,payload:{subjectId:sid,docId:did,userId:state.currentUser?.id,stars}});
@@ -578,14 +673,13 @@ export function AppProvider({ children }) {
   const addContribution     = useCallback(p => dispatch({type:A.ADD_CONTRIBUTION,  payload:p}), []);
   const updateSemesterLabel = useCallback((key,label) => dispatch({type:A.UPDATE_SEMESTER_LABEL,payload:{key,label}}), []);
 
-  // ── Trash actions ─────────────────────────────────────────────────────────
-  const restoreFromTrash      = useCallback(id => { dispatch({type:A.RESTORE_FROM_TRASH,     payload:id}); toast('Đã khôi phục!','success'); }, [toast]);
-  const permanentDeleteTrash  = useCallback(id => { dispatch({type:A.PERMANENT_DELETE_TRASH, payload:id}); toast('Đã xóa vĩnh viễn.','info'); }, [toast]);
-  const emptyTrash            = useCallback(()  => { dispatch({type:A.EMPTY_TRASH});                        toast('Đã dọn sạch thùng rác.','success'); }, [toast]);
+  const restoreFromTrash     = useCallback(id => { dispatch({type:A.RESTORE_FROM_TRASH,     payload:id}); toast('Đã khôi phục!','success'); }, [toast]);
+  const permanentDeleteTrash = useCallback(id => { dispatch({type:A.PERMANENT_DELETE_TRASH, payload:id}); toast('Đã xóa vĩnh viễn.','info'); }, [toast]);
+  const emptyTrash           = useCallback(()  => { dispatch({type:A.EMPTY_TRASH});                        toast('Đã dọn sạch thùng rác.','success'); }, [toast]);
 
   const exportMembersCSV = useCallback(() => {
     const h=['STT','MSSV','Họ tên','Giới tính','Email HUS','SĐT','Role'];
-    const r=state.members.map((m,i)=>[i+1,m.mssv,m.fullName,m.gender||'',m.mailSchool||m.email||'',m.phone||'',m.role]);
+    const r=state.members.filter(m=>m.status!=='pending').map((m,i)=>[i+1,m.mssv,m.fullName,m.gender||'',m.mailSchool||m.email||'',m.phone||'',m.role]);
     const csv=[h,...r].map(row=>row.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
     const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
     const url=URL.createObjectURL(blob);
@@ -599,18 +693,25 @@ export function AppProvider({ children }) {
     return ['mssv','fullName','phone','gender'].every(f=>m[f]&&String(m[f]).trim()!=='') && (m.mailSchool||m.email);
   }, []);
 
-  const isCore       = state.currentUser?.role==='core'||state.currentUser?.role==='super_admin';
-  const isSuperAdmin = state.currentUser?.mailSchool==='hungphamba567@gmail.com';
-  const myGrades     = state.grades[state.currentUser?.id]||{};
-  const myTasks      = state.tasks.filter(t=>t.userId===state.currentUser?.id);
-  const getMemberById = id  => state.members.find(m=>m.id===id);
-  const getSmeMember  = sid => getMemberById(state.smeMap[sid]);
+  const isSuperAdmin = state.currentUser?.role === 'super_admin'
+    || state.currentUser?.email === SUPER_ADMIN_EMAIL
+    || state.currentUser?.mailSchool === SUPER_ADMIN_EMAIL;
+
+  const isCore       = isSuperAdmin || state.currentUser?.role === 'core';
+  const myGrades     = state.grades[state.currentUser?.id] || {};
+  const myTasks      = state.tasks.filter(t => t.userId === state.currentUser?.id);
+  const getMemberById  = id  => state.members.find(m => m.id === id);
+  const getSmeMember   = sid => getMemberById(state.smeMap[sid]);
+  const activeMembers  = state.members.filter(m => m.status !== 'pending');
+  const pendingMembers = state.members.filter(m => m.status === 'pending');
 
   const value = {
     ...state, isCore, isSuperAdmin, myGrades, myTasks,
+    activeMembers, pendingMembers,
     login, logout, loginWithGoogle, register,
     toast, rmToast, addAudit,
-    updateProfile, syncGrades, updateGrade, updateProgress,
+    updateProfile, updateMemberProfile, syncGrades, updateGrade, updateProgress,
+    approveUser, rejectUser,
     addTask, editTask, deleteTask, toggleTask,
     addSubjectTask, editSubjectTask, deleteSubjectTask, tickSubjectTask,
     addSubjectComment,

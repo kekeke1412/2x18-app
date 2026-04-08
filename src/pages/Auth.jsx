@@ -1,7 +1,7 @@
 // src/pages/Auth.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, ArrowRight, Clock, CheckCircle, ChevronLeft } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Clock, CheckCircle, ChevronLeft, ShieldCheck } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 // Google Logo SVG
@@ -14,7 +14,6 @@ const GoogleLogo = () => (
   </svg>
 );
 
-// Reusable input component — defined OUTSIDE to avoid focus loss
 const AuthInput = ({ label, hint, rightElement, error, ...props }) => (
   <div className="space-y-1.5">
     {label && <label className="block text-sm font-medium text-gray-300">{label}</label>}
@@ -41,15 +40,124 @@ const AuthInput = ({ label, hint, rightElement, error, ...props }) => (
   </div>
 );
 
+const Spinner = () => (
+  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"/>
+);
+
+// ── Pending screen (reusable for both register & google) ───────────────────
+function PendingScreen({ info, onBack }) {
+  return (
+    <div className="space-y-6 text-center">
+      <div className="w-20 h-20 bg-amber-500/10 border-2 border-amber-500/20 rounded-full flex items-center justify-center mx-auto">
+        <Clock className="w-10 h-10 text-amber-400"/>
+      </div>
+
+      <div>
+        <h2 className="text-2xl font-black text-white mb-2">Chờ xét duyệt</h2>
+        <p className="text-gray-400 text-sm leading-relaxed">
+          Tài khoản của bạn đang chờ Core Team 2X18 phê duyệt.
+          Kết quả sẽ được thông báo qua email trong vòng{' '}
+          <strong className="text-white">1–2 ngày</strong>.
+        </p>
+      </div>
+
+      {(info?.name || info?.email) && (
+        <div className="bg-[#1e1e1e] border border-gray-800 rounded-2xl overflow-hidden text-left">
+          <div className="px-4 py-3 border-b border-gray-800">
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Thông tin đã gửi</span>
+          </div>
+          <div className="divide-y divide-gray-800/60">
+            {[
+              info.name  && ['Họ tên', info.name],
+              info.mssv  && ['MSSV',   info.mssv],
+              info.email && ['Email',  info.email],
+            ].filter(Boolean).map(([k, v]) => (
+              <div key={k} className="flex justify-between items-center px-4 py-3">
+                <span className="text-xs text-gray-500">{k}</span>
+                <span className="text-sm font-semibold text-white">{v}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-center gap-2 py-3 px-4 bg-amber-500/8 border border-amber-500/20 rounded-xl">
+        <Clock className="w-4 h-4 text-amber-400 shrink-0"/>
+        <span className="text-sm font-medium text-amber-300">Đang chờ Core Team xét duyệt...</span>
+      </div>
+
+      <div className="p-3.5 bg-blue-500/5 border border-blue-500/15 rounded-xl text-left">
+        <div className="flex gap-2 items-start">
+          <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0 mt-0.5"/>
+          <p className="text-xs text-gray-400 leading-relaxed">
+            Nếu cần gấp, liên hệ Core Team qua Zalo nhóm 2X18 để được duyệt sớm hơn.
+          </p>
+        </div>
+      </div>
+
+      <button onClick={onBack}
+        className="w-full h-11 flex items-center justify-center gap-2 border border-gray-700 hover:border-gray-600 hover:bg-white/5 text-gray-300 font-medium text-sm rounded-xl transition-all">
+        <ChevronLeft className="w-4 h-4"/> Quay lại đăng nhập
+      </button>
+    </div>
+  );
+}
+
+// ── Success screen after register ──────────────────────────────────────────
+function RegisterSuccessScreen({ info, onBack }) {
+  return (
+    <div className="space-y-6 text-center">
+      <div className="w-20 h-20 bg-green-500/10 border-2 border-green-500/20 rounded-full flex items-center justify-center mx-auto">
+        <CheckCircle className="w-10 h-10 text-green-400"/>
+      </div>
+
+      <div>
+        <h2 className="text-2xl font-black text-white mb-2">Đơn đã gửi thành công!</h2>
+        <p className="text-gray-400 text-sm leading-relaxed">
+          Core Team 2X18 sẽ xem xét và phản hồi trong vòng{' '}
+          <strong className="text-white">1–2 ngày</strong>.
+        </p>
+      </div>
+
+      <div className="bg-[#1e1e1e] border border-gray-800 rounded-2xl overflow-hidden text-left">
+        <div className="px-4 py-3 border-b border-gray-800">
+          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Thông tin đã gửi</span>
+        </div>
+        <div className="divide-y divide-gray-800/60">
+          {[['Họ tên', info.name], ['MSSV', info.mssv], ['Email', info.email]].map(([k,v])=>(
+            <div key={k} className="flex justify-between items-center px-4 py-3">
+              <span className="text-xs text-gray-500">{k}</span>
+              <span className="text-sm font-semibold text-white">{v}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-center gap-2 py-3 px-4 bg-amber-500/8 border border-amber-500/20 rounded-xl">
+        <Clock className="w-4 h-4 text-amber-400 shrink-0"/>
+        <span className="text-sm font-medium text-amber-300">Đang chờ Core Team xét duyệt...</span>
+      </div>
+
+      <button onClick={onBack}
+        className="w-full h-11 flex items-center justify-center gap-2 border border-gray-700 hover:border-gray-600 hover:bg-white/5 text-gray-300 font-medium text-sm rounded-xl transition-all">
+        <ChevronLeft className="w-4 h-4"/> Quay lại đăng nhập
+      </button>
+    </div>
+  );
+}
+
+// ── Main Auth Component ────────────────────────────────────────────────────
 export default function Auth() {
   const navigate  = useNavigate();
   const { login, loginWithGoogle, register } = useApp();
 
-  const [tab,     setTab]    = useState('login'); // 'login' | 'register' | 'pending'
-  const [loading, setLoading]= useState(false);
-  const [gLoading,setGLoad]  = useState(false);
-  const [errors,  setErrors] = useState({});
-  const [pending, setPending]= useState(null);
+  // tab: 'login' | 'register' | 'registerSuccess' | 'pending'
+  const [tab,      setTab]     = useState('login');
+  const [loading,  setLoading] = useState(false);
+  const [gLoading, setGLoad]   = useState(false);
+  const [errors,   setErrors]  = useState({});
+  const [pendingInfo, setPendingInfo] = useState(null);
+  const [regInfo,     setRegInfo]     = useState(null);
 
   const [showP,  setShowP]  = useState(false);
   const [showP2, setShowP2] = useState(false);
@@ -74,7 +182,12 @@ export default function Auth() {
       await login(lf.email.trim(), lf.password);
       navigate('/dashboard', { replace: true });
     } catch (err) {
-      setErrors({ form: err.message });
+      if (err.message === 'PENDING') {
+        setPendingInfo({ email: lf.email.trim() });
+        setTab('pending');
+      } else {
+        setErrors({ form: err.message });
+      }
     } finally {
       setLoading(false);
     }
@@ -84,29 +197,41 @@ export default function Auth() {
   const handleGoogle = async () => {
     setGLoad(true);
     try {
-      await loginWithGoogle();
-      navigate('/dashboard', { replace: true });
-    } catch {}
-    finally { setGLoad(false); }
+      const result = await loginWithGoogle();
+      if (result?.status === 'pending') {
+        setPendingInfo({ name: result.name, email: result.email });
+        setTab('pending');
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
+    } catch {
+      // error toast already shown in context
+    } finally {
+      setGLoad(false);
+    }
   };
 
   // ── Register ──────────────────────────────────────────────────────────────
   const handleRegister = async () => {
     const e = {};
-    if (!rf.ho.trim())       e.ho       = 'Nhập họ.';
-    if (!rf.ten.trim())      e.ten      = 'Nhập tên.';
-    if (!rf.mssv.trim())     e.mssv     = 'Nhập MSSV.';
-    if (!rf.email.includes('@')) e.email = 'Email không hợp lệ.';
-    if (!rf.phone.trim())    e.phone    = 'Nhập số điện thoại.';
-    if (rf.password.length < 6) e.password = 'Tối thiểu 6 ký tự.';
+    if (!rf.ho.trim())           e.ho       = 'Nhập họ.';
+    if (!rf.ten.trim())          e.ten      = 'Nhập tên.';
+    if (!rf.mssv.trim())         e.mssv     = 'Nhập MSSV.';
+    if (!rf.email.includes('@')) e.email    = 'Email không hợp lệ.';
+    if (!rf.phone.trim())        e.phone    = 'Nhập số điện thoại.';
+    if (rf.password.length < 6)  e.password = 'Tối thiểu 6 ký tự.';
     if (rf.password !== rf.password2) e.password2 = 'Mật khẩu xác nhận không khớp.';
     if (Object.keys(e).length) { setErrors(e); return; }
 
     setLoading(true);
     try {
       await register(rf);
-      setPending({ name:`${rf.ho.trim()} ${rf.ten.trim()}`, mssv:rf.mssv.trim(), email:rf.email.trim() });
-      setTab('pending');
+      setRegInfo({
+        name:  `${rf.ho.trim()} ${rf.ten.trim()}`,
+        mssv:  rf.mssv.trim(),
+        email: rf.email.trim(),
+      });
+      setTab('registerSuccess');
     } catch (err) {
       setErrors({ form: err.message });
     } finally {
@@ -114,10 +239,9 @@ export default function Auth() {
     }
   };
 
-  const Spinner = () => <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"/>;
-
   return (
     <div className="min-h-screen bg-[#080810] flex">
+
       {/* ── Left panel (desktop only) ── */}
       <div className="hidden lg:flex lg:w-[420px] xl:w-[500px] bg-gradient-to-br from-blue-950 via-[#0d0d20] to-[#080810] flex-col justify-between p-12 border-r border-white/5 shrink-0">
         {/* Brand */}
@@ -151,56 +275,56 @@ export default function Auth() {
             <div key={f.title} className="flex items-start gap-4">
               <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-xl shrink-0">{f.icon}</div>
               <div>
-                <div className="text-sm font-bold text-white mb-0.5">{f.title}</div>
-                <div className="text-xs text-gray-500 leading-relaxed">{f.desc}</div>
+                <div className="text-white font-bold text-sm mb-1">{f.title}</div>
+                <div className="text-gray-500 text-xs leading-relaxed">{f.desc}</div>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="text-xs text-gray-700">
-          © 2025 2X18 CORE · Khoa Vật lý, HUS
-        </div>
+        <div className="text-gray-700 text-xs">© 2X18 HUS K2024 · Bán dẫn &amp; Công nghệ vật liệu</div>
       </div>
 
-      {/* ── Right panel — Auth form ── */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 overflow-y-auto">
-        {/* Mobile brand */}
-        <div className="lg:hidden flex items-center gap-2 mb-8">
-          <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center font-black text-white">2X</div>
-          <div className="text-white font-black text-lg">2X18 CORE</div>
-        </div>
+      {/* ── Right panel ── */}
+      <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
+        <div className="w-full max-w-md space-y-0">
 
-        <div className="w-full max-w-[400px]">
+          {/* ─── REGISTER SUCCESS ──────────────────────────────────── */}
+          {tab === 'registerSuccess' && regInfo && (
+            <RegisterSuccessScreen info={regInfo} onBack={() => { switchTab('login'); setRegInfo(null); }}/>
+          )}
+
+          {/* ─── PENDING (login attempted but not approved yet) ─────── */}
+          {tab === 'pending' && (
+            <PendingScreen info={pendingInfo} onBack={() => { switchTab('login'); setPendingInfo(null); }}/>
+          )}
 
           {/* ─── LOGIN ─────────────────────────────────────────────── */}
           {tab === 'login' && (
-            <div className="space-y-6">
+            <div className="space-y-5">
               <div>
-                <h1 className="text-2xl font-black text-white mb-1">Chào mừng trở lại</h1>
+                <h1 className="text-2xl font-black text-white mb-1">Đăng nhập</h1>
                 <p className="text-gray-500 text-sm">
                   Chưa có tài khoản?{' '}
-                  <button onClick={()=>switchTab('register')} className="text-blue-400 hover:text-blue-300 font-semibold transition-colors">
-                    Đăng ký ngay
+                  <button onClick={() => switchTab('register')} className="text-blue-400 hover:text-blue-300 font-semibold transition-colors">
+                    Đăng ký
                   </button>
                 </p>
               </div>
 
-              {/* Google button */}
+              {/* Google */}
               <button onClick={handleGoogle} disabled={gLoading||loading}
                 className="w-full h-11 flex items-center justify-center gap-3 bg-white hover:bg-gray-50 disabled:opacity-60 text-gray-800 font-semibold text-sm rounded-xl border border-gray-200 transition-all shadow-sm">
                 {gLoading ? <Spinner/> : <GoogleLogo/>}
                 <span>{gLoading ? 'Đang xử lý...' : 'Tiếp tục với Google'}</span>
               </button>
 
-              {/* Divider */}
               <div className="flex items-center gap-3">
                 <div className="flex-1 h-px bg-gray-800"/>
-                <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-widest">Hoặc dùng email</span>
+                <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-widest">Hoặc email</span>
                 <div className="flex-1 h-px bg-gray-800"/>
               </div>
 
-              {/* Form error */}
               {errors.form && (
                 <div className="flex items-start gap-2.5 p-3 bg-red-500/8 border border-red-500/25 rounded-xl">
                   <svg className="w-4 h-4 text-red-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
@@ -210,25 +334,22 @@ export default function Auth() {
                 </div>
               )}
 
-              <div className="space-y-4">
-                <AuthInput
-                  label="Email" type="email" placeholder="email@hus.edu.vn"
-                  value={lf.email} onChange={e=>setL('email',e.target.value)}
-                  onKeyDown={e=>e.key==='Enter'&&handleLogin()}
-                  error={errors.email} autoComplete="email"
-                />
-                <AuthInput
-                  label="Mật khẩu" type={showP?'text':'password'} placeholder="••••••••"
-                  value={lf.password} onChange={e=>setL('password',e.target.value)}
-                  onKeyDown={e=>e.key==='Enter'&&handleLogin()}
-                  error={errors.password} autoComplete="current-password"
-                  rightElement={
-                    <button type="button" onClick={()=>setShowP(v=>!v)} className="text-gray-500 hover:text-gray-300 transition-colors">
-                      {showP ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}
-                    </button>
-                  }
-                />
-              </div>
+              <AuthInput
+                label="Email" type="email" placeholder="email@hus.edu.vn"
+                value={lf.email} onChange={e=>setL('email',e.target.value)}
+                error={errors.email} autoComplete="email"
+              />
+              <AuthInput
+                label="Mật khẩu" type={showP?'text':'password'} placeholder="••••••••"
+                value={lf.password} onChange={e=>setL('password',e.target.value)}
+                error={errors.password} autoComplete="current-password"
+                onKeyDown={e=>e.key==='Enter'&&handleLogin()}
+                rightElement={
+                  <button type="button" onClick={()=>setShowP(v=>!v)} className="text-gray-500 hover:text-gray-300">
+                    {showP?<EyeOff className="w-4 h-4"/>:<Eye className="w-4 h-4"/>}
+                  </button>
+                }
+              />
 
               <button onClick={handleLogin} disabled={loading||gLoading}
                 className="w-full h-11 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:opacity-60 text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-blue-900/30">
@@ -254,7 +375,7 @@ export default function Auth() {
                 </p>
               </div>
 
-              {/* Google button */}
+              {/* Google register */}
               <button onClick={handleGoogle} disabled={gLoading||loading}
                 className="w-full h-11 flex items-center justify-center gap-3 bg-white hover:bg-gray-50 disabled:opacity-60 text-gray-800 font-semibold text-sm rounded-xl border border-gray-200 transition-all shadow-sm">
                 {gLoading ? <Spinner/> : <GoogleLogo/>}
@@ -317,11 +438,8 @@ export default function Auth() {
                 />
               </div>
 
-              {/* Role info banner */}
               <div className="flex items-start gap-3 p-3.5 bg-blue-500/5 border border-blue-500/15 rounded-xl">
-                <svg className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
+                <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0 mt-0.5"/>
                 <p className="text-xs text-gray-400 leading-relaxed">
                   Tài khoản mới sẽ là <strong className="text-white">Thành viên</strong> sau khi được Core duyệt.
                   Chỉ Super Admin mới có thể nâng lên <strong className="text-blue-400">Core Team</strong>.
@@ -331,50 +449,6 @@ export default function Auth() {
               <button onClick={handleRegister} disabled={loading||gLoading}
                 className="w-full h-11 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:opacity-60 text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-blue-900/30">
                 {loading ? <><Spinner/><span>Đang gửi...</span></> : <><span>Gửi đơn đăng ký</span><ArrowRight className="w-4 h-4"/></>}
-              </button>
-            </div>
-          )}
-
-          {/* ─── PENDING ───────────────────────────────────────────── */}
-          {tab === 'pending' && pending && (
-            <div className="space-y-6 text-center">
-              <div className="w-20 h-20 bg-green-500/10 border-2 border-green-500/20 rounded-full flex items-center justify-center mx-auto">
-                <CheckCircle className="w-10 h-10 text-green-400"/>
-              </div>
-
-              <div>
-                <h2 className="text-2xl font-black text-white mb-2">Đơn đã gửi thành công!</h2>
-                <p className="text-gray-400 text-sm leading-relaxed">
-                  Core Team 2X18 sẽ xem xét và phản hồi trong vòng{' '}
-                  <strong className="text-white">1–2 ngày</strong>.
-                  Kết quả sẽ được thông báo qua email.
-                </p>
-              </div>
-
-              {/* Submitted info */}
-              <div className="bg-[#1e1e1e] border border-gray-800 rounded-2xl overflow-hidden text-left">
-                <div className="px-4 py-3 border-b border-gray-800">
-                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Thông tin đã gửi</span>
-                </div>
-                <div className="divide-y divide-gray-800/60">
-                  {[['Họ tên', pending.name], ['MSSV', pending.mssv], ['Email', pending.email]].map(([k,v])=>(
-                    <div key={k} className="flex justify-between items-center px-4 py-3">
-                      <span className="text-xs text-gray-500">{k}</span>
-                      <span className="text-sm font-semibold text-white">{v}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Status badge */}
-              <div className="flex items-center justify-center gap-2 py-3 px-4 bg-amber-500/8 border border-amber-500/20 rounded-xl">
-                <Clock className="w-4 h-4 text-amber-400 shrink-0"/>
-                <span className="text-sm font-medium text-amber-300">Đang chờ Core Team xét duyệt...</span>
-              </div>
-
-              <button onClick={()=>{switchTab('login');setPending(null);}}
-                className="w-full h-11 flex items-center justify-center gap-2 border border-gray-700 hover:border-gray-600 hover:bg-white/5 text-gray-300 font-medium text-sm rounded-xl transition-all">
-                <ChevronLeft className="w-4 h-4"/> Quay lại đăng nhập
               </button>
             </div>
           )}
