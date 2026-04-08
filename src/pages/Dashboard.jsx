@@ -200,7 +200,7 @@ function GroupGPACard({ myGrades, allGrades, members }) {
             {memberCPAs.sort((a,b)=>b.cpa-a.cpa).slice(0,5).map((m, i) => (
               <div key={m.id} className="flex items-center gap-2">
                 <span className="text-[10px] text-gray-600 w-4">{i+1}.</span>
-                <div className="w-5 h-5 rounded-full bg-[#252525] flex items-center justify-center text-[8px] font-bold text-gray-400 shrink-0">{m.avatar}</div>
+                {m.avatarUrl ? <img src={m.avatarUrl} className="w-5 h-5 rounded-full object-cover border border-gray-700 shrink-0"/> : <div className="w-5 h-5 rounded-full bg-[#252525] flex items-center justify-center text-[8px] font-bold text-gray-400 shrink-0">{m.avatar}</div>}
                 <span className="text-[11px] text-gray-400 flex-1 truncate">{m.fullName.split(' ').slice(-2).join(' ')}</span>
                 <span className={`text-[11px] font-black ${cpaColor(String(m.cpa))}`}>{m.cpa.toFixed(2)}</span>
                 <div className="w-16 h-1.5 bg-gray-800 rounded-full overflow-hidden">
@@ -456,7 +456,7 @@ export default function Dashboard() {
                 {topMembers.map((m, i) => (
                   <div key={m.id} className="flex items-center gap-3 px-4 py-2.5">
                     <div className="text-xs font-black text-gray-600 w-5 text-center">{i<3?['🥇','🥈','🥉'][i]:`#${i+1}`}</div>
-                    <div className="w-6 h-6 rounded-full bg-[#252525] flex items-center justify-center text-[9px] font-bold text-gray-400 shrink-0">{m.avatar}</div>
+                    {m.avatarUrl ? <img src={m.avatarUrl} className="w-6 h-6 rounded-full object-cover border border-gray-700 shrink-0"/> : <div className="w-6 h-6 rounded-full bg-[#252525] flex items-center justify-center text-[9px] font-bold text-gray-400 shrink-0">{m.avatar}</div>}
                     <div className="flex-1 min-w-0 text-xs text-gray-300 truncate">{m.fullName.split(' ').slice(-2).join(' ')}</div>
                     <div className="text-xs font-black text-blue-400">{m.points}đ</div>
                   </div>
