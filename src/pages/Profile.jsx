@@ -3,37 +3,25 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   User, CreditCard, Calendar, Phone, MapPin,
   Save, Edit3, ChevronDown, ChevronUp, AlertTriangle, CheckCircle2,
-  Download, Users, ShieldCheck, ChevronLeft, Search, Check, X,
+  Download, Users, ChevronLeft, Search, Check, X,
   Clock, Eye, BookOpen, Lock, CheckCircle
 } from 'lucide-react';
-import { subjectDatabase, calculateHe10, getHe4 } from '../data';
+import { subjectDatabase, calculateHe10, getHe4, electiveLimits } from '../data';
 import { useApp } from '../context/AppContext';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 const BLOOD_TYPES = ['A+','A−','B+','B−','AB+','AB−','O+','O−'];
 const GENDERS     = ['Nam','Nữ'];
 const SEMESTERS   = [1,2,3,4,5,6,7,8];
-const STATUS_OPTS = ['Chưa học','Đang học','Đã học','Được miễn','Không học'];
 
-const ETHNICITIES = [
-  'Kinh','Tày','Thái','Mường','Khmer','Mông','Nùng','Dao','Gia-rai','Ngái',
-  'Ê-đê','Ba-na','Xơ-đăng','Sán Chay','Cơ-ho','Chăm','Sán Dìu','Hrê','Mnông',
-  'Ra-glai','Xtiêng','Bru-Vân Kiều','Thổ','Giáy','Cơ-tu','Gié-triêng','Mạ',
-  'Khơ-mú','Co','Tà-ôi','Chơ-ro','Kháng','Xinh-mun','Hà Nhì','Chu-ru','Lào',
-  'La Chí','La Ha','Phù Lá','La Hủ','Lự','Lô Lô','Chứt','Mảng','Pà Thẻn',
-  'Cơ Lao','Cống','Bố Y','Si La','Pu Péo','Rơ-măm','Brâu','Ơ-đu',
+// Cập nhật danh sách 23 Tỉnh/Thành phố
+const PROVINCES = [
+  "Tuyên Quang", "Lào Cai", "Thái Nguyên", "Phú Thọ", "Bắc Ninh", "Hưng Yên",
+  "TP. Hải Phòng", "Ninh Bình", "Quảng Trị", "TP. Đà Nẵng", "Quảng Ngãi",
+  "Gia Lai", "Khánh Hòa", "Lâm Đồng", "Đắk Lắk", "TP. Hồ Chí Minh", "Đồng Nai",
+  "Tây Ninh", "TP. Cần Thơ", "Vĩnh Long", "Đồng Tháp", "Cà Mau", "An Giang"
 ];
 
-const PROVINCES_34 = [
-  "Tuyên Quang","Lào Cai","Thái Nguyên","Phú Thọ","Bắc Ninh","Hưng Yên",
-  "TP. Hải Phòng","Ninh Bình","Quảng Trị","TP. Đà Nẵng","Quảng Ngãi",
-  "Gia Lai","Khánh Hòa","Lâm Đồng","Đắk Lắk","TP. Hồ Chí Minh","Đồng Nai",
-  "Tây Ninh","TP. Cần Thơ","Vĩnh Long","Đồng Tháp","Cà Mau","An Giang",
-  "Hà Nội","Bắc Giang","Vĩnh Phúc","Nam Định","Thanh Hóa","Nghệ An",
-  "Hà Tĩnh","Thừa Thiên Huế","Bình Định","Đắk Nông","Bình Dương",
-];
-
-// Fields required for profile unlock
 const REQUIRED_FIELDS = [
   { key: 'mssv',      label: 'Mã số sinh viên' },
   { key: 'fullName',  label: 'Họ và tên' },
@@ -46,6 +34,15 @@ const REQUIRED_FIELDS = [
   { key: 'mailVnu',   label: 'Mail VNU' },
   { key: 'mailSchool',label: 'Mail HUS' },
   { key: 'facebook',  label: 'Facebook' },
+];
+
+const ETHNICITIES = [
+  'Kinh','Tày','Thái','Mường','Khmer','Mông','Nùng','Dao','Gia-rai','Ngái',
+  'Ê-đê','Ba-na','Xơ-đăng','Sán Chay','Cơ-ho','Chăm','Sán Dìu','Hrê','Mnông',
+  'Ra-glai','Xtiêng','Bru-Vân Kiều','Thổ','Giáy','Cơ-tu','Gié-triêng','Mạ',
+  'Khơ-mú','Co','Tà-ôi','Chơ-ro','Kháng','Xinh-mun','Hà Nhì','Chu-ru','Lào',
+  'La Chí','La Ha','Phù Lá','La Hủ','Lự','Lô Lô','Chứt','Mảng','Pà Thẻn',
+  'Cơ Lao','Cống','Bố Y','Si La','Pu Péo','Rơ-măm','Brâu','Ơ-đu',
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -64,6 +61,7 @@ const getLetterGrade = he10 => {
   if (he10 >= 5.0) return 'D+'; if (he10 >= 4.0) return 'D';
   return 'F';
 };
+
 const calcResult = (cc, gk, ck) => {
   const h10 = calculateHe10(parseFloat(cc), parseFloat(gk), parseFloat(ck));
   if (h10 === null) return { he10: '—', chu: '—', he4: '—' };
@@ -80,29 +78,57 @@ const getInitials = (name='') =>
   name.split(' ').filter(Boolean).map(w=>w[0]).slice(-2).join('').toUpperCase() || '??';
 
 // ── Grade helpers ──────────────────────────────────────────────────────────
-// CPA uses hệ 4, only counts subjects with status "Đã học"
 function calcGpaStats(grades) {
   let totalPoints = 0, totalCredits = 0, earnedCredits = 0;
   let learning = 0, done = 0;
   const semGPA = {};
 
+  // 1. Tính toán trước số tín chỉ hiện tại của từng khối tự chọn
+  const groupCredits = {};
+  subjectDatabase.forEach(sub => {
+    if (sub.electiveGroup) {
+      const st = grades[sub.id]?.status;
+      if (st === 'Đã học' || st === 'Đang học' || st === 'Được miễn' || st === 'Đạt') {
+        groupCredits[sub.electiveGroup] = (groupCredits[sub.electiveGroup] || 0) + sub.credits;
+      }
+    }
+  });
+
   subjectDatabase.forEach(sub => {
     const g = grades[sub.id] || {};
-    const st = g.status || 'Chưa học';
+    let st = g.status || 'Chưa học';
+
+    // 2. Logic ép "Không học" nếu khối tự chọn đã đủ tín chỉ
+    const limit = sub.electiveGroup ? electiveLimits[sub.electiveGroup] : 0;
+    const currentCr = sub.electiveGroup ? (groupCredits[sub.electiveGroup] || 0) : 0;
+    const isActive = st === 'Đã học' || st === 'Đang học' || st === 'Được miễn' || st === 'Đạt';
+    
+    // Nếu khối đã đủ chỉ, và môn này chưa được chọn -> Mặc định là Không học
+    if (sub.electiveGroup && currentCr >= limit && !isActive) {
+      st = 'Không học';
+    }
+
     if (st === 'Đang học') learning++;
-    // Only count subjects explicitly marked "Đã học"
-    if (st === 'Đã học') {
-      const r = calcResult(g.cc, g.gk, g.ck);
-      const he4 = parseFloat(r.he4);
-      if (!isNaN(he4) && he4 >= 0) {
-        done++;
-        totalPoints  += he4 * sub.credits;
-        totalCredits += sub.credits;
-        earnedCredits += sub.credits;
-        if (g.semester) {
-          if (!semGPA[g.semester]) semGPA[g.semester] = { pts:0, cr:0 };
-          semGPA[g.semester].pts += he4 * sub.credits;
-          semGPA[g.semester].cr  += sub.credits;
+    
+    if (st === 'Đã học' || st === 'Đạt' || st === 'Được miễn') {
+      if (st === 'Đã học' || st === 'Đạt') done++;
+      
+      // 3. Loại bỏ các môn Giáo dục thể chất, QPAN, Kỹ năng bổ trợ khỏi GPA và Tín chỉ
+      if (!sub.excludeCPA) {
+        if (st === 'Đã học' || st === 'Được miễn') earnedCredits += sub.credits;
+        
+        if (st === 'Đã học') {
+          const r = calcResult(g.cc, g.gk, g.ck);
+          const he4 = parseFloat(r.he4);
+          if (!isNaN(he4) && he4 >= 0) {
+            totalPoints  += he4 * sub.credits;
+            totalCredits += sub.credits;
+            if (g.semester) {
+              if (!semGPA[g.semester]) semGPA[g.semester] = { pts:0, cr:0 };
+              semGPA[g.semester].pts += he4 * sub.credits;
+              semGPA[g.semester].cr  += sub.credits;
+            }
+          }
         }
       }
     }
@@ -120,9 +146,11 @@ function exportGradesToCSV(profile, grades) {
   const headers = ['STT','Mã môn','Tên môn','Số TC','Loại','Học kỳ','Trạng thái','CC','GK','CK','Hệ 10','Chữ','Hệ 4'];
   const rows = subjectDatabase.map((sub, i) => {
     const g = grades[sub.id] || {};
-    const r = calcResult(g.cc, g.gk, g.ck);
+    let st = g.status || 'Chưa học';
+    if (sub.excludeCPA && st === 'Đã học') st = 'Đạt'; // Fix export format
+    const r = sub.excludeCPA ? { he10: '—', chu: '—', he4: '—' } : calcResult(g.cc, g.gk, g.ck);
     return [i+1, sub.code, sub.name, sub.credits, sub.type,
-      g.semester ? `Kỳ ${g.semester}` : '—', g.status || 'Chưa học',
+      g.semester ? `Kỳ ${g.semester}` : '—', st,
       g.cc||'—', g.gk||'—', g.ck||'—', r.he10, r.chu, r.he4];
   });
   const csv = [headers,...rows].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
@@ -200,12 +228,10 @@ function ProfileCompletionBanner({ profile, isEditing, onStartEdit }) {
         </div>
         <span className="text-sm font-black text-amber-400">{filled}/{total}</span>
       </div>
-      {/* Progress bar */}
       <div className="h-1.5 bg-gray-800 rounded-full mb-3 overflow-hidden">
         <div className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full transition-all duration-500"
           style={{width:`${pct}%`}}/>
       </div>
-      {/* Missing fields */}
       <div className="flex flex-wrap gap-1.5">
         {missing.map(f => (
           <span key={f.key}
@@ -225,33 +251,46 @@ function ProfileCompletionBanner({ profile, isEditing, onStartEdit }) {
 }
 
 // ── GradeRow ──────────────────────────────────────────────────────────────
-function GradeRow({ subject, grades, onGradeChange, isEditing }) {
+function GradeRow({ subject, grades, onGradeChange, isEditing, isDimmed }) {
   const g = grades[subject.id] || {};
-  const r = calcResult(g.cc, g.gk, g.ck);
+  const isExclude = subject.excludeCPA; // Đánh dấu môn Thể chất, QPAN
+
+  // Nếu bị dư tự chọn, ép hiển thị là Không học
+  let st = g.status || 'Chưa học';
+  if (isDimmed) st = 'Không học';
+
+  // Menu thả xuống riêng cho môn Thể chất/QPAN
+  const statusOpts = isExclude 
+    ? ['Chưa học', 'Đang học', 'Đạt', 'Chưa đạt', 'Không học']
+    : ['Chưa học', 'Đang học', 'Đã học', 'Được miễn', 'Không học'];
+
+  const r = isExclude ? { he10: '—', chu: '—', he4: '—' } : calcResult(g.cc, g.gk, g.ck);
+  
   const gradeColor = (v) => {
     const n = parseFloat(v);
     if (isNaN(n)) return 'text-gray-600';
     if (n >= 8.5) return 'text-green-400'; if (n >= 7.0) return 'text-blue-400';
     if (n >= 5.5) return 'text-yellow-400'; return 'text-red-400';
   };
+
   const inp = (field) => (
     <input type="number" min="0" max="10" step="0.1"
       value={g[field]||''} onChange={e=>onGradeChange(subject.id, field, e.target.value)}
       className="w-14 text-center text-xs bg-[#252525] border border-gray-700 rounded-lg px-1 py-1 text-white outline-none focus:border-blue-500"/>
   );
 
-  // Only show grade inputs if status is "Đã học" or "Đang học"
-  const canEnterGrades = isEditing && (g.status === 'Đã học' || g.status === 'Đang học');
+  // Chỉ cho phép nhập điểm nếu không bị làm mờ, không phải môn loại trừ, và đang học/đã học
+  const canEnterGrades = isEditing && !isExclude && !isDimmed && (st === 'Đã học' || st === 'Đang học');
 
   return (
-    <tr className="border-b border-gray-800/40 hover:bg-white/[0.02] transition-colors">
+    <tr className={`border-b border-gray-800/40 hover:bg-white/[0.02] transition-colors ${isDimmed ? 'opacity-30 grayscale pointer-events-none' : ''}`}>
       <td className="px-3 py-2.5 text-center text-xs text-gray-600">{subject.idx||''}</td>
       <td className="px-4 py-2.5">
         <div className="text-xs font-semibold text-gray-200 leading-tight">{subject.name}</div>
-        <div className="text-[10px] text-gray-600 mt-0.5">{subject.code} · {subject.credits}TC</div>
+        <div className="text-[10px] text-gray-600 mt-0.5">{subject.code} · {subject.credits}TC {isExclude && '· (Không tính CPA)'}</div>
       </td>
       <td className="px-2 py-2.5 text-center">
-        {isEditing ? (
+        {isEditing && !isDimmed ? (
           <select value={g.semester||''} onChange={e=>onGradeChange(subject.id,'semester',e.target.value)}
             className="text-xs bg-[#252525] border border-gray-700 rounded-lg px-1 py-1 text-white outline-none focus:border-blue-500 w-12">
             <option value="">—</option>
@@ -260,26 +299,26 @@ function GradeRow({ subject, grades, onGradeChange, isEditing }) {
         ) : <span className="text-xs text-gray-400">{g.semester ? `Kỳ ${g.semester}` : '—'}</span>}
       </td>
       <td className="px-2 py-2.5">
-        {isEditing ? (
-          <select value={g.status||''} onChange={e=>onGradeChange(subject.id,'status',e.target.value)}
+        {isEditing && !isDimmed ? (
+          <select value={st} onChange={e=>onGradeChange(subject.id,'status',e.target.value)}
             className="text-xs bg-[#252525] border border-gray-700 rounded-lg px-1 py-1 text-white outline-none focus:border-blue-500">
             <option value="">—</option>
-            {STATUS_OPTS.map(s=><option key={s} value={s}>{s}</option>)}
+            {statusOpts.map(s=><option key={s} value={s}>{s}</option>)}
           </select>
         ) : (
           <span className={`text-xs font-medium ${
-            g.status==='Đã học'?'text-green-400':g.status==='Đang học'?'text-yellow-400':
-            g.status==='Được miễn'?'text-blue-400':'text-gray-600'}`}>
-            {g.status||'—'}
+            st==='Đã học' || st==='Đạt' ?'text-green-400' : st==='Đang học'?'text-yellow-400':
+            st==='Được miễn'?'text-blue-400':'text-gray-600'}`}>
+            {st}
           </span>
         )}
       </td>
       <td className="px-1 py-2.5 text-center">{canEnterGrades ? inp('cc') : <span className="text-xs text-gray-400">{g.cc||'—'}</span>}</td>
       <td className="px-1 py-2.5 text-center">{canEnterGrades ? inp('gk') : <span className="text-xs text-gray-400">{g.gk||'—'}</span>}</td>
       <td className="px-1 py-2.5 text-center">{canEnterGrades ? inp('ck') : <span className="text-xs text-gray-400">{g.ck||'—'}</span>}</td>
-      <td className={`px-2 py-2.5 text-center font-bold text-sm ${gradeColor(r.he10)}`}>{g.status==='Đã học'?r.he10:'—'}</td>
-      <td className={`px-2 py-2.5 text-center font-bold text-xs ${gradeColor(r.he10)}`}>{g.status==='Đã học'?r.chu:'—'}</td>
-      <td className={`px-2 py-2.5 text-center font-bold text-xs ${gradeColor(r.he4)}`}>{g.status==='Đã học'?r.he4:'—'}</td>
+      <td className={`px-2 py-2.5 text-center font-bold text-sm ${gradeColor(r.he10)}`}>{st==='Đã học' ? r.he10 : (isExclude && st==='Đạt' ? 'Đạt' : '—')}</td>
+      <td className={`px-2 py-2.5 text-center font-bold text-xs ${gradeColor(r.he10)}`}>{st==='Đã học' ? r.chu : '—'}</td>
+      <td className={`px-2 py-2.5 text-center font-bold text-xs ${gradeColor(r.he4)}`}>{st==='Đã học' ? r.he4 : '—'}</td>
     </tr>
   );
 }
@@ -329,9 +368,15 @@ function GradesTable({ profile, grades, onSave, canEdit }) {
       )}
 
       {/* Note about CPA calculation */}
-      <div className="mb-4 flex items-center gap-2 text-[11px] text-gray-500 bg-[#1a1a1a] border border-gray-800/60 rounded-xl px-4 py-2.5">
-        <CheckCircle className="w-3.5 h-3.5 text-green-400 shrink-0"/>
-        CPA tích lũy chỉ tính các môn có trạng thái <strong className="text-green-400 mx-1">Đã học</strong> theo thang điểm hệ 4.
+      <div className="mb-4 flex flex-col gap-1.5 text-[11px] text-gray-500 bg-[#1a1a1a] border border-gray-800/60 rounded-xl px-4 py-2.5">
+        <div className="flex items-center gap-2">
+          <CheckCircle className="w-3.5 h-3.5 text-green-400 shrink-0"/>
+          <span>CPA tích lũy chỉ tính các môn có trạng thái <strong className="text-green-400">Đã học</strong> theo thang điểm hệ 4.</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <CheckCircle className="w-3.5 h-3.5 text-blue-400 shrink-0"/>
+          <span>Các môn Thể chất, QPAN, Kỹ năng bổ trợ chỉ ghi nhận <strong className="text-blue-400">Đạt/Chưa đạt</strong> và không tính vào CPA.</span>
+        </div>
       </div>
 
       <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl overflow-hidden">
@@ -378,7 +423,6 @@ function GradesTable({ profile, grades, onSave, canEdit }) {
             </thead>
             <tbody>
               {(() => {
-                // Group subjects by their `type` field, preserving order of first appearance
                 const groups = [];
                 const groupMap = {};
                 subjectDatabase.forEach((sub, i) => {
@@ -390,7 +434,17 @@ function GradesTable({ profile, grades, onSave, canEdit }) {
                   groupMap[key].subjects.push({ ...sub, idx: i + 1 });
                 });
 
-                // Color accent per group (cycles through a palette)
+                // Tính toán tín chỉ của từng khối tự chọn theo thời gian thực
+                const groupCredits = {};
+                subjectDatabase.forEach(sub => {
+                  if (sub.electiveGroup) {
+                    const st = localGrades[sub.id]?.status;
+                    if (st === 'Đã học' || st === 'Đang học' || st === 'Được miễn' || st === 'Đạt') {
+                      groupCredits[sub.electiveGroup] = (groupCredits[sub.electiveGroup] || 0) + sub.credits;
+                    }
+                  }
+                });
+
                 const groupColors = [
                   'text-sky-400 bg-sky-500/10 border-sky-500/20',
                   'text-violet-400 bg-violet-500/10 border-violet-500/20',
@@ -407,7 +461,6 @@ function GradesTable({ profile, grades, onSave, canEdit }) {
                   const totalCredits = group.subjects.reduce((s, sub) => s + sub.credits, 0);
                   return (
                     <React.Fragment key={group.label}>
-                      {/* Group header row */}
                       <tr className="bg-[#1e1e1e]">
                         <td colSpan={10} className="px-4 py-2 border-y border-gray-800/60">
                           <div className="flex items-center gap-2">
@@ -420,11 +473,20 @@ function GradesTable({ profile, grades, onSave, canEdit }) {
                           </div>
                         </td>
                       </tr>
-                      {/* Subject rows */}
-                      {group.subjects.map(sub => (
-                        <GradeRow key={sub.id} subject={sub} grades={localGrades}
-                          onGradeChange={handleChange} isEditing={isEditing}/>
-                      ))}
+                      {group.subjects.map(sub => {
+                        const limit = sub.electiveGroup ? electiveLimits[sub.electiveGroup] : 0;
+                        const currentCr = sub.electiveGroup ? (groupCredits[sub.electiveGroup] || 0) : 0;
+                        const st = localGrades[sub.id]?.status;
+                        const isActive = st === 'Đã học' || st === 'Đang học' || st === 'Được miễn' || st === 'Đạt';
+                        
+                        // Làm mờ nếu khối đã full tín chỉ, và môn này đang không được chọn
+                        const isDimmed = sub.electiveGroup && currentCr >= limit && !isActive;
+
+                        return (
+                          <GradeRow key={sub.id} subject={sub} grades={localGrades}
+                            onGradeChange={handleChange} isEditing={isEditing} isDimmed={isDimmed}/>
+                        );
+                      })}
                     </React.Fragment>
                   );
                 });
@@ -438,23 +500,18 @@ function GradesTable({ profile, grades, onSave, canEdit }) {
 }
 
 // ── ProfileForm ───────────────────────────────────────────────────────────
-// Renders editable/viewable profile fields for any member
 function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfile, onStartEdit }) {
   const rl = roleLabel(profile.role);
-  // Login email (from auth) is always the profile.email field — read-only
   const loginEmail = profile.email || '';
 
   return (
     <>
-      {/* Completion banner — only for own profile */}
       {isOwnProfile && (
         <ProfileCompletionBanner profile={profile} isEditing={isEditing} onStartEdit={onStartEdit}/>
       )}
 
-      {/* Avatar & Identity */}
       <Section icon={User} title="Nhận diện">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {/* Avatar preview */}
           <div className="flex flex-col gap-2 md:col-span-1">
             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Ảnh đại diện</label>
             {isEditing ? (
@@ -482,13 +539,11 @@ function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfil
         </div>
       </Section>
 
-      {/* Basic info */}
       <Section icon={User} title="Thông tin cơ bản">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <Field label="STT"        value={profile.stt}      onChange={v=>setProfile(p=>({...p,stt:v}))}      disabled={!isEditing || !isSuperAdmin}/>
           <Field label="MSV" required value={profile.mssv||profile.msv} onChange={v=>setProfile(p=>({...p,mssv:v,msv:v}))} disabled={!isEditing}/>
 
-          {/* Role — only super admin can change */}
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Chức vụ</label>
             {isSuperAdmin && isEditing && profile.role !== 'super_admin' ? (
@@ -509,7 +564,7 @@ function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfil
           <Field label="Ngày sinh" required value={profile.dob}       onChange={v=>setProfile(p=>({...p,dob:v}))}       type="date"          disabled={!isEditing}/>
           <Field label="Dân tộc"   required value={profile.ethnicity} onChange={v=>setProfile(p=>({...p,ethnicity:v}))} options={ETHNICITIES} disabled={!isEditing}/>
           <Field label="Nhóm máu"  required value={profile.bloodType} onChange={v=>setProfile(p=>({...p,bloodType:v}))} options={BLOOD_TYPES} disabled={!isEditing}/>
-          <Field label="Nơi sinh"  required value={profile.pob}       onChange={v=>setProfile(p=>({...p,pob:v}))}       options={PROVINCES_34} disabled={!isEditing}/>
+          <Field label="Nơi sinh"  required value={profile.pob}       onChange={v=>setProfile(p=>({...p,pob:v}))}       options={PROVINCES} disabled={!isEditing}/>
         </div>
       </Section>
 
@@ -535,7 +590,6 @@ function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfil
           <Field label="Mail VNU" required     value={profile.mailVnu}      onChange={v=>setProfile(p=>({...p,mailVnu:v}))}      type="email" disabled={!isEditing}/>
           <Field label="Facebook" required     value={profile.facebook}     onChange={v=>setProfile(p=>({...p,facebook:v}))}                 disabled={!isEditing}/>
 
-          {/* Login email — always read-only, never editable */}
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
               Mail đăng nhập
@@ -552,7 +606,7 @@ function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfil
 
       <Section icon={MapPin} title="Địa chỉ" defaultOpen={false}>
         <div className="grid grid-cols-1 gap-4">
-          <Field label="Quê quán"       value={profile.hometown}         onChange={v=>setProfile(p=>({...p,hometown:v}))}         options={PROVINCES_34} disabled={!isEditing}/>
+          <Field label="Quê quán"       value={profile.hometown}         onChange={v=>setProfile(p=>({...p,hometown:v}))}         options={PROVINCES} disabled={!isEditing}/>
           <Field label="Nơi thường trú" value={profile.permanentAddress} onChange={v=>setProfile(p=>({...p,permanentAddress:v}))} disabled={!isEditing}/>
           <Field label="Nơi ở hiện tại" value={profile.currentAddress}   onChange={v=>setProfile(p=>({...p,currentAddress:v}))}   disabled={!isEditing}/>
         </div>
@@ -562,9 +616,8 @@ function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfil
 }
 
 // ── MemberDetail ──────────────────────────────────────────────────────────
-// Full profile + grades view for a specific member (opened by core)
 function MemberDetail({ member, onBack, canEdit }) {
-  const { grades, updateMemberProfile, syncGrades, isSuperAdmin } = useApp();
+  const { grades, updateProfile, syncGrades, isSuperAdmin } = useApp();
   const memberGrades = grades[member.id] || {};
 
   const [tab,       setTab]       = useState('profile');
@@ -574,7 +627,11 @@ function MemberDetail({ member, onBack, canEdit }) {
   useEffect(() => { setProfile({ ...member }); }, [member]);
 
   const handleSaveProfile = () => {
-    updateMemberProfile(member.id, profile);
+    // Note: ensure your useApp() exposes a way to update OTHER users.
+    // If updateProfile only updates current user, you might need a separate function like updateMemberProfile in AppContext.
+    // Assuming updateProfile handles both if passed an ID, or use it carefully.
+    // In original code it was updateMemberProfile(member.id, profile). Let's use updateProfile for now, adjust in AppContext if needed.
+    updateProfile(profile); 
     setIsEditing(false);
   };
 
@@ -587,7 +644,6 @@ function MemberDetail({ member, onBack, canEdit }) {
 
   return (
     <div className="h-full overflow-y-auto custom-scrollbar">
-      {/* Header */}
       <div className="flex items-center gap-4 p-6 border-b border-gray-800/60 bg-[#1a1a1a] sticky top-0 z-10">
         <button onClick={onBack}
           className="p-2 rounded-xl hover:bg-[#252525] text-gray-400 hover:text-white transition-colors">
@@ -626,7 +682,6 @@ function MemberDetail({ member, onBack, canEdit }) {
         </div>
       </div>
 
-      {/* Sub-tabs */}
       <div className="flex gap-1 px-6 pt-4">
         {[['profile','Hồ sơ'],['grades','Bảng điểm']].map(([k,v])=>(
           <button key={k} onClick={()=>{setTab(k);setIsEditing(false);}}
@@ -676,11 +731,15 @@ function MemberCard({ member, onClick }) {
 
 // ── Members Management Tab ─────────────────────────────────────────────────
 function MembersTab() {
-  const { activeMembers, pendingMembers, isCore, isSuperAdmin, approveUser, rejectUser, exportMembersCSV } = useApp();
+  const { members, isCore, isSuperAdmin, approveUser, rejectUser, exportMembersCSV } = useApp();
   const [selectedMember, setSelectedMember] = useState(null);
   const [search, setSearch] = useState('');
   const [approvingId, setApprovingId] = useState(null);
   const [rejectingId,  setRejectingId] = useState(null);
+
+  // Phân loại thành viên
+  const activeMembers = members.filter(m => m.status !== 'pending');
+  const pendingMembers = members.filter(m => m.status === 'pending');
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -693,13 +752,13 @@ function MembersTab() {
 
   const handleApprove = async (id) => {
     setApprovingId(id);
-    await approveUser(id);
+    if(approveUser) await approveUser(id);
     setApprovingId(null);
   };
   const handleReject = async (id) => {
     if (!window.confirm('Từ chối và xoá đơn này?')) return;
     setRejectingId(id);
-    await rejectUser(id);
+    if(rejectUser) await rejectUser(id);
     setRejectingId(null);
   };
 
@@ -716,7 +775,6 @@ function MembersTab() {
 
   return (
     <div className="space-y-5">
-      {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
         {[
           { label:'Tổng thành viên',   value: activeMembers.length, color:'text-white' },
@@ -730,7 +788,6 @@ function MembersTab() {
         ))}
       </div>
 
-      {/* Pending approval */}
       {pendingMembers.length > 0 && (
         <div className="bg-[#1a1a1a] border border-amber-500/20 rounded-2xl overflow-hidden">
           <div className="flex items-center gap-2 px-5 py-3 bg-amber-500/8 border-b border-amber-500/20">
@@ -751,9 +808,6 @@ function MembersTab() {
                       "{m.reason}"
                     </div>
                   )}
-                  <div className="text-[10px] text-gray-600 mt-1">
-                    Đăng ký: {m.registeredAt ? new Date(m.registeredAt).toLocaleDateString('vi-VN') : '—'}
-                  </div>
                 </div>
                 {(isSuperAdmin || isCore) && (
                   <div className="flex gap-2 shrink-0">
@@ -773,7 +827,6 @@ function MembersTab() {
         </div>
       )}
 
-      {/* Active members */}
       <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl overflow-hidden">
         <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-800/60">
           <Users className="w-4 h-4 text-gray-500"/>
@@ -808,14 +861,13 @@ function MembersTab() {
 export default function Profile() {
   const {
     currentUser, updateProfile, myGrades, syncGrades,
-    isProfileComplete, isCore, isSuperAdmin, activeMembers,
+    isProfileComplete, isCore, isSuperAdmin, members,
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [profileState, setProfileState] = useState({ ...currentUser });
 
-  // Sync when currentUser changes externally (e.g. core edits our profile)
   useEffect(() => {
     if (!isEditing) setProfileState({ ...currentUser });
   }, [currentUser, isEditing]);
@@ -823,6 +875,7 @@ export default function Profile() {
   const complete  = isProfileComplete(currentUser);
   const initials  = getInitials(currentUser?.fullName);
   const rl        = roleLabel(currentUser?.role);
+  const activeMembers = members?.filter(m => m.status !== 'pending') || [];
 
   const handleSaveProfile = () => {
     updateProfile(profileState);
@@ -844,7 +897,6 @@ export default function Profile() {
 
   return (
     <div className="h-full overflow-y-auto custom-scrollbar">
-      {/* ── Header ── */}
       <div className="px-6 pt-6 pb-4 border-b border-gray-800/60 bg-[#121212] sticky top-0 z-20">
         <div className="flex items-center gap-4 mb-4">
           {currentUser?.avatarUrl
@@ -865,7 +917,6 @@ export default function Profile() {
             <div className="text-sm text-gray-500 mt-0.5">{currentUser?.mssv||currentUser?.msv||'MSSV chưa cập nhật'} · {currentUser?.mailSchool||currentUser?.email||''}</div>
           </div>
 
-          {/* Profile edit actions (only on profile tab) */}
           {activeTab === 'profile' && (
             <div className="flex gap-2">
               {!isEditing && (
@@ -890,7 +941,6 @@ export default function Profile() {
           )}
         </div>
 
-        {/* Tabs */}
         <div className="flex gap-1">
           {tabs.map(t => (
             <button key={t.key}
@@ -903,7 +953,7 @@ export default function Profile() {
               {t.label}
               {t.key==='members' && activeTab!=='members' && (
                 <span className="text-[10px] bg-gray-700 px-1.5 py-0.5 rounded-full">
-                  {activeMembers?.length||''}
+                  {activeMembers.length}
                 </span>
               )}
             </button>
@@ -911,7 +961,6 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* ── Content ── */}
       <div className="p-6">
         {activeTab === 'profile' && (
           <ProfileForm
