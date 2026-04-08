@@ -330,7 +330,16 @@ function GradeRow({ subject, grades, onGradeChange, isEditing, isDimmed }) {
       </td>
       <td className="px-2 py-2.5">
         {isEditing && !isDimmed ? (
-          <select value={st} onChange={e=>onGradeChange(subject.id,'status',e.target.value)}
+          <select value={st} onChange={e => {
+            const newStatus = e.target.value;
+            onGradeChange(subject.id, 'status', newStatus);
+            // FIX: clear grade fields when switching to a non-graded status
+            if (newStatus === 'Chưa học' || newStatus === 'Không học') {
+              onGradeChange(subject.id, 'cc', '');
+              onGradeChange(subject.id, 'gk', '');
+              onGradeChange(subject.id, 'ck', '');
+            }
+          }}
             className="text-xs bg-[#252525] border border-gray-700 rounded-lg px-1 py-1 text-white outline-none focus:border-blue-500">
             <option value="">—</option>
             {statusOpts.map(s=><option key={s} value={s}>{s}</option>)}
@@ -647,7 +656,9 @@ function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfil
 
 // ── MemberDetail ──────────────────────────────────────────────────────────
 function MemberDetail({ member, onBack, canEdit }) {
-  const { grades, updateProfile, syncGrades, isSuperAdmin } = useApp();
+  // FIX: use updateMemberProfile (not updateProfile) so currentUser/localStorage
+  // are never overwritten when an admin edits another member's profile.
+  const { grades, updateMemberProfile, syncGrades, isSuperAdmin } = useApp();
   const memberGrades = grades[member.id] || {};
 
   const [tab,       setTab]       = useState('profile');
@@ -657,11 +668,7 @@ function MemberDetail({ member, onBack, canEdit }) {
   useEffect(() => { setProfile({ ...member }); }, [member]);
 
   const handleSaveProfile = () => {
-    // Note: ensure your useApp() exposes a way to update OTHER users.
-    // If updateProfile only updates current user, you might need a separate function like updateMemberProfile in AppContext.
-    // Assuming updateProfile handles both if passed an ID, or use it carefully.
-    // In original code it was updateMemberProfile(member.id, profile). Let's use updateProfile for now, adjust in AppContext if needed.
-    updateProfile(profile); 
+    updateMemberProfile(member.id, profile);
     setIsEditing(false);
   };
 

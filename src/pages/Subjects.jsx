@@ -232,44 +232,43 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
           )}
         </div>
 
-        {/* SME + Upload */}
-        <div className="flex items-center justify-between mt-3">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-blue-600/20 rounded-full flex items-center justify-center text-[10px] font-bold text-blue-400 shrink-0">
-              {(() => {
-              const smeUser = members.find(m => m.fullName === sme);
-              if (smeUser?.avatarUrl) {
-                return (
-                  <img src={smeUser.avatarUrl} alt={sme} title={sme}
-                    className="w-6 h-6 rounded-full object-cover border border-blue-500/30 shrink-0" 
-                    onError={(e)=>{e.target.style.display='none'}} 
-                  />
-                );
-              }
-              return (
-                <div className="w-6 h-6 bg-blue-600/20 rounded-full flex items-center justify-center text-[10px] font-bold text-blue-400 shrink-0">
-                  {smeUser?.avatar || (sme||'?')[0]}
-                </div>
-              );
-            })()}
+        {/* SME + Upload — FIX: hidden when subject is already done (SME's job is complete) */}
+        {(grade?.status === 'Đã học' || grade?.status === 'Được miễn') ? (
+          <div className="flex items-center justify-between mt-3">
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-green-400 bg-green-500/10 border border-green-500/20 px-2.5 py-1 rounded-lg">
+              <span>🎓</span> Đã hoàn thành — SME không còn cần thiết
             </div>
-            {isCore ? (
-              <select value={sme||''} onChange={e=>onChangeSme(sub.id,e.target.value)}
-                className="text-xs bg-[#252525] text-white border border-gray-700 rounded-lg px-2 py-1 outline-none cursor-pointer">
-                <option value="">-- Chọn SME --</option>
-                {members.map(m=><option key={m.id} value={m.fullName}>{m.fullName}</option>)}
-              </select>
-            ) : (
-              <span className="text-xs text-gray-400">{sme||'Chưa có SME'}</span>
+            {(isSme||isCore) && (
+              <button onClick={()=>onUpload(sub)}
+                className="flex items-center gap-1 text-[10px] font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-1 rounded-lg hover:bg-blue-500/20">
+                <Link className="w-3 h-3"/> Tài liệu
+              </button>
             )}
           </div>
-          {(isSme||isCore) && (
-            <button onClick={()=>onUpload(sub)}
-              className="flex items-center gap-1 text-[10px] font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-1 rounded-lg hover:bg-blue-500/20">
-              <Link className="w-3 h-3"/> Tài liệu
-            </button>
-          )}
-        </div>
+        ) : (
+          <div className="flex items-center justify-between mt-3">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 bg-blue-600/20 rounded-full flex items-center justify-center text-[10px] font-bold text-blue-400 shrink-0">
+                {(sme||'?')[0]}
+              </div>
+              {isCore ? (
+                <select value={sme||''} onChange={e=>onChangeSme(sub.id,e.target.value)}
+                  className="text-xs bg-[#252525] text-white border border-gray-700 rounded-lg px-2 py-1 outline-none cursor-pointer">
+                  <option value="">-- Chọn SME --</option>
+                  {members.map(m=><option key={m.id} value={m.fullName}>{m.fullName}</option>)}
+                </select>
+              ) : (
+                <span className="text-xs text-gray-400">{sme||'Chưa có SME'}</span>
+              )}
+            </div>
+            {(isSme||isCore) && (
+              <button onClick={()=>onUpload(sub)}
+                className="flex items-center gap-1 text-[10px] font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-1 rounded-lg hover:bg-blue-500/20">
+                <Link className="w-3 h-3"/> Tài liệu
+              </button>
+            )}
+          </div>
+        )}
 
         {/* FIX: Preview mini danh sách ai đang học (hiển thị ngay trên card) */}
         {learnerMap['Đang học'].length > 0 && (
@@ -311,21 +310,17 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
               </h4>
               <div className="flex flex-wrap gap-1.5">
                 {learnerMap['Đang học'].map(m => (
-                      <div key={m.id} title={`${m.fullName} – Đang học`}
-                        className="flex items-center gap-1 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">
-                        {m.avatarUrl ? (
-                          <img src={m.avatarUrl} alt={m.fullName} className="w-4 h-4 rounded-full object-cover shrink-0" onError={(e)=>{e.target.style.display='none'}} />
-                        ) : (
-                          <div className="w-4 h-4 rounded-full bg-blue-600/30 flex items-center justify-center text-[8px] font-bold text-blue-300 shrink-0">
-                            {m.avatar || m.fullName?.[0] || '?'}
-                          </div>
-                        )}
-                        <span className="text-[10px] text-blue-300 font-medium max-w-[80px] truncate">
-                          {m.fullName.split(' ').slice(-1)[0]}
-                        </span>
-                        <span className="text-[9px] text-blue-500">● học</span>
-                      </div>
-                    ))}
+                  <div key={m.id} title={`${m.fullName} – Đang học`}
+                    className="flex items-center gap-1 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">
+                    <div className="w-4 h-4 rounded-full bg-blue-600/30 flex items-center justify-center text-[8px] font-bold text-blue-300 shrink-0">
+                      {m.avatar || m.fullName?.[0] || '?'}
+                    </div>
+                    <span className="text-[10px] text-blue-300 font-medium max-w-[80px] truncate">
+                      {m.fullName.split(' ').slice(-1)[0]}
+                    </span>
+                    <span className="text-[9px] text-blue-500">● học</span>
+                  </div>
+                ))}
                 {learnerMap['Đã học'].map(m => (
                   <div key={m.id} title={`${m.fullName} – Đã học`}
                     className="flex items-center gap-1 bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full">
