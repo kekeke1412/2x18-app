@@ -276,34 +276,27 @@ const timerMap  = {};
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, init);
   const skipSyncRef     = useRef(false);
-  // Ngăn auto-sync ghi lại Firebase ngay sau khi onValue vừa cập nhật state
-  // (tránh vòng lặp vô hạn: onValue → INIT_DATA → auto-sync → Firebase → onValue → ...)
   const fromFirebaseRef = useRef(false);
 
   // ── Boot ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     let unsubDB = null;
 
-    // Khôi phục user từ localStorage để render ngay (optimistic)
     try {
       const stored = localStorage.getItem('2x18_current_user');
       if (stored) dispatch({ type:A.SET_USER, payload:JSON.parse(stored) });
     } catch {}
 
-    // Kết nối realtime DB — gọi lại mỗi khi user đăng nhập
     const subscribeDB = () => {
       if (unsubDB) { unsubDB(); unsubDB = null; }
       dispatch({ type:A.SET_LOADING, payload:true });
 
       unsubDB = onValue(ref(db, '/'), (snapshot) => {
         const val = snapshot.val() || {};
-        // toArr() bảo vệ khi Firebase trả về object thay vì array
         const members = toArr(val['2x18_members']);
         const grades  = {};
         members.forEach(m => { if (m?.id) grades[m.id] = val[`${m.id}_grades`] || {}; });
 
-        // Đánh dấu: lần cập nhật state này đến từ Firebase
-        // → auto-sync sẽ bỏ qua để không ghi lại ngay lập tức
         fromFirebaseRef.current = true;
 
         dispatch({ type:A.INIT_DATA, payload: {
@@ -330,13 +323,10 @@ export function AppProvider({ children }) {
       });
     };
 
-    // onAuthStateChanged điều khiển kết nối DB
     const unsubAuth = onAuthStateChanged(auth, (fbUser) => {
       if (fbUser) {
-        // Đăng nhập → kết nối lại DB listener
         subscribeDB();
       } else {
-        // Đăng xuất → hủy listener, xóa toàn bộ state
         localStorage.removeItem('2x18_current_user');
         if (unsubDB) { unsubDB(); unsubDB = null; }
         fromFirebaseRef.current = false;
@@ -354,14 +344,13 @@ export function AppProvider({ children }) {
     return () => { if (unsubDB) unsubDB(); unsubAuth(); };
   }, []);
 
-  // ── Sync currentUser from members (so Core edits propagate to member) ─────
+  // ── Sync currentUser from members ─────────────────────────────────────────
   useEffect(() => {
     if (skipSyncRef.current) { skipSyncRef.current = false; return; }
     const cu = state.currentUser;
     if (!cu || state.isLoading) return;
     const fresh = state.members.find(m => m.id === cu.id);
     if (!fresh) return;
-    // Sync only meaningful fields
     const hasChange = ['role','status','fullName','phone','gender','mssv','mailSchool'].some(
       f => fresh[f] !== cu[f]
     );
@@ -374,13 +363,18 @@ export function AppProvider({ children }) {
 
   // ── Auto-sync to Firebase (debounced) ─────────────────────────────────────
   useEffect(() => {
-    // Bỏ qua nếu data vừa đến từ Firebase (tránh vòng lặp ghi → onValue → ghi → ...)
     if (fromFirebaseRef.current) {
       fromFirebaseRef.current = false;
       return;
     }
     if (state.isLoading || !state.members.length) return;
-    fbSet('2x18_members',          state.members);
+    
+    // FIX QUAN TRỌNG: Ép mảng thành Object (Map) trước khi gửi lên DB
+    // Điều này sẽ trị dứt điểm lỗi "scalar field"
+    const membersMap = {};
+    state.members.forEach(m => { if (m.id) membersMap[m.id] = m; });
+    fbSet('2x18_members', membersMap);
+
     fbSet('2x18_sme',              state.smeMap);
     fbSet('2x18_tasks',            state.tasks);
     fbSet('2x18_events',           state.calEvents);
@@ -431,18 +425,14 @@ export function AppProvider({ children }) {
   }), [state.currentUser]);
 
   // ── AUTH ──────────────────────────────────────────────────────────────────
-  /**
-   * Returns normally on success.
-   * Throws Error('PENDING') if account is awaiting approval.
-   * Throws Error('NOT_FOUND') if no matching member record.
-   * Throws Error(firebaseMsg) for all other failures.
-   */
   const login = useCallback(async (email, password) => {
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
       const fbUser = cred.user;
-      const snap = await get(ref(db, '2x18_members'));
-      const member = toArr(snap.val()).find(m => m.email === email || m.mailSchool === email);
+      
+      const snap = await get(ref(db, `2x18_members/${fbUser.uid}`));
+      const member = snap.val();
+      
       if (!member) {
         await signOut(auth).catch(() => {});
         throw new Error('NOT_FOUND');
@@ -455,7 +445,6 @@ export function AppProvider({ children }) {
       dispatch({ type: A.SET_USER, payload: user });
       localStorage.setItem('2x18_current_user', JSON.stringify(user));
     } catch (err) {
-      // Re-throw PENDING/NOT_FOUND as-is; translate Firebase codes
       if (err.message === 'PENDING' || err.message === 'NOT_FOUND') throw err;
       const msg = {
         'auth/user-not-found':     'Tài khoản không tồn tại.',
@@ -475,12 +464,11 @@ export function AppProvider({ children }) {
     const fbUser = cred.user;
     const isSA = fbUser.email === SUPER_ADMIN_EMAIL;
 
-    const snap = await get(ref(db, '2x18_members'));
-    const currentMembers = toArr(snap.val());
-    let member = currentMembers.find(m => m.email === fbUser.email || m.mailSchool === fbUser.email);
+    // FIX: Chỉ tải dữ liệu của chính mình thay vì tải cả array
+    const snap = await get(ref(db, `2x18_members/${fbUser.uid}`));
+    let member = snap.val();
 
     if (!member) {
-      // Brand-new user → tạo profile pending (hoặc super_admin nếu là email admin)
       member = {
         id: fbUser.uid, uid: fbUser.uid,
         email: fbUser.email, mailSchool: fbUser.email,
@@ -492,10 +480,10 @@ export function AppProvider({ children }) {
         mssv: '', phone: '', gender: '',
         registeredAt: new Date().toISOString(),
       };
-      await set(ref(db, '2x18_members'), [...currentMembers, member]);
+      await set(ref(db, `2x18_members/${fbUser.uid}`), member);
     } else if (isSA && (member.role !== 'super_admin' || member.status !== 'active')) {
       member = { ...member, role: 'super_admin', status: 'active' };
-      await set(ref(db, '2x18_members'), currentMembers.map(m => m.email === fbUser.email ? member : m));
+      await set(ref(db, `2x18_members/${member.id}`), member);
     }
 
     if (member.status === 'pending') {
@@ -509,12 +497,12 @@ export function AppProvider({ children }) {
     return { status: 'ok' };
   }, []);
 
-  // userData = { ho, ten, mssv, email, phone, password, reason, ... }
   const register = useCallback(async (userData) => {
     const { email, password, ho='', ten='', mssv='', phone='', reason='' } = userData;
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     const fbUser = cred.user;
     const fullName = `${ho.trim()} ${ten.trim()}`.trim() || userData.fullName || 'Thành viên';
+    
     const newMember = {
       id: fbUser.uid, uid: fbUser.uid,
       email, mailSchool: email,
@@ -525,10 +513,9 @@ export function AppProvider({ children }) {
       reason,
       registeredAt: new Date().toISOString(),
     };
-    const snap = await get(ref(db, '2x18_members'));
-    const currentMembers = toArr(snap.val());
-    await set(ref(db, '2x18_members'), [...currentMembers, newMember]);
-    // Sign out immediately — cần được duyệt trước khi vào app
+    
+    // FIX: Ghi trực tiếp vào Object riêng, không đọc và đè mảng nữa
+    await set(ref(db, `2x18_members/${fbUser.uid}`), newMember);
     await signOut(auth).catch(() => {});
     return newMember;
   }, []);
@@ -536,7 +523,6 @@ export function AppProvider({ children }) {
   const logout = useCallback(async () => {
     await signOut(auth);
     localStorage.removeItem('2x18_current_user');
-    // onAuthStateChanged sẽ dispatch SET_USER(null) + INIT_DATA(empty) + hủy DB listener
   }, []);
 
   // ── PROFILE ───────────────────────────────────────────────────────────────
@@ -545,23 +531,22 @@ export function AppProvider({ children }) {
     const merged = { ...state.currentUser, ...profileData };
     dispatch({ type:A.UPDATE_PROFILE, payload:merged });
     localStorage.setItem('2x18_current_user', JSON.stringify(merged));
+    
+    // FIX: Ghi trực tiếp để tránh lỗi phân quyền từ auto-sync
+    set(ref(db, `2x18_members/${merged.id}`), merged).catch(e => console.warn(e));
     toast('Đã lưu hồ sơ!', 'success');
   }, [state.currentUser, toast]);
 
   const updateMemberProfile = useCallback((memberId, profileData) => {
     dispatch({ type:A.UPDATE_PROFILE, payload:{ ...profileData, id:memberId } });
+    set(ref(db, `2x18_members/${memberId}`), { ...profileData, id:memberId }).catch(e => console.warn(e));
     toast('Đã cập nhật hồ sơ thành viên!', 'success');
   }, [toast]);
 
   const approveUser = useCallback(async (memberId) => {
     try {
-      // Ghi thẳng vào Firebase để tránh race condition với fromFirebaseRef
-      const snap = await get(ref(db, '2x18_members'));
-      const updated = toArr(snap.val()).map(m =>
-        m.id === memberId ? { ...m, status: 'active' } : m
-      );
-      await set(ref(db, '2x18_members'), updated);
-      // Cập nhật local state ngay lập tức để UI phản hồi tức thì
+      // FIX: Cập nhật status trực tiếp của 1 người
+      await set(ref(db, `2x18_members/${memberId}/status`), 'active');
       dispatch({ type: A.UPDATE_PROFILE, payload: { id: memberId, status: 'active' } });
       toast('Đã duyệt thành viên! ✓', 'success');
     } catch (e) {
@@ -572,9 +557,8 @@ export function AppProvider({ children }) {
 
   const rejectUser = useCallback(async (memberId) => {
     try {
-      const snap = await get(ref(db, '2x18_members'));
-      const updated = toArr(snap.val()).filter(m => m.id !== memberId);
-      await set(ref(db, '2x18_members'), updated);
+      // FIX: Xóa thẳng nhánh của người đó
+      await set(ref(db, `2x18_members/${memberId}`), null);
       dispatch({ type: A.REMOVE_MEMBER, payload: memberId });
       toast('Đã từ chối đơn đăng ký.', 'info');
     } catch (e) {
@@ -583,7 +567,7 @@ export function AppProvider({ children }) {
     }
   }, [toast]);
 
-  // ── GRADES ────────────────────────────────────────────────────────────────
+  // ── GRADES & FEATURES ─────────────────────────────────────────────────────
   const syncGrades   = useCallback((userId, gradesData) => {
     dispatch({ type:A.SYNC_GRADES,    payload:{ userId, gradesData } });
     toast('Đã lưu bảng điểm!', 'success');
@@ -667,7 +651,11 @@ export function AppProvider({ children }) {
     toast(`Đánh giá ${stars} sao!`,'success');
   }, [state.currentUser?.id,state.docs,toast]);
 
-  const updateRole          = useCallback(p => dispatch({type:A.UPDATE_MEMBER_ROLE,payload:p}), []);
+  const updateRole = useCallback(p => {
+    dispatch({type:A.UPDATE_MEMBER_ROLE,payload:p});
+    set(ref(db, `2x18_members/${p.memberId}/role`), p.role).catch(e => console.warn(e));
+  }, []);
+  
   const addContribution     = useCallback(p => dispatch({type:A.ADD_CONTRIBUTION,  payload:p}), []);
   const updateSemesterLabel = useCallback((key,label) => dispatch({type:A.UPDATE_SEMESTER_LABEL,payload:{key,label}}), []);
 
@@ -686,24 +674,14 @@ export function AppProvider({ children }) {
     toast('Đã xuất danh sách!','success');
   }, [state.members,toast]);
 
-  // ── isProfileComplete: requires 11 key fields ────────────────────────────
-  // MSV, Họ và tên, Giới tính, Ngày sinh, Dân tộc, Nhóm máu, Nơi sinh,
-  // SĐT, Mail VNU, Mail HUS, Facebook
   const isProfileComplete = useCallback((m) => {
     if (!m) return false;
     const has = f => m[f] && String(m[f]).trim() !== '';
     return (
       (has('mssv') || has('msv')) &&
-      has('fullName') &&
-      has('gender') &&
-      has('dob') &&
-      has('ethnicity') &&
-      has('bloodType') &&
-      has('pob') &&
-      has('phone') &&
-      has('mailVnu') &&
-      has('mailSchool') &&
-      has('facebook')
+      has('fullName') && has('gender') && has('dob') && has('ethnicity') &&
+      has('bloodType') && has('pob') && has('phone') && has('mailVnu') &&
+      has('mailSchool') && has('facebook')
     );
   }, []);
 
