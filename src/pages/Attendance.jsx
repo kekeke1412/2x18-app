@@ -28,7 +28,7 @@ export default function Attendance() {
     currentUser,
     checkAttendance,
     addAttendanceSession,
-    deleteAttendanceSession,
+    deleteAttendanceSession,   // ← giờ đã có trong AppContext
     isCore,
     members,
     toast,
@@ -39,7 +39,7 @@ export default function Attendance() {
   const [newTitle,  setNewTitle]  = useState('');
   const [newDate,   setNewDate]   = useState('');
   const [newLink,   setNewLink]   = useState('');
-  const [confirmDel, setConfirmDel] = useState(null); // sessionId to delete
+  const [confirmDel, setConfirmDel] = useState(null);
 
   useEffect(() => {
     if (attendance.length > 0 && !selected) setSelected(attendance[0].sessionId);
@@ -68,7 +68,6 @@ export default function Attendance() {
     if (deleteAttendanceSession) {
       deleteAttendanceSession(sessionId);
       if (selected === sessionId) setSelected(attendance.find(s => s.sessionId !== sessionId)?.sessionId || null);
-      toast('Đã xóa buổi họp', 'info');
     }
     setConfirmDel(null);
   };
@@ -82,6 +81,9 @@ export default function Attendance() {
 
   const attendRate = s => s.total > 0 ? Math.round(s.present.length / s.total * 100) : 0;
   const canCheckIn = session && isToday(session.date);
+
+  // FIX: nút OK chỉ active khi đã điền đủ tiêu đề + ngày
+  const canSubmit = newTitle.trim() && newDate;
 
   return (
     <div className="h-full bg-[#121212] text-gray-200 flex flex-col overflow-hidden">
@@ -109,27 +111,39 @@ export default function Attendance() {
           <div className="mt-3 p-3 bg-[#1e1e1e] border border-blue-500/20 rounded-xl fade-in space-y-3">
             <div className="flex gap-3 items-end">
               <div className="flex-1">
-                <label className="text-[10px] text-gray-500 font-bold block mb-1">TÊN BUỔI HỌP</label>
+                <label className="text-[10px] text-gray-500 font-bold block mb-1">TÊN BUỔI HỌP *</label>
                 <input className="input-dark" placeholder="VD: Họp SME Giải tích tuần 9..."
                   value={newTitle} onChange={e => setNewTitle(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && addSession()}/>
+                  onKeyDown={e => e.key === 'Enter' && canSubmit && addSession()}/>
               </div>
               <div>
-                <label className="text-[10px] text-gray-500 font-bold block mb-1">NGÀY HỌP</label>
+                <label className="text-[10px] text-gray-500 font-bold block mb-1">NGÀY HỌP *</label>
                 <input type="date" className="input-dark" value={newDate} onChange={e => setNewDate(e.target.value)}/>
               </div>
             </div>
             <div className="flex gap-3 items-end">
               <div className="flex-1">
-                <label className="text-[10px] text-gray-500 font-bold block mb-1 flex items-center gap-1">
-                  <Link2 className="w-3 h-3"/> LINK HỌP (tùy chọn)
+                <label className="text-[10px] text-gray-500 font-bold block mb-1">
+                  LINK HỌP <span className="font-normal text-gray-600">(tùy chọn)</span>
                 </label>
                 <input className="input-dark" placeholder="https://meet.google.com/... hoặc Zoom link"
                   value={newLink} onChange={e => setNewLink(e.target.value)}/>
               </div>
-              <button onClick={addSession} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm rounded-xl">OK</button>
+              {/* FIX: thêm disabled + styles rõ ràng để user biết khi nào có thể nhấn */}
+              <button
+                onClick={addSession}
+                disabled={!canSubmit}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl transition-all">
+                OK
+              </button>
               <button onClick={() => setShowAdd(false)} className="p-2 text-gray-500 hover:text-white"><X className="w-4 h-4"/></button>
             </div>
+            {/* Hint khi chưa điền đủ */}
+            {!canSubmit && (newTitle.trim() || newDate) && (
+              <p className="text-[10px] text-amber-500">
+                {!newTitle.trim() ? '⚠ Cần nhập tên buổi họp.' : '⚠ Cần chọn ngày họp.'}
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -210,7 +224,6 @@ export default function Attendance() {
                         {formatDate(session.date)} · <strong className="text-green-400">{session.present.length}</strong>/{session.total} thành viên có mặt
                         <span className="ml-2 text-gray-600">({attendRate(session)}%)</span>
                       </p>
-                      {/* Meeting link in detail */}
                       {session.meetLink && (
                         <a href={session.meetLink} target="_blank" rel="noopener noreferrer"
                           className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 bg-blue-500/10 border border-blue-500/20 px-3 py-1 rounded-lg transition-all">

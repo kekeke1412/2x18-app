@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import {
   BookOpen, Search, ShieldCheck, User, ChevronDown, ChevronUp,
-  FileText, X, Star, MessageSquare, Send, Plus, Trash2, Check, Edit3, Link
+  FileText, X, Star, MessageSquare, Send, Plus, Trash2, Check, Edit3, Link, Users
 } from 'lucide-react';
 import { subjectDatabase } from '../data';
 import { useApp } from '../context/AppContext';
@@ -67,8 +67,6 @@ function AddDocModal({ subject, onClose, onAdd }) {
 }
 
 // ── Subject Task Panel (Checklist) ─────────────────────────────────────────
-// isSme = true: có quyền thêm/sửa/xóa mục
-// member: chỉ tick checkbox
 function SubjectTaskPanel({ subjectId, isSme, currentUser }) {
   const { subjectTasks, addSubjectTask, editSubjectTask, deleteSubjectTask, tickSubjectTask } = useApp();
   const tasks = subjectTasks[subjectId] || [];
@@ -78,7 +76,6 @@ function SubjectTaskPanel({ subjectId, isSme, currentUser }) {
   const [editId,   setEditId]   = useState(null);
   const [editText, setEditText] = useState('');
 
-  // Tiến độ tính từ checkbox của user hiện tại
   const myDone   = tasks.filter(t=>t.doneBy?.[currentUser?.id]).length;
   const progress = tasks.length > 0 ? Math.round(myDone / tasks.length * 100) : 0;
 
@@ -166,17 +163,29 @@ function SubjectTaskPanel({ subjectId, isSme, currentUser }) {
 }
 
 // ── Subject Card ───────────────────────────────────────────────────────────
-function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, docs, members, currentUser, rateDoc }) {
+// FIX: thêm prop `grades` để hiển thị ai đang học môn này
+function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, docs, members, currentUser, rateDoc, grades }) {
   const { subjectTasks, subjectComments, addSubjectComment } = useApp();
   const [expanded, setExpanded] = useState(false);
   const [comment,  setComment]  = useState('');
 
-  // Tiến độ tính từ checklist (không dùng slider thủ công nữa)
   const tasks    = subjectTasks[sub.id] || [];
   const myDone   = tasks.filter(t=>t.doneBy?.[currentUser?.id]).length;
   const progress = tasks.length > 0 ? Math.round(myDone / tasks.length * 100) : 0;
 
   const comments = subjectComments[sub.id] || [];
+
+  // ── FIX: tính danh sách thành viên học môn này từ grades ─────────────────
+  const learnerMap = {
+    'Đang học': [],
+    'Đã học':   [],
+    'Được miễn':[],
+  };
+  (members || []).forEach(m => {
+    const st = grades?.[m.id]?.[sub.id]?.status;
+    if (learnerMap[st]) learnerMap[st].push(m);
+  });
+  const allLearners = [...learnerMap['Đang học'], ...learnerMap['Đã học'], ...learnerMap['Được miễn']];
 
   const handleComment = () => {
     if (!comment.trim()) return;
@@ -246,14 +255,79 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
             </button>
           )}
         </div>
+
+        {/* FIX: Preview mini danh sách ai đang học (hiển thị ngay trên card) */}
+        {learnerMap['Đang học'].length > 0 && (
+          <div className="mt-3 pt-3 border-t border-gray-800/40">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[10px] text-gray-500 font-bold shrink-0">Đang học:</span>
+              {learnerMap['Đang học'].slice(0, 5).map(m => (
+                <div key={m.id} title={m.fullName}
+                  className="w-5 h-5 rounded-full bg-blue-600/25 border border-blue-500/30 flex items-center justify-center text-[8px] font-bold text-blue-300 shrink-0">
+                  {m.avatar || m.fullName?.[0] || '?'}
+                </div>
+              ))}
+              {learnerMap['Đang học'].length > 5 && (
+                <span className="text-[10px] text-gray-500">+{learnerMap['Đang học'].length - 5}</span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Expanded: checklist + docs + comments */}
+      {/* Expanded: checklist + danh sách học viên + docs + comments */}
       {expanded && (
         <div className="border-t border-gray-800/60 bg-[#141414]">
 
-          {/* Checklist — SME tạo/sửa/xóa, member tick */}
+          {/* Checklist */}
           <SubjectTaskPanel subjectId={sub.id} isSme={isSme||isCore} currentUser={currentUser}/>
+
+          {/* FIX: Danh sách thành viên học môn này ────────────────────────── */}
+          {allLearners.length > 0 && (
+            <div className="p-4 border-b border-gray-800/60">
+              <h4 className="text-xs font-bold text-gray-400 mb-2 flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5"/> Thành viên học môn này ({allLearners.length})
+              </h4>
+              <div className="flex flex-wrap gap-1.5">
+                {learnerMap['Đang học'].map(m => (
+                  <div key={m.id} title={`${m.fullName} – Đang học`}
+                    className="flex items-center gap-1 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">
+                    <div className="w-4 h-4 rounded-full bg-blue-600/30 flex items-center justify-center text-[8px] font-bold text-blue-300 shrink-0">
+                      {m.avatar || m.fullName?.[0] || '?'}
+                    </div>
+                    <span className="text-[10px] text-blue-300 font-medium max-w-[80px] truncate">
+                      {m.fullName.split(' ').slice(-1)[0]}
+                    </span>
+                    <span className="text-[9px] text-blue-500">● học</span>
+                  </div>
+                ))}
+                {learnerMap['Đã học'].map(m => (
+                  <div key={m.id} title={`${m.fullName} – Đã học`}
+                    className="flex items-center gap-1 bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full">
+                    <div className="w-4 h-4 rounded-full bg-green-600/30 flex items-center justify-center text-[8px] font-bold text-green-300 shrink-0">
+                      {m.avatar || m.fullName?.[0] || '?'}
+                    </div>
+                    <span className="text-[10px] text-green-300 font-medium max-w-[80px] truncate">
+                      {m.fullName.split(' ').slice(-1)[0]}
+                    </span>
+                    <span className="text-[9px] text-green-600">✓</span>
+                  </div>
+                ))}
+                {learnerMap['Được miễn'].map(m => (
+                  <div key={m.id} title={`${m.fullName} – Được miễn`}
+                    className="flex items-center gap-1 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded-full">
+                    <div className="w-4 h-4 rounded-full bg-purple-600/30 flex items-center justify-center text-[8px] font-bold text-purple-300 shrink-0">
+                      {m.avatar || m.fullName?.[0] || '?'}
+                    </div>
+                    <span className="text-[10px] text-purple-300 font-medium max-w-[80px] truncate">
+                      {m.fullName.split(' ').slice(-1)[0]}
+                    </span>
+                    <span className="text-[9px] text-purple-500">miễn</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Tài liệu */}
           <div className="p-4 border-b border-gray-800/60">
@@ -287,7 +361,7 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
             ))}
           </div>
 
-          {/* Hỏi đáp SME (lưu Firebase qua addSubjectComment) */}
+          {/* Hỏi đáp SME */}
           <div className="p-4">
             <h4 className="text-xs font-bold text-gray-400 mb-2 flex items-center gap-1.5">
               <MessageSquare className="w-3.5 h-3.5"/> Hỏi đáp SME
@@ -323,6 +397,7 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
 
 // ── Main ───────────────────────────────────────────────────────────────────
 export default function Subjects() {
+  // FIX: thêm `grades` vào destructure để truyền xuống SubjectCard
   const { currentUser, isCore, smeMap, setSme, docs, addDoc, rateDoc, grades, myGrades, members } = useApp();
   const [search,      setSearch]     = useState('');
   const [filterType,  setFilterType] = useState('learning');
@@ -359,8 +434,6 @@ export default function Subjects() {
 
   const myLearning = subjectDatabase.filter(s=>myGrades[s.id]?.status==='Đang học');
 
-  // Tiến độ trung bình: tính từ subjectTasks (hook dùng trong cards nhưng cần tính ở đây)
-  // Dùng myGrades.myProgress như trước cho phần header tổng hợp (nếu muốn dùng checklist thì cần hook riêng)
   const avgProg = myLearning.length
     ? Math.round(myLearning.reduce((sum,sub)=>sum+(myGrades[sub.id]?.myProgress||0),0)/myLearning.length)
     : 0;
@@ -417,6 +490,7 @@ export default function Subjects() {
                 onChangeSme={(sid,name)=>setSme({subjectId:sid,userId:name})}
                 onUpload={setUploadSub}
                 docs={docs[sub.id]} members={members} currentUser={currentUser} rateDoc={rateDoc}
+                grades={grades}
               />
             ))}
           </div>
