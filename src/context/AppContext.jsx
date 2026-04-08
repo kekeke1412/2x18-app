@@ -438,46 +438,99 @@ export function AppProvider({ children }) {
    * Throws Error(firebaseMsg) for all other failures.
    */
   const login = useCallback(async (email, password) => {
-    const cred = await signInWithEmailAndPassword(auth, email, password);
-    const fbUser = cred.user;
-    const snap = await get(ref(db, '2x18_members'));
-    const member = toArr(snap.val()).find(m => m.email === email || m.mailSchool === email);
-    if (!member) throw new Error('NOT_FOUND');
-    if (member.status === 'pending') throw new Error('PENDING');
-    const user = { ...member, uid: fbUser.uid };
-    dispatch({ type:A.SET_USER, payload:user });
-    localStorage.setItem('2x18_current_user', JSON.stringify(user));
-    // onAuthStateChanged sẽ tự gọi subscribeDB() → tải lại toàn bộ data
+    try {
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      const fbUser = cred.user;
+      const snap = await get(ref(db, '2x18_members'));
+      const member = toArr(snap.val()).find(m => m.email === email || m.mailSchool === email);
+      if (!member) {
+        await signOut(auth).catch(() => {});
+        throw new Error('NOT_FOUND');
+      }
+      if (member.status === 'pending') {
+        await signOut(auth).catch(() => {});
+        throw new Error('PENDING');
+      }
+      const user = { ...member, uid: fbUser.uid };
+      dispatch({ type: A.SET_USER, payload: user });
+      localStorage.setItem('2x18_current_user', JSON.stringify(user));
+    } catch (err) {
+      // Re-throw PENDING/NOT_FOUND as-is; translate Firebase codes
+      if (err.message === 'PENDING' || err.message === 'NOT_FOUND') throw err;
+      const msg = {
+        'auth/user-not-found':     'Tài khoản không tồn tại.',
+        'auth/wrong-password':     'Mật khẩu không đúng.',
+        'auth/invalid-email':      'Email không hợp lệ.',
+        'auth/invalid-credential': 'Email hoặc mật khẩu không đúng.',
+        'auth/too-many-requests':  'Quá nhiều lần thử. Thử lại sau.',
+      }[err.code] || 'Đăng nhập thất bại.';
+      throw new Error(msg);
+    }
   }, []);
 
   const loginWithGoogle = useCallback(async () => {
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
     const cred = await signInWithPopup(auth, provider);
     const fbUser = cred.user;
+    const isSA = fbUser.email === SUPER_ADMIN_EMAIL;
+
     const snap = await get(ref(db, '2x18_members'));
-    const member = toArr(snap.val()).find(m => m.email === fbUser.email || m.mailSchool === fbUser.email);
-    if (!member) throw new Error('NOT_FOUND');
-    if (member.status === 'pending') throw new Error('PENDING');
+    const currentMembers = toArr(snap.val());
+    let member = currentMembers.find(m => m.email === fbUser.email || m.mailSchool === fbUser.email);
+
+    if (!member) {
+      // Brand-new user → tạo profile pending (hoặc super_admin nếu là email admin)
+      member = {
+        id: fbUser.uid, uid: fbUser.uid,
+        email: fbUser.email, mailSchool: fbUser.email,
+        fullName: fbUser.displayName || 'Thành viên',
+        avatarUrl: fbUser.photoURL || '',
+        avatar: (fbUser.displayName || 'NT').split(' ').map(w => w[0]).slice(-2).join('').toUpperCase(),
+        role: isSA ? 'super_admin' : 'member',
+        status: isSA ? 'active' : 'pending',
+        mssv: '', phone: '', gender: '',
+        registeredAt: new Date().toISOString(),
+      };
+      await set(ref(db, '2x18_members'), [...currentMembers, member]);
+    } else if (isSA && (member.role !== 'super_admin' || member.status !== 'active')) {
+      member = { ...member, role: 'super_admin', status: 'active' };
+      await set(ref(db, '2x18_members'), currentMembers.map(m => m.email === fbUser.email ? member : m));
+    }
+
+    if (member.status === 'pending') {
+      await signOut(auth).catch(() => {});
+      return { status: 'pending', name: member.fullName, email: member.email };
+    }
+
     const user = { ...member, uid: fbUser.uid };
-    dispatch({ type:A.SET_USER, payload:user });
+    dispatch({ type: A.SET_USER, payload: user });
     localStorage.setItem('2x18_current_user', JSON.stringify(user));
-    // onAuthStateChanged sẽ tự gọi subscribeDB() → tải lại toàn bộ data
+    return { status: 'ok' };
   }, []);
 
-  const register = useCallback(async (email, password, extra) => {
+  // userData = { ho, ten, mssv, email, phone, password, reason, ... }
+  const register = useCallback(async (userData) => {
+    const { email, password, ho='', ten='', mssv='', phone='', reason='' } = userData;
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     const fbUser = cred.user;
+    const fullName = `${ho.trim()} ${ten.trim()}`.trim() || userData.fullName || 'Thành viên';
     const newMember = {
-      id: uid(), uid: fbUser.uid, email,
-      fullName: extra.fullName || '', mssv: extra.mssv || '',
+      id: fbUser.uid, uid: fbUser.uid,
+      email, mailSchool: email,
+      fullName, mssv: mssv.trim(), phone: phone.trim(),
+      gender: '',
+      avatar: (fullName.split(' ').filter(Boolean).map(w => w[0]).slice(-2).join('') || 'TV').toUpperCase(),
       role: 'member', status: 'pending',
-      reason: extra.reason || '',
+      reason,
       registeredAt: new Date().toISOString(),
     };
     const snap = await get(ref(db, '2x18_members'));
-    const dbVal = snap.val();
-    const currentMembers = Array.isArray(dbVal) ? dbVal : (dbVal ? Object.values(dbVal) : []);
+    const currentMembers = toArr(snap.val());
     await set(ref(db, '2x18_members'), [...currentMembers, newMember]);
+    // Sign out immediately — cần được duyệt trước khi vào app
+    await signOut(auth).catch(() => {});
+    return newMember;
   }, []);
 
   const logout = useCallback(async () => {
@@ -501,13 +554,33 @@ export function AppProvider({ children }) {
   }, [toast]);
 
   const approveUser = useCallback(async (memberId) => {
-    dispatch({ type:A.UPDATE_PROFILE, payload:{ id:memberId, status:'active' } });
-    toast('Đã duyệt thành viên!', 'success');
+    try {
+      // Ghi thẳng vào Firebase để tránh race condition với fromFirebaseRef
+      const snap = await get(ref(db, '2x18_members'));
+      const updated = toArr(snap.val()).map(m =>
+        m.id === memberId ? { ...m, status: 'active' } : m
+      );
+      await set(ref(db, '2x18_members'), updated);
+      // Cập nhật local state ngay lập tức để UI phản hồi tức thì
+      dispatch({ type: A.UPDATE_PROFILE, payload: { id: memberId, status: 'active' } });
+      toast('Đã duyệt thành viên! ✓', 'success');
+    } catch (e) {
+      console.error('[approveUser]', e);
+      toast('Lỗi khi duyệt. Thử lại.', 'error');
+    }
   }, [toast]);
 
   const rejectUser = useCallback(async (memberId) => {
-    dispatch({ type:A.REMOVE_MEMBER, payload:memberId });
-    toast('Đã từ chối.', 'info');
+    try {
+      const snap = await get(ref(db, '2x18_members'));
+      const updated = toArr(snap.val()).filter(m => m.id !== memberId);
+      await set(ref(db, '2x18_members'), updated);
+      dispatch({ type: A.REMOVE_MEMBER, payload: memberId });
+      toast('Đã từ chối đơn đăng ký.', 'info');
+    } catch (e) {
+      console.error('[rejectUser]', e);
+      toast('Lỗi khi từ chối. Thử lại.', 'error');
+    }
   }, [toast]);
 
   // ── GRADES ────────────────────────────────────────────────────────────────
