@@ -13,10 +13,10 @@ HƯNG: 18h38 8/4/2026: Đã  fix
 * Sau Khi đăng nhập vào bằng đường link thì nó bị trạng thái loading page, F5 thì 404 Not found, và kể cả khi đang trong web mà F5 thì cũng 404 Not found
 * Profile: Rút gọn các mục chức vụ còn Core và thành viên và đó là nơi super_admin add quyền Core hay Thành viên. Sau khi được duper_admin add core thì người đó mới trở thành core. Thêm cả chức năng xem từng profile và bảng điểm của từng thành viên đối với core, nhóm có bao nhiêu thành viên, core có quyền xem và chỉnh sửa profile của người đó, nó sẽ đồng bộ với cả màn hình của thành viên đó
 
-
-
-Các vấn đề còn tồn tại:
+HƯNG: 19h 8/4/2026: Đã  fix
 * CalendarPage: tôi muốn có thanh tracking theo thời gian thực như trên google calendar
 * Profile: Tôi muốn hồ sơ khi chỉnh sửa than thiện hơn với người dùng, phần mail mà dùng để đăng nhập sẽ là mail cá nhân, còn 2 loại mail HUS và mail VNU thì phải điền. Chỉ cần điền MSV, Họ và tên, giới tính, ngày sinh, dân tộc, nhóm máu, nơi sinh, liên hệ sđt, mail vnu, hus, facebook là được mở khóa các truy cập khác. Hiện tại khi tôi điền xong nó không mở khóa các tính năng khác. CPA tích lũy dùng điểm hệ 4 và chỉ khi người dùng chọn đã học thì mới tính điểm. Vẫn phải giữ nguyên code, chỉ chỉnh sửa và thêm tính năng thôi
 
-
+HƯNG: h 8/4/2026: 
+* Subject: Tôi muốn ai chọn đang học hoặc đã học môn nào thì nó sẽ hiện lên trong khung môn đấy để tất cả mọi người đều có thể nắm bắt được
+* Profile: Phần bảng điểm, tôi muốn làm danh sách môn học lấy từ data.js và sắp xếp theo 
