@@ -151,7 +151,8 @@ function reducer(s, { type, payload }) {
       const {year,eventId,field,value}=payload;
       return { ...s, roadmap:s.roadmap.map(y=>y.year===year?{...y,events:y.events.map(e=>e.id===eventId?{...e,[field]:value}:e)}:y) };
     }
-    case A.ADD_ROADMAP_EVENT: return { ...s, roadmap:s.roadmap.map(y=>y.year===payload.year?{...y,events:[...y.events,payload.event]}:y) };
+    // FIX: dùng toArr để tránh crash khi y.events là object (do Firebase trả về)
+    case A.ADD_ROADMAP_EVENT: return { ...s, roadmap:s.roadmap.map(y=>y.year===payload.year?{...y,events:[...toArr(y.events),payload.event]}:y) };
     case A.DEL_ROADMAP_EVENT: {
       const { year, eventId, trashId, deletedAt, deletedBy, deletedByName } = payload;
       const yearObj = s.roadmap.find(y=>y.year===year);
@@ -174,17 +175,19 @@ function reducer(s, { type, payload }) {
       const {voteId,optionId,userId,multiSelect}=payload;
       return { ...s, votes:s.votes.map(v=>{
         if(v.id!==voteId)return v;
-        const opts=v.options.map(o=>{
-          if(!multiSelect){const f=o.votes.filter(u=>u!==userId);return o.id===optionId?{...o,votes:[...f,userId]}:{...o,votes:f};}
+        // FIX: dùng toArr để tránh crash khi options/votes là object từ Firebase
+        const opts=toArr(v.options).map(o=>{
+          const oVotes = toArr(o.votes);
+          if(!multiSelect){const f=oVotes.filter(u=>u!==userId);return o.id===optionId?{...o,votes:[...f,userId]}:{...o,votes:f};}
           if(o.id!==optionId)return o;
-          const has=o.votes.includes(userId);
-          return {...o,votes:has?o.votes.filter(u=>u!==userId):[...o.votes,userId]};
+          const has=oVotes.includes(userId);
+          return {...o,votes:has?oVotes.filter(u=>u!==userId):[...oVotes,userId]};
         });
         return {...v,options:opts};
       })};
     }
     case A.CLOSE_VOTE:      return { ...s, votes:s.votes.map(x=>x.id===payload?{...x,closed:true}:x) };
-    case A.ADD_VOTE_OPTION: return { ...s, votes:s.votes.map(x=>x.id===payload.voteId?{...x,options:[...x.options,{id:uid(),text:payload.text,votes:[]}]}:x) };
+    case A.ADD_VOTE_OPTION: return { ...s, votes:s.votes.map(x=>x.id===payload.voteId?{...x,options:[...(x.options||[]),{id:uid(),text:payload.text,votes:[]}]}:x) };
 
     case A.MARK_NOTIF: {
       const n=s.notifications.map(x=>x.id===payload?{...x,read:true}:x);
@@ -196,7 +199,8 @@ function reducer(s, { type, payload }) {
     case A.ADD_ATTENDANCE_SESSION: return { ...s, attendance:[payload,...s.attendance] };
     case A.CHECK_ATTENDANCE: {
       const {sessionId,userId,checked}=payload;
-      return { ...s, attendance:s.attendance.map(sess=>sess.sessionId===sessionId?{...sess,present:checked?[...new Set([...sess.present,userId])]:sess.present.filter(u=>u!==userId)}:sess) };
+      // FIX: dùng toArr để tránh crash khi present là object từ Firebase
+      return { ...s, attendance:s.attendance.map(sess=>sess.sessionId===sessionId?{...sess,present:checked?[...new Set([...toArr(sess.present),userId])]:toArr(sess.present).filter(u=>u!==userId)}:sess) };
     }
 
     case A.ADD_DOC: {
@@ -305,10 +309,23 @@ export function AppProvider({ children }) {
           smeMap:           val['2x18_sme']              || {},
           tasks:            toArr(val['2x18_tasks']),
           calEvents:        toArr(val['2x18_events']),
-          roadmap:          toArr(val['2x18_roadmap']),
-          votes:            toArr(val['2x18_votes']),
+          // FIX: Firebase trả object thay vì array cho nested arrays → cần normalize
+          roadmap:          toArr(val['2x18_roadmap']).map(y => ({
+            ...y,
+            events: toArr(y.events),
+          })),
+          votes:            toArr(val['2x18_votes']).map(v => ({
+            ...v,
+            options: toArr(v.options).map(o => ({
+              ...o,
+              votes: toArr(o.votes),
+            })),
+          })),
           notifications:    toArr(val['2x18_notifs']),
-          attendance:       toArr(val['2x18_attendance']),
+          attendance:       toArr(val['2x18_attendance']).map(sess => ({
+            ...sess,
+            present: toArr(sess.present),
+          })),
           contributions:    val['2x18_contributions']     || {},
           docs:             val['2x18_docs']              || {},
           auditLogs:        toArr(val['2x18_audit']),
