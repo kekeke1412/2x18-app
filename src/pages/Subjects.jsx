@@ -236,7 +236,22 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
         <div className="flex items-center justify-between mt-3">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 bg-blue-600/20 rounded-full flex items-center justify-center text-[10px] font-bold text-blue-400 shrink-0">
-              {(sme||'?')[0]}
+              {(() => {
+              const smeUser = members.find(m => m.fullName === sme);
+              if (smeUser?.avatarUrl) {
+                return (
+                  <img src={smeUser.avatarUrl} alt={sme} title={sme}
+                    className="w-6 h-6 rounded-full object-cover border border-blue-500/30 shrink-0" 
+                    onError={(e)=>{e.target.style.display='none'}} 
+                  />
+                );
+              }
+              return (
+                <div className="w-6 h-6 bg-blue-600/20 rounded-full flex items-center justify-center text-[10px] font-bold text-blue-400 shrink-0">
+                  {smeUser?.avatar || (sme||'?')[0]}
+                </div>
+              );
+            })()}
             </div>
             {isCore ? (
               <select value={sme||''} onChange={e=>onChangeSme(sub.id,e.target.value)}
