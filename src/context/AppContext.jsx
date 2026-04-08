@@ -15,6 +15,14 @@ const fbSet = (path, data) => {
   try { set(ref(db, path), data); } catch (e) { console.warn('[fbSet]', path, e?.message); }
 };
 
+// Firebase Realtime DB có thể trả về object thay vì array → convert an toàn
+const toArr = (val) => {
+  if (!val) return [];
+  if (Array.isArray(val)) return val.filter(Boolean);
+  if (typeof val === 'object') return Object.values(val).filter(Boolean);
+  return [];
+};
+
 const A = {
   SET_USER:'SET_USER', SET_LOADING:'SET_LOADING', INIT_DATA:'INIT_DATA',
   UPDATE_PROFILE:'UPDATE_PROFILE', SYNC_GRADES:'SYNC_GRADES',
@@ -267,64 +275,83 @@ const timerMap  = {};
 
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, init);
-  // Ref to track if we should sync currentUser from members
-  const skipSyncRef = useRef(false);
+  const skipSyncRef     = useRef(false);
+  // Ngăn auto-sync ghi lại Firebase ngay sau khi onValue vừa cập nhật state
+  // (tránh vòng lặp vô hạn: onValue → INIT_DATA → auto-sync → Firebase → onValue → ...)
+  const fromFirebaseRef = useRef(false);
 
   // ── Boot ──────────────────────────────────────────────────────────────────
   useEffect(() => {
-    // Restore currentUser from localStorage optimistically
+    let unsubDB = null;
+
+    // Khôi phục user từ localStorage để render ngay (optimistic)
     try {
       const stored = localStorage.getItem('2x18_current_user');
       if (stored) dispatch({ type:A.SET_USER, payload:JSON.parse(stored) });
     } catch {}
 
-    // Live Firebase listener
-    const unsubDB = onValue(ref(db, '/'), (snapshot) => {
-      const val = snapshot.val() || {};
-      
-      // FIX: Ép kiểu dữ liệu members từ Firebase về chuẩn Array
-      const rawMembers = val['2x18_members'];
-      const members = Array.isArray(rawMembers) ? rawMembers : (rawMembers ? Object.values(rawMembers) : []);
+    // Kết nối realtime DB — gọi lại mỗi khi user đăng nhập
+    const subscribeDB = () => {
+      if (unsubDB) { unsubDB(); unsubDB = null; }
+      dispatch({ type:A.SET_LOADING, payload:true });
 
-      const grades  = {};
-      members.forEach(m => { if (m?.id) grades[m.id] = val[`${m.id}_grades`] || {}; });
-      dispatch({ type:A.INIT_DATA, payload: {
-        members,
-        grades,
-        smeMap:           val['2x18_sme']              || {},
-        tasks:            val['2x18_tasks']             || [],
-        calEvents:        val['2x18_events']            || [],
-        roadmap:          val['2x18_roadmap']           || [],
-        votes:            val['2x18_votes']             || [],
-        notifications:    val['2x18_notifs']            || [],
-        attendance:       val['2x18_attendance']        || [],
-        contributions:    val['2x18_contributions']     || {},
-        docs:             val['2x18_docs']              || {},
-        auditLogs:        val['2x18_audit']             || [],
-        subjectTasks:     val['2x18_subject_tasks']     || {},
-        subjectComments:  val['2x18_subject_comments']  || {},
-        semesterLabels:   val['2x18_semester_labels']   || {},
-        trash:            val['2x18_trash']             || [],
-      }});
-    }, (err) => {
-      console.error('[Firebase DB] Access denied:', err.message);
-      dispatch({ type:A.INIT_DATA, payload: {
-        members:[], grades:{}, smeMap:{}, tasks:[],
-        calEvents:[], roadmap:[], votes:[],
-        notifications:[], attendance:[], contributions:{},
-        docs:{}, auditLogs:{}, subjectTasks:{}, subjectComments:{},
-        semesterLabels:{}, trash:[],
-      }});
-    });
+      unsubDB = onValue(ref(db, '/'), (snapshot) => {
+        const val = snapshot.val() || {};
+        // toArr() bảo vệ khi Firebase trả về object thay vì array
+        const members = toArr(val['2x18_members']);
+        const grades  = {};
+        members.forEach(m => { if (m?.id) grades[m.id] = val[`${m.id}_grades`] || {}; });
 
+        // Đánh dấu: lần cập nhật state này đến từ Firebase
+        // → auto-sync sẽ bỏ qua để không ghi lại ngay lập tức
+        fromFirebaseRef.current = true;
+
+        dispatch({ type:A.INIT_DATA, payload: {
+          members,
+          grades,
+          smeMap:           val['2x18_sme']              || {},
+          tasks:            toArr(val['2x18_tasks']),
+          calEvents:        toArr(val['2x18_events']),
+          roadmap:          toArr(val['2x18_roadmap']),
+          votes:            toArr(val['2x18_votes']),
+          notifications:    toArr(val['2x18_notifs']),
+          attendance:       toArr(val['2x18_attendance']),
+          contributions:    val['2x18_contributions']     || {},
+          docs:             val['2x18_docs']              || {},
+          auditLogs:        toArr(val['2x18_audit']),
+          subjectTasks:     val['2x18_subject_tasks']     || {},
+          subjectComments:  val['2x18_subject_comments']  || {},
+          semesterLabels:   val['2x18_semester_labels']   || {},
+          trash:            toArr(val['2x18_trash']),
+        }});
+      }, (err) => {
+        console.error('[Firebase DB] Access denied:', err.message);
+        dispatch({ type:A.SET_LOADING, payload:false });
+      });
+    };
+
+    // onAuthStateChanged điều khiển kết nối DB
     const unsubAuth = onAuthStateChanged(auth, (fbUser) => {
-      if (!fbUser) {
+      if (fbUser) {
+        // Đăng nhập → kết nối lại DB listener
+        subscribeDB();
+      } else {
+        // Đăng xuất → hủy listener, xóa toàn bộ state
         localStorage.removeItem('2x18_current_user');
+        if (unsubDB) { unsubDB(); unsubDB = null; }
+        fromFirebaseRef.current = false;
         dispatch({ type:A.SET_USER, payload:null });
+        dispatch({ type:A.INIT_DATA, payload: {
+          members:[], grades:{}, smeMap:{}, tasks:[],
+          calEvents:[], roadmap:[], votes:[],
+          notifications:[], attendance:[], contributions:{},
+          docs:{}, auditLogs:[], subjectTasks:{}, subjectComments:{},
+          semesterLabels:{}, trash:[],
+        }});
       }
     });
 
-    return () => { unsubDB(); unsubAuth(); };
+    return () => { if (unsubDB) unsubDB(); unsubAuth(); };
   }, []);
 
   // ── Sync currentUser from members (so Core edits propagate to member) ─────
@@ -347,6 +374,11 @@ export function AppProvider({ children }) {
 
   // ── Auto-sync to Firebase (debounced) ─────────────────────────────────────
   useEffect(() => {
+    // Bỏ qua nếu data vừa đến từ Firebase (tránh vòng lặp ghi → onValue → ghi → ...)
+    if (fromFirebaseRef.current) {
+      fromFirebaseRef.current = false;
+      return;
+    }
     if (state.isLoading || !state.members.length) return;
     fbSet('2x18_members',          state.members);
     fbSet('2x18_sme',              state.smeMap);
@@ -409,16 +441,13 @@ export function AppProvider({ children }) {
     const cred = await signInWithEmailAndPassword(auth, email, password);
     const fbUser = cred.user;
     const snap = await get(ref(db, '2x18_members'));
-      const dbVal = snap.val();
-      // FIX: Ép kiểu an toàn
-      const currentMembers = Array.isArray(dbVal) ? dbVal : (dbVal ? Object.values(dbVal) : []);
-      
-      let profile = currentMembers.find(m => m.email === email || m.mailSchool === email);
+    const member = toArr(snap.val()).find(m => m.email === email || m.mailSchool === email);
     if (!member) throw new Error('NOT_FOUND');
     if (member.status === 'pending') throw new Error('PENDING');
     const user = { ...member, uid: fbUser.uid };
     dispatch({ type:A.SET_USER, payload:user });
     localStorage.setItem('2x18_current_user', JSON.stringify(user));
+    // onAuthStateChanged sẽ tự gọi subscribeDB() → tải lại toàn bộ data
   }, []);
 
   const loginWithGoogle = useCallback(async () => {
@@ -426,13 +455,13 @@ export function AppProvider({ children }) {
     const cred = await signInWithPopup(auth, provider);
     const fbUser = cred.user;
     const snap = await get(ref(db, '2x18_members'));
-    const members = snap.val() || [];
-    const member = members.find(m => m.email === fbUser.email || m.mailSchool === fbUser.email);
+    const member = toArr(snap.val()).find(m => m.email === fbUser.email || m.mailSchool === fbUser.email);
     if (!member) throw new Error('NOT_FOUND');
     if (member.status === 'pending') throw new Error('PENDING');
     const user = { ...member, uid: fbUser.uid };
     dispatch({ type:A.SET_USER, payload:user });
     localStorage.setItem('2x18_current_user', JSON.stringify(user));
+    // onAuthStateChanged sẽ tự gọi subscribeDB() → tải lại toàn bộ data
   }, []);
 
   const register = useCallback(async (email, password, extra) => {
@@ -454,7 +483,7 @@ export function AppProvider({ children }) {
   const logout = useCallback(async () => {
     await signOut(auth);
     localStorage.removeItem('2x18_current_user');
-    dispatch({ type:A.SET_USER, payload:null });
+    // onAuthStateChanged sẽ dispatch SET_USER(null) + INIT_DATA(empty) + hủy DB listener
   }, []);
 
   // ── PROFILE ───────────────────────────────────────────────────────────────

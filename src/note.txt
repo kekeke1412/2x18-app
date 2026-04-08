@@ -23,3 +23,8 @@ HƯNG: h 8/4/2026:
 * AppContext: Khi tôi đăng xuất và đăng nhập lại, màn hình dashboard bị reset nhưng khi F5 lại trang, nó lại load data về được. Fix cho tôi. Có vẻ như tính năng nào cũng bị vậy nó không hiện data mỗi khi vào trang mà phải F5 thì nó mới hiện 
 * Votingt: Khi tôi tạo bình chọn xong nó bị trắng màn, dù có F5 thì nó cũng không hiện * Roadmap: Tình trạng tương tự Vote, sau khi tạo mốc mới thì nó trắng màn 
 * Attendance: Khi tôi tạo một buổi họp nhóm mới, nó không thể nhấn Ok sau khi đã điền xong. Fix nó
+
+* AppContext: Khi tôi đăng xuất và đăng nhập lại, màn hình dashboard bị reset nhưng khi F5 lại trang, nó lại load data về được. Fix cho tôi. Có vẻ như tính năng nào cũng bị vậy nó không hiện data mỗi khi vào trang mà phải F5 thì nó mới hiện. Còn nữa, các trang Voting, Attendence mỗi khi thêm bất kì cái gì đều bị trắng màn
+* Profile: Khi có tài khoản mới đăng nhập, nó không hiện ra đơn duyệt của họ để tôi hay core duyệt mặc dù trước đó đã có 2 tài khoản được duyệt
+* Subject and Task: Khi tôi thêm link để dẫn đến tài liệu trên google, nó không hiện trên khung mon học đấy và trong task
+* Trash: Khi tôi xóa bất kỳ một cái gì trong các trang thì nó không hiện cái đấy trong trash. Fix nó
