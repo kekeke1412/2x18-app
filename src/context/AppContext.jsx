@@ -15,6 +15,14 @@ const fbSet = (path, data) => {
   try { set(ref(db, path), data); } catch (e) { console.warn('[fbSet]', path, e?.message); }
 };
 
+// Firebase Realtime DB không đảm bảo trả về array — phải convert an toàn
+const toArr = (val) => {
+  if (!val) return [];
+  if (Array.isArray(val)) return val.filter(Boolean);
+  if (typeof val === 'object') return Object.values(val).filter(Boolean);
+  return [];
+};
+
 const A = {
   SET_USER:'SET_USER', SET_LOADING:'SET_LOADING', INIT_DATA:'INIT_DATA',
   UPDATE_PROFILE:'UPDATE_PROFILE', SYNC_GRADES:'SYNC_GRADES',
@@ -294,7 +302,8 @@ export function AppProvider({ children }) {
 
       unsubDB = onValue(ref(db, '/'), (snapshot) => {
         const val = snapshot.val() || {};
-        const members = val['2x18_members'] || [];
+        // toArr() bảo vệ khỏi Firebase trả về object thay vì array
+        const members = toArr(val['2x18_members']);
         const grades  = {};
         members.forEach(m => { if (m?.id) grades[m.id] = val[`${m.id}_grades`] || {}; });
 
@@ -306,19 +315,19 @@ export function AppProvider({ children }) {
           members,
           grades,
           smeMap:           val['2x18_sme']              || {},
-          tasks:            val['2x18_tasks']             || [],
-          calEvents:        val['2x18_events']            || [],
-          roadmap:          val['2x18_roadmap']           || [],
-          votes:            val['2x18_votes']             || [],
-          notifications:    val['2x18_notifs']            || [],
-          attendance:       val['2x18_attendance']        || [],
+          tasks:            toArr(val['2x18_tasks']),
+          calEvents:        toArr(val['2x18_events']),
+          roadmap:          toArr(val['2x18_roadmap']),
+          votes:            toArr(val['2x18_votes']),
+          notifications:    toArr(val['2x18_notifs']),
+          attendance:       toArr(val['2x18_attendance']),
           contributions:    val['2x18_contributions']     || {},
           docs:             val['2x18_docs']              || {},
-          auditLogs:        val['2x18_audit']             || [],
+          auditLogs:        toArr(val['2x18_audit']),
           subjectTasks:     val['2x18_subject_tasks']     || {},
           subjectComments:  val['2x18_subject_comments']  || {},
           semesterLabels:   val['2x18_semester_labels']   || {},
-          trash:            val['2x18_trash']             || [],
+          trash:            toArr(val['2x18_trash']),
         }});
       }, (err) => {
         console.error('[Firebase DB] Access denied:', err.message);
@@ -341,7 +350,7 @@ export function AppProvider({ children }) {
           members:[], grades:{}, smeMap:{}, tasks:[],
           calEvents:[], roadmap:[], votes:[],
           notifications:[], attendance:[], contributions:{},
-          docs:{}, auditLogs:{}, subjectTasks:{}, subjectComments:{},
+          docs:{}, auditLogs:[], subjectTasks:{}, subjectComments:{},
           semesterLabels:{}, trash:[],
         }});
       }
