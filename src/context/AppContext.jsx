@@ -15,14 +15,6 @@ const fbSet = (path, data) => {
   try { set(ref(db, path), data); } catch (e) { console.warn('[fbSet]', path, e?.message); }
 };
 
-// Firebase Realtime DB không đảm bảo trả về array — phải convert an toàn
-const toArr = (val) => {
-  if (!val) return [];
-  if (Array.isArray(val)) return val.filter(Boolean);
-  if (typeof val === 'object') return Object.values(val).filter(Boolean);
-  return [];
-};
-
 const A = {
   SET_USER:'SET_USER', SET_LOADING:'SET_LOADING', INIT_DATA:'INIT_DATA',
   UPDATE_PROFILE:'UPDATE_PROFILE', SYNC_GRADES:'SYNC_GRADES',
@@ -36,10 +28,8 @@ const A = {
   UPDATE_ROADMAP:'UPDATE_ROADMAP', ADD_ROADMAP_EVENT:'ADD_ROADMAP_EVENT',
   DEL_ROADMAP_EVENT:'DEL_ROADMAP_EVENT', ADD_ROADMAP_YEAR:'ADD_ROADMAP_YEAR', DELETE_ROADMAP_YEAR:'DELETE_ROADMAP_YEAR',
   ADD_VOTE:'ADD_VOTE', CAST_VOTE:'CAST_VOTE', CLOSE_VOTE:'CLOSE_VOTE', ADD_VOTE_OPTION:'ADD_VOTE_OPTION',
-  DELETE_VOTE:'DELETE_VOTE',                                             // ← thêm mới
   MARK_NOTIF:'MARK_NOTIF', ADD_NOTIF:'ADD_NOTIF', MARK_ALL_READ:'MARK_ALL_READ',
   ADD_ATTENDANCE_SESSION:'ADD_ATTENDANCE_SESSION', CHECK_ATTENDANCE:'CHECK_ATTENDANCE',
-  DELETE_ATTENDANCE_SESSION:'DELETE_ATTENDANCE_SESSION',                 // ← thêm mới
   ADD_DOC:'ADD_DOC', DELETE_DOC:'DELETE_DOC', RATE_DOC:'RATE_DOC',
   UPDATE_MEMBER_ROLE:'UPDATE_MEMBER_ROLE', REMOVE_MEMBER:'REMOVE_MEMBER',
   ADD_CONTRIBUTION:'ADD_CONTRIBUTION',
@@ -187,8 +177,6 @@ function reducer(s, { type, payload }) {
     }
     case A.CLOSE_VOTE:      return { ...s, votes:s.votes.map(x=>x.id===payload?{...x,closed:true}:x) };
     case A.ADD_VOTE_OPTION: return { ...s, votes:s.votes.map(x=>x.id===payload.voteId?{...x,options:[...x.options,{id:uid(),text:payload.text,votes:[]}]}:x) };
-    // ── FIX: xóa bình chọn ──────────────────────────────────────────────────
-    case A.DELETE_VOTE: return { ...s, votes: s.votes.filter(v => v.id !== payload) };
 
     case A.MARK_NOTIF: {
       const n=s.notifications.map(x=>x.id===payload?{...x,read:true}:x);
@@ -202,8 +190,6 @@ function reducer(s, { type, payload }) {
       const {sessionId,userId,checked}=payload;
       return { ...s, attendance:s.attendance.map(sess=>sess.sessionId===sessionId?{...sess,present:checked?[...new Set([...sess.present,userId])]:sess.present.filter(u=>u!==userId)}:sess) };
     }
-    // ── FIX: xóa buổi điểm danh ─────────────────────────────────────────────
-    case A.DELETE_ATTENDANCE_SESSION: return { ...s, attendance: s.attendance.filter(a => a.sessionId !== payload) };
 
     case A.ADD_DOC: {
       const {subjectId,doc}=payload;
@@ -281,91 +267,70 @@ const timerMap  = {};
 
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, init);
-  const skipSyncRef     = useRef(false);
-  // ── FIX: ngăn auto-sync ghi ngược lại Firebase sau khi onValue cập nhật ──
-  const fromFirebaseRef = useRef(false);
+  // Ref to track if we should sync currentUser from members
+  const skipSyncRef = useRef(false);
 
-  // ── Boot: lắng nghe auth state, kết nối Firebase DB khi đã đăng nhập ──────
+  // ── Boot ──────────────────────────────────────────────────────────────────
   useEffect(() => {
-    let unsubDB = null;
-
-    // Khôi phục user từ localStorage để render ngay (optimistic)
+    // Restore currentUser from localStorage optimistically
     try {
       const stored = localStorage.getItem('2x18_current_user');
       if (stored) dispatch({ type:A.SET_USER, payload:JSON.parse(stored) });
     } catch {}
 
-    // Hàm subscribe realtime DB – gọi lại mỗi lần user đăng nhập
-    const subscribeDB = () => {
-      if (unsubDB) { unsubDB(); unsubDB = null; }
-      dispatch({ type:A.SET_LOADING, payload:true });
+    // Live Firebase listener
+    const unsubDB = onValue(ref(db, '/'), (snapshot) => {
+      const val = snapshot.val() || {};
+      const members = val['2x18_members'] || [];
+      const grades  = {};
+      members.forEach(m => { if (m?.id) grades[m.id] = val[`${m.id}_grades`] || {}; });
+      dispatch({ type:A.INIT_DATA, payload: {
+        members,
+        grades,
+        smeMap:           val['2x18_sme']              || {},
+        tasks:            val['2x18_tasks']             || [],
+        calEvents:        val['2x18_events']            || [],
+        roadmap:          val['2x18_roadmap']           || [],
+        votes:            val['2x18_votes']             || [],
+        notifications:    val['2x18_notifs']            || [],
+        attendance:       val['2x18_attendance']        || [],
+        contributions:    val['2x18_contributions']     || {},
+        docs:             val['2x18_docs']              || {},
+        auditLogs:        val['2x18_audit']             || [],
+        subjectTasks:     val['2x18_subject_tasks']     || {},
+        subjectComments:  val['2x18_subject_comments']  || {},
+        semesterLabels:   val['2x18_semester_labels']   || {},
+        trash:            val['2x18_trash']             || [],
+      }});
+    }, (err) => {
+      console.error('[Firebase DB] Access denied:', err.message);
+      dispatch({ type:A.INIT_DATA, payload: {
+        members:[], grades:{}, smeMap:{}, tasks:[],
+        calEvents:[], roadmap:[], votes:[],
+        notifications:[], attendance:[], contributions:{},
+        docs:{}, auditLogs:{}, subjectTasks:{}, subjectComments:{},
+        semesterLabels:{}, trash:[],
+      }});
+    });
 
-      unsubDB = onValue(ref(db, '/'), (snapshot) => {
-        const val = snapshot.val() || {};
-        // toArr() bảo vệ khỏi Firebase trả về object thay vì array
-        const members = toArr(val['2x18_members']);
-        const grades  = {};
-        members.forEach(m => { if (m?.id) grades[m.id] = val[`${m.id}_grades`] || {}; });
-
-        // Đánh dấu: thay đổi state lần này đến từ Firebase
-        // → auto-sync sẽ bỏ qua để không tạo vòng lặp ghi lại
-        fromFirebaseRef.current = true;
-
-        dispatch({ type:A.INIT_DATA, payload: {
-          members,
-          grades,
-          smeMap:           val['2x18_sme']              || {},
-          tasks:            toArr(val['2x18_tasks']),
-          calEvents:        toArr(val['2x18_events']),
-          roadmap:          toArr(val['2x18_roadmap']),
-          votes:            toArr(val['2x18_votes']),
-          notifications:    toArr(val['2x18_notifs']),
-          attendance:       toArr(val['2x18_attendance']),
-          contributions:    val['2x18_contributions']     || {},
-          docs:             val['2x18_docs']              || {},
-          auditLogs:        toArr(val['2x18_audit']),
-          subjectTasks:     val['2x18_subject_tasks']     || {},
-          subjectComments:  val['2x18_subject_comments']  || {},
-          semesterLabels:   val['2x18_semester_labels']   || {},
-          trash:            toArr(val['2x18_trash']),
-        }});
-      }, (err) => {
-        console.error('[Firebase DB] Access denied:', err.message);
-        dispatch({ type:A.SET_LOADING, payload:false });
-      });
-    };
-
-    // Lắng nghe trạng thái xác thực
     const unsubAuth = onAuthStateChanged(auth, (fbUser) => {
-      if (fbUser) {
-        // Đăng nhập thành công → kết nối lại DB
-        subscribeDB();
-      } else {
-        // Đăng xuất → hủy lắng nghe DB, xóa state
+      if (!fbUser) {
         localStorage.removeItem('2x18_current_user');
         dispatch({ type:A.SET_USER, payload:null });
-        if (unsubDB) { unsubDB(); unsubDB = null; }
-        fromFirebaseRef.current = false;
-        dispatch({ type:A.INIT_DATA, payload: {
-          members:[], grades:{}, smeMap:{}, tasks:[],
-          calEvents:[], roadmap:[], votes:[],
-          notifications:[], attendance:[], contributions:{},
-          docs:{}, auditLogs:[], subjectTasks:{}, subjectComments:{},
-          semesterLabels:{}, trash:[],
-        }});
       }
     });
 
-    return () => { if (unsubDB) unsubDB(); unsubAuth(); };
+    return () => { unsubDB(); unsubAuth(); };
   }, []);
 
-  // ── Sync currentUser từ members (để cập nhật role, status khi Core chỉnh) ─
+  // ── Sync currentUser from members (so Core edits propagate to member) ─────
   useEffect(() => {
     if (skipSyncRef.current) { skipSyncRef.current = false; return; }
     const cu = state.currentUser;
     if (!cu || state.isLoading) return;
     const fresh = state.members.find(m => m.id === cu.id);
     if (!fresh) return;
+    // Sync only meaningful fields
     const hasChange = ['role','status','fullName','phone','gender','mssv','mailSchool'].some(
       f => fresh[f] !== cu[f]
     );
@@ -376,15 +341,9 @@ export function AppProvider({ children }) {
     }
   }, [state.members]); // eslint-disable-line
 
-  // ── Auto-sync sang Firebase (debounced) ───────────────────────────────────
+  // ── Auto-sync to Firebase (debounced) ─────────────────────────────────────
   useEffect(() => {
-    // Bỏ qua nếu data vừa đến từ Firebase (tránh vòng lặp vô hạn)
-    if (fromFirebaseRef.current) {
-      fromFirebaseRef.current = false;
-      return;
-    }
     if (state.isLoading || !state.members.length) return;
-
     fbSet('2x18_members',          state.members);
     fbSet('2x18_sme',              state.smeMap);
     fbSet('2x18_tasks',            state.tasks);
@@ -436,6 +395,12 @@ export function AppProvider({ children }) {
   }), [state.currentUser]);
 
   // ── AUTH ──────────────────────────────────────────────────────────────────
+  /**
+   * Returns normally on success.
+   * Throws Error('PENDING') if account is awaiting approval.
+   * Throws Error('NOT_FOUND') if no matching member record.
+   * Throws Error(firebaseMsg) for all other failures.
+   */
   const login = useCallback(async (email, password) => {
     const cred = await signInWithEmailAndPassword(auth, email, password);
     const fbUser = cred.user;
@@ -447,7 +412,6 @@ export function AppProvider({ children }) {
     const user = { ...member, uid: fbUser.uid };
     dispatch({ type:A.SET_USER, payload:user });
     localStorage.setItem('2x18_current_user', JSON.stringify(user));
-    // onAuthStateChanged sẽ tự gọi subscribeDB() → tải lại toàn bộ data
   }, []);
 
   const loginWithGoogle = useCallback(async () => {
@@ -462,7 +426,6 @@ export function AppProvider({ children }) {
     const user = { ...member, uid: fbUser.uid };
     dispatch({ type:A.SET_USER, payload:user });
     localStorage.setItem('2x18_current_user', JSON.stringify(user));
-    // onAuthStateChanged sẽ tự gọi subscribeDB() → tải lại toàn bộ data
   }, []);
 
   const register = useCallback(async (email, password, extra) => {
@@ -480,11 +443,10 @@ export function AppProvider({ children }) {
     await set(ref(db, '2x18_members'), [...members, newMember]);
   }, []);
 
-  // ── FIX logout: chỉ cần signOut, onAuthStateChanged tự dọn state ─────────
   const logout = useCallback(async () => {
     await signOut(auth);
     localStorage.removeItem('2x18_current_user');
-    // onAuthStateChanged sẽ dispatch SET_USER(null) + INIT_DATA(empty)
+    dispatch({ type:A.SET_USER, payload:null });
   }, []);
 
   // ── PROFILE ───────────────────────────────────────────────────────────────
@@ -529,6 +491,7 @@ export function AppProvider({ children }) {
   const addSubjectTask    = useCallback((sid,t) => { dispatch({type:A.ADD_SUBJECT_TASK,payload:{subjectId:sid,task:{...t,id:uid(),doneBy:{}}}}); toast('Thêm mục!','success'); }, [toast]);
   const editSubjectTask   = useCallback((sid,t) => dispatch({type:A.EDIT_SUBJECT_TASK,payload:{subjectId:sid,task:t}}), []);
   const deleteSubjectTask = useCallback((sid,id) => { dispatch({ type:A.DELETE_SUBJECT_TASK, payload:{ subjectId:sid, taskId:id, ...trashMeta() } }); toast('Đã chuyển vào thùng rác.', 'info'); }, [trashMeta, toast]);
+  const tickSubjectTask   = useCallback((sid,tid,userId,done) => dispatch({type:A.TICK_SUBJECT_TASK,payload:{subjectId:sid,taskId:tid,userId,done}}), []);
 
   const addSubjectComment = useCallback((subjectId, text) => {
     const comment = {
@@ -556,8 +519,6 @@ export function AppProvider({ children }) {
   const castVote      = useCallback(p  => dispatch({type:A.CAST_VOTE,     payload:p}), []);
   const closeVote     = useCallback(id => dispatch({type:A.CLOSE_VOTE,    payload:id}), []);
   const addVoteOption = useCallback(p  => dispatch({type:A.ADD_VOTE_OPTION,payload:p}), []);
-  // ── FIX: thêm deleteVote ─────────────────────────────────────────────────
-  const deleteVote    = useCallback(id => { dispatch({type:A.DELETE_VOTE, payload:id}); toast('Đã xóa bình chọn.','info'); }, [toast]);
 
   const markNotif   = useCallback(id => dispatch({type:A.MARK_NOTIF,  payload:id}), []);
   const markAllRead = useCallback(()  => dispatch({type:A.MARK_ALL_READ}), []);
@@ -575,12 +536,6 @@ export function AppProvider({ children }) {
       dispatch({type:A.ADD_CONTRIBUTION,payload:{userId,points:10}});
     dispatch({type:A.CHECK_ATTENDANCE,payload:{sessionId,userId,checked}});
   }, [state.attendance]);
-
-  // ── FIX: thêm deleteAttendanceSession ────────────────────────────────────
-  const deleteAttendanceSession = useCallback((sessionId) => {
-    dispatch({ type:A.DELETE_ATTENDANCE_SESSION, payload:sessionId });
-    toast('Đã xóa buổi họp.','info');
-  }, [toast]);
 
   const addDoc = useCallback((subjectId,doc) => {
     const full = {...doc,id:uid(),uploadedBy:state.currentUser?.id,uploadedByName:state.currentUser?.fullName,uploadedAt:new Date().toLocaleDateString('vi-VN'),ratings:{},avgRating:0};
@@ -621,6 +576,9 @@ export function AppProvider({ children }) {
     toast('Đã xuất danh sách!','success');
   }, [state.members,toast]);
 
+  // ── isProfileComplete: requires 11 key fields ────────────────────────────
+  // MSV, Họ và tên, Giới tính, Ngày sinh, Dân tộc, Nhóm máu, Nơi sinh,
+  // SĐT, Mail VNU, Mail HUS, Facebook
   const isProfileComplete = useCallback((m) => {
     if (!m) return false;
     const has = f => m[f] && String(m[f]).trim() !== '';
@@ -663,9 +621,9 @@ export function AppProvider({ children }) {
     addSubjectComment,
     setSme, addEvent, editEvent, deleteEvent,
     updateRoadmap, addRoadmapEvent, delRoadmapEvent, addRoadmapYear, deleteRoadmapYear,
-    addVote, castVote, closeVote, addVoteOption, deleteVote,   // ← thêm deleteVote
+    addVote, castVote, closeVote, addVoteOption,
     markNotif, markAllRead, addNotif,
-    addAttendanceSession, checkAttendance, deleteAttendanceSession, // ← thêm deleteAttendanceSession
+    addAttendanceSession, checkAttendance,
     addDoc, deleteDoc, rateDoc,
     updateRole, addContribution, updateSemesterLabel,
     restoreFromTrash, permanentDeleteTrash, emptyTrash,
