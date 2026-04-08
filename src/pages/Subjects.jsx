@@ -296,17 +296,21 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
               </h4>
               <div className="flex flex-wrap gap-1.5">
                 {learnerMap['Đang học'].map(m => (
-                  <div key={m.id} title={`${m.fullName} – Đang học`}
-                    className="flex items-center gap-1 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">
-                    <div className="w-4 h-4 rounded-full bg-blue-600/30 flex items-center justify-center text-[8px] font-bold text-blue-300 shrink-0">
-                      {m.avatar || m.fullName?.[0] || '?'}
-                    </div>
-                    <span className="text-[10px] text-blue-300 font-medium max-w-[80px] truncate">
-                      {m.fullName.split(' ').slice(-1)[0]}
-                    </span>
-                    <span className="text-[9px] text-blue-500">● học</span>
-                  </div>
-                ))}
+                      <div key={m.id} title={`${m.fullName} – Đang học`}
+                        className="flex items-center gap-1 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">
+                        {m.avatarUrl ? (
+                          <img src={m.avatarUrl} alt={m.fullName} className="w-4 h-4 rounded-full object-cover shrink-0" onError={(e)=>{e.target.style.display='none'}} />
+                        ) : (
+                          <div className="w-4 h-4 rounded-full bg-blue-600/30 flex items-center justify-center text-[8px] font-bold text-blue-300 shrink-0">
+                            {m.avatar || m.fullName?.[0] || '?'}
+                          </div>
+                        )}
+                        <span className="text-[10px] text-blue-300 font-medium max-w-[80px] truncate">
+                          {m.fullName.split(' ').slice(-1)[0]}
+                        </span>
+                        <span className="text-[9px] text-blue-500">● học</span>
+                      </div>
+                    ))}
                 {learnerMap['Đã học'].map(m => (
                   <div key={m.id} title={`${m.fullName} – Đã học`}
                     className="flex items-center gap-1 bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full">

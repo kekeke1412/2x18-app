@@ -29,7 +29,7 @@ HƯNG: h 8/4/2026:
 * Subject and Task: Khi tôi thêm link để dẫn đến tài liệu trên google, nó không hiện trên khung mon học đấy và trong task
 * Trash: Khi tôi xóa bất kỳ một cái gì trong các trang thì nó không hiện cái đấy trong trash. Fix nó
 
-*Subject: Khi môn học đã chuyển trạng thái thành đã học, môn đó sẽ hiển thị trong mục đã học và loại bỏ SME tức là người phụ trách đó đã hoàn thành nhiệm vụ.
+* Subject: Khi môn học đã chuyển trạng thái thành đã học, môn đó sẽ hiển thị trong mục đã học và loại bỏ SME tức là người phụ trách đó đã hoàn thành nhiệm vụ.
 * Task: Mỗi lần tôi thêm mốc, màn hình sẽ trắng màn
 * Voting: mỗi lần tôi thêm vote, màn hình sẽ trắng màn
 * Attendance: Mỗi lần tôi thêm buổi, nó sẽ trắng màn
