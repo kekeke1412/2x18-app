@@ -281,7 +281,11 @@ export function AppProvider({ children }) {
     // Live Firebase listener
     const unsubDB = onValue(ref(db, '/'), (snapshot) => {
       const val = snapshot.val() || {};
-      const members = val['2x18_members'] || [];
+      
+      // FIX: Ép kiểu dữ liệu members từ Firebase về chuẩn Array
+      const rawMembers = val['2x18_members'];
+      const members = Array.isArray(rawMembers) ? rawMembers : (rawMembers ? Object.values(rawMembers) : []);
+
       const grades  = {};
       members.forEach(m => { if (m?.id) grades[m.id] = val[`${m.id}_grades`] || {}; });
       dispatch({ type:A.INIT_DATA, payload: {
@@ -405,8 +409,11 @@ export function AppProvider({ children }) {
     const cred = await signInWithEmailAndPassword(auth, email, password);
     const fbUser = cred.user;
     const snap = await get(ref(db, '2x18_members'));
-    const members = snap.val() || [];
-    const member = members.find(m => m.email === email || m.mailSchool === email);
+      const dbVal = snap.val();
+      // FIX: Ép kiểu an toàn
+      const currentMembers = Array.isArray(dbVal) ? dbVal : (dbVal ? Object.values(dbVal) : []);
+      
+      let profile = currentMembers.find(m => m.email === email || m.mailSchool === email);
     if (!member) throw new Error('NOT_FOUND');
     if (member.status === 'pending') throw new Error('PENDING');
     const user = { ...member, uid: fbUser.uid };
@@ -439,8 +446,9 @@ export function AppProvider({ children }) {
       registeredAt: new Date().toISOString(),
     };
     const snap = await get(ref(db, '2x18_members'));
-    const members = snap.val() || [];
-    await set(ref(db, '2x18_members'), [...members, newMember]);
+    const dbVal = snap.val();
+    const currentMembers = Array.isArray(dbVal) ? dbVal : (dbVal ? Object.values(dbVal) : []);
+    await set(ref(db, '2x18_members'), [...currentMembers, newMember]);
   }, []);
 
   const logout = useCallback(async () => {
