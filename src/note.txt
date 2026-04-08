@@ -33,4 +33,4 @@ HƯNG: h 8/4/2026:
 * Task: Mỗi lần tôi thêm mốc, màn hình sẽ trắng màn
 * Voting: mỗi lần tôi thêm vote, màn hình sẽ trắng màn
 * Attendance: Mỗi lần tôi thêm buổi, nó sẽ trắng màn
-* Profile: Tôi muốn khi nào môn đó
+* Profile: Bảng điểm, tôi muốn khi môn đó ở trạng thái chưa học thì sẽ không có điểm vì khi tôi ở đang học/đã học và có điểm mà chỉnh về chưa học thì nó không tự mất điểm mà vẫn giữ nguyên. Thêm nữa, khi super_admin hoặc core chỉnh sửa thông tin của thành viên thì tôi thường bị vào tài khoản của người đó luôn. Fix cho tôi
