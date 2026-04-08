@@ -216,7 +216,7 @@ export default function Auth() {
     const e = {};
     if (!rf.ho.trim())           e.ho       = 'Nhập họ.';
     if (!rf.ten.trim())          e.ten      = 'Nhập tên.';
-    if (!rf.mssv.trim())         e.mssv     = 'Nhập MSSV.';
+    if (!rf.mssv.trim())         e.mssv     = 'Nhập MSV.';
     if (!rf.email.includes('@')) e.email    = 'Email không hợp lệ.';
     if (!rf.phone.trim())        e.phone    = 'Nhập số điện thoại.';
     if (rf.password.length < 6)  e.password = 'Tối thiểu 6 ký tự.';
@@ -250,8 +250,8 @@ export default function Auth() {
             2X
           </div>
           <div>
-            <div className="text-white font-black text-lg leading-none">2X18 CORE</div>
-            <div className="text-blue-400/60 text-xs mt-0.5">HUS Bán dẫn K2024</div>
+            <div className="text-white font-black text-lg leading-none">2X18</div>
+            <div className="text-blue-400/60 text-xs mt-0.5">K70 CÔNG NGHỆ BÁN DẪN</div>
           </div>
         </div>
 
@@ -263,7 +263,7 @@ export default function Auth() {
               <span className="text-blue-400">thông minh hơn</span>
             </h2>
             <p className="text-gray-400 text-sm leading-relaxed">
-              Theo dõi GPA, điểm danh, tài liệu và tiến độ học tập của 16 thành viên — tất cả trong một nơi.
+              Theo dõi GPA, điểm danh, tài liệu và tiến độ học tập của các thành viên — tất cả trong một nơi.
             </p>
           </div>
 
@@ -282,7 +282,7 @@ export default function Auth() {
           ))}
         </div>
 
-        <div className="text-gray-700 text-xs">© 2X18 HUS K2024 · Bán dẫn &amp; Công nghệ vật liệu</div>
+        <div className="text-gray-700 text-xs">© 2X18 HUS K70 · Bán dẫn &amp; Công nghệ bán dẫn</div>
       </div>
 
       {/* ── Right panel ── */}
