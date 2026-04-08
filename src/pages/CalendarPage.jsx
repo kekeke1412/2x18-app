@@ -1,7 +1,8 @@
 // src/pages/CalendarPage.jsx
 // Full Google Calendar–style: Month / Week / Day views
 // Auto-syncs: tasks deadlines, attendance sessions, votes with deadlines
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+// Real-time current-time indicator (Google Calendar style) in Week + Day views
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Plus, X, Clock, MapPin, Users, AlignLeft, ExternalLink } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
@@ -27,6 +28,10 @@ const fmtDate    = (iso) => { if (!iso) return ''; const [y,m,d] = iso.split('-'
 const todayObj   = new Date();
 const todayStr   = ds(todayObj.getFullYear(), todayObj.getMonth(), todayObj.getDate());
 
+// Row heights (px) for week and day views
+const WEEK_ROW_H = 48;
+const DAY_ROW_H  = 52;
+
 export default function CalendarPage() {
   const { calEvents, addEvent, editEvent, deleteEvent, myTasks, attendance, votes } = useApp();
 
@@ -37,8 +42,27 @@ export default function CalendarPage() {
   const [modal,    setModal]    = useState(null); // { mode:'new'|'edit', event? }
   const [form,     setForm]     = useState({});
   const [popup,    setPopup]    = useState(null); // { event, x, y }
-  const popupRef   = useRef(null);
-  const nextId     = useRef(Date.now());
+  const [nowTime,  setNowTime]  = useState(new Date()); // real-time clock
+
+  const popupRef    = useRef(null);
+  const scrollRef   = useRef(null); // ref for the hour-grid scroll container
+  const nextId      = useRef(Date.now());
+
+  // ── Real-time clock (updates every 30s) ──────────────────────────────────
+  useEffect(() => {
+    const t = setInterval(() => setNowTime(new Date()), 30000);
+    return () => clearInterval(t);
+  }, []);
+
+  // ── Auto-scroll to current time when entering week/day view ──────────────
+  useEffect(() => {
+    if (view === 'month') return;
+    const el = scrollRef.current;
+    if (!el) return;
+    const rowH = view === 'week' ? WEEK_ROW_H : DAY_ROW_H;
+    const scrollTop = (nowTime.getHours() - 1) * rowH;
+    setTimeout(() => el.scrollTo({ top: Math.max(0, scrollTop), behavior: 'smooth' }), 80);
+  }, [view]); // eslint-disable-line
 
   // Close popup on outside click
   useEffect(() => {
@@ -166,6 +190,27 @@ export default function CalendarPage() {
     );
   };
 
+  // ── Current-time indicator ────────────────────────────────
+  // Renders a red Google-Calendar-style line for today's current time
+  // pct = fraction through the current hour (0..1)
+  const nowDateStr = ds(nowTime.getFullYear(), nowTime.getMonth(), nowTime.getDate());
+  const nowHour    = nowTime.getHours();
+  const nowPct     = nowTime.getMinutes() / 60; // 0..1
+
+  const NowLine = ({ dateStr, rowH }) => {
+    if (dateStr !== nowDateStr) return null;
+    return (
+      <div
+        className="absolute left-0 right-0 z-20 pointer-events-none"
+        style={{ top: `${nowHour * rowH + nowPct * rowH}px` }}>
+        <div className="flex items-center">
+          <div className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0 -ml-1"/>
+          <div className="flex-1 h-px bg-red-500"/>
+        </div>
+      </div>
+    );
+  };
+
   // ── MONTH VIEW ────────────────────────────────────────────
   const renderMonth = () => {
     const firstDow = new Date(curYear,curMonth,1).getDay();
@@ -238,43 +283,73 @@ export default function CalendarPage() {
             );
           })}
         </div>
-        {/* Hour grid */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar">
-          {HOURS.map(h=>(
-            <div key={h} className="grid border-b border-gray-800/20" style={{gridTemplateColumns:'56px repeat(7,1fr)',minHeight:48}}>
-              <div className="border-r border-gray-800/30 pr-2 text-right shrink-0">
-                <span className="text-[10px] text-gray-600 font-bold leading-none">{h===0?'':String(h).padStart(2,'0')+':00'}</span>
+
+        {/* All-day events row */}
+        <div className="bg-[#141414] grid border-b-2 border-gray-800/60 shrink-0" style={{gridTemplateColumns:'56px repeat(7,1fr)'}}>
+          <div className="border-r border-gray-800/30 py-1 text-right pr-2">
+            <span className="text-[9px] text-gray-600">Cả ngày</span>
+          </div>
+          {days.map((d,i)=>{
+            const dateStr = ds(d.getFullYear(),d.getMonth(),d.getDate());
+            const evs = eventsFor(dateStr).filter(e=>e.allDay);
+            return (
+              <div key={i} className="border-r border-gray-800/20 last:border-r-0 p-0.5 space-y-0.5">
+                {evs.map(ev=>(
+                  <EventPill key={ev.id} ev={ev} onClick={e=>showPopup(e,ev)}/>
+                ))}
               </div>
-              {days.map((d,i)=>{
-                const dateStr = ds(d.getFullYear(),d.getMonth(),d.getDate());
-                const evs = eventsFor(dateStr).filter(e=>!e.allDay&&e.startTime&&parseInt(e.startTime)===h);
-                return (
-                  <div key={i} className="border-r border-gray-800/20 last:border-r-0 relative p-0.5 hover:bg-[#1a1a1a] cursor-pointer transition-colors"
-                    onClick={()=>{ setCurDay(d.getDate()); openNew(dateStr,h); }}>
-                    {evs.map(ev=>(
-                      <EventPill key={ev.id} ev={ev} onClick={e=>showPopup(e,ev)}/>
-                    ))}
-                  </div>
-                );
-              })}
-            </div>
-          ))}
-          {/* All-day events row */}
-          <div className="sticky top-0 z-10 bg-[#141414] grid border-b-2 border-gray-800/60 mb-1" style={{gridTemplateColumns:'56px repeat(7,1fr)'}}>
-            <div className="border-r border-gray-800/30 py-1 text-right pr-2">
-              <span className="text-[9px] text-gray-600">Cả ngày</span>
-            </div>
+            );
+          })}
+        </div>
+
+        {/* Hour grid */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar" ref={scrollRef}>
+          {/* Positioning wrapper for NowLine */}
+          <div className="relative" style={{gridTemplateColumns:'56px repeat(7,1fr)'}}>
+            {/* NowLine — positioned absolutely over entire column for today */}
             {days.map((d,i)=>{
               const dateStr = ds(d.getFullYear(),d.getMonth(),d.getDate());
-              const evs = eventsFor(dateStr).filter(e=>e.allDay);
+              if (dateStr !== nowDateStr) return null;
+              // Calculate left offset: 56px gutter + i * (column width)
+              // Use percentage trick via inline grid overlay
               return (
-                <div key={i} className="border-r border-gray-800/20 last:border-r-0 p-0.5 space-y-0.5">
-                  {evs.map(ev=>(
-                    <EventPill key={ev.id} ev={ev} onClick={e=>showPopup(e,ev)}/>
-                  ))}
+                <div key={`now-${i}`}
+                  className="absolute top-0 bottom-0 z-20 pointer-events-none"
+                  style={{
+                    left: `calc(56px + ${i} * ((100% - 56px) / 7))`,
+                    width: `calc((100% - 56px) / 7)`,
+                  }}>
+                  <div
+                    className="absolute left-0 right-0"
+                    style={{ top: `${nowHour * WEEK_ROW_H + nowPct * WEEK_ROW_H}px` }}>
+                    <div className="flex items-center">
+                      <div className="w-2 h-2 rounded-full bg-red-500 shrink-0 -ml-1"/>
+                      <div className="flex-1 h-px bg-red-500"/>
+                    </div>
+                  </div>
                 </div>
               );
             })}
+
+            {HOURS.map(h=>(
+              <div key={h} className="grid border-b border-gray-800/20" style={{gridTemplateColumns:'56px repeat(7,1fr)',minHeight:WEEK_ROW_H}}>
+                <div className="border-r border-gray-800/30 pr-2 text-right shrink-0 pt-1">
+                  <span className="text-[10px] text-gray-600 font-bold leading-none">{h===0?'':String(h).padStart(2,'0')+':00'}</span>
+                </div>
+                {days.map((d,i)=>{
+                  const dateStr = ds(d.getFullYear(),d.getMonth(),d.getDate());
+                  const evs = eventsFor(dateStr).filter(e=>!e.allDay&&e.startTime&&parseInt(e.startTime)===h);
+                  return (
+                    <div key={i} className="border-r border-gray-800/20 last:border-r-0 relative p-0.5 hover:bg-[#1a1a1a] cursor-pointer transition-colors"
+                      onClick={()=>{ setCurDay(d.getDate()); openNew(dateStr,h); }}>
+                      {evs.map(ev=>(
+                        <EventPill key={ev.id} ev={ev} onClick={e=>showPopup(e,ev)}/>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -286,6 +361,7 @@ export default function CalendarPage() {
     const dateStr  = ds(curYear,curMonth,curDay);
     const allDayEs = eventsFor(dateStr).filter(e=>e.allDay);
     const timedEs  = eventsFor(dateStr).filter(e=>!e.allDay);
+    const isToday  = dateStr === nowDateStr;
 
     return (
       <div className="flex-1 overflow-hidden flex flex-col">
@@ -299,29 +375,43 @@ export default function CalendarPage() {
           </div>
         )}
         {/* Timed slots */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar">
-          {HOURS.map(h=>{
-            const evs = timedEs.filter(e=>parseInt(e.startTime)===h);
-            return (
-              <div key={h} className="flex border-b border-gray-800/20 min-h-[52px] hover:bg-[#1a1a1a] cursor-pointer transition-colors"
-                onClick={()=>openNew(dateStr,h)}>
-                <div className="w-14 shrink-0 pr-3 text-right pt-1">
-                  <span className="text-[10px] text-gray-600 font-bold">{String(h).padStart(2,'0')}:00</span>
-                </div>
-                <div className="flex-1 p-1 space-y-0.5 border-l border-gray-800/30">
-                  {evs.map(ev=>(
-                    <div key={ev.id} onClick={e=>{ e.stopPropagation(); showPopup(e,ev); }}
-                      className="px-3 py-2 rounded-xl cursor-pointer hover:opacity-90 transition-all"
-                      style={{ background: typeStyle(ev.type).bg, borderLeft: `3px solid ${typeStyle(ev.type).color}` }}>
-                      <div className="text-sm font-bold" style={{color:typeStyle(ev.type).color}}>{ev.title}</div>
-                      {ev.endTime && <div className="text-[10px] mt-0.5" style={{color:typeStyle(ev.type).color, opacity:0.7}}>{ev.startTime}–{ev.endTime}</div>}
-                      {ev.location && <div className="text-[10px] text-gray-400 mt-0.5">📍 {ev.location}</div>}
-                    </div>
-                  ))}
+        <div className="flex-1 overflow-y-auto custom-scrollbar" ref={scrollRef}>
+          {/* Relative wrapper for NowLine */}
+          <div className="relative">
+            {/* NowLine for day view */}
+            {isToday && (
+              <div
+                className="absolute left-14 right-0 z-20 pointer-events-none"
+                style={{ top: `${nowHour * DAY_ROW_H + nowPct * DAY_ROW_H}px` }}>
+                <div className="flex items-center">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0 -ml-1"/>
+                  <div className="flex-1 h-px bg-red-500"/>
                 </div>
               </div>
-            );
-          })}
+            )}
+            {HOURS.map(h=>{
+              const evs = timedEs.filter(e=>parseInt(e.startTime)===h);
+              return (
+                <div key={h} className="flex border-b border-gray-800/20 min-h-[52px] hover:bg-[#1a1a1a] cursor-pointer transition-colors"
+                  onClick={()=>openNew(dateStr,h)}>
+                  <div className="w-14 shrink-0 pr-3 text-right pt-1">
+                    <span className="text-[10px] text-gray-600 font-bold">{String(h).padStart(2,'0')}:00</span>
+                  </div>
+                  <div className="flex-1 p-1 space-y-0.5 border-l border-gray-800/30">
+                    {evs.map(ev=>(
+                      <div key={ev.id} onClick={e=>{ e.stopPropagation(); showPopup(e,ev); }}
+                        className="px-3 py-2 rounded-xl cursor-pointer hover:opacity-90 transition-all"
+                        style={{ background: typeStyle(ev.type).bg, borderLeft: `3px solid ${typeStyle(ev.type).color}` }}>
+                        <div className="text-sm font-bold" style={{color:typeStyle(ev.type).color}}>{ev.title}</div>
+                        {ev.endTime && <div className="text-[10px] mt-0.5" style={{color:typeStyle(ev.type).color, opacity:0.7}}>{ev.startTime}–{ev.endTime}</div>}
+                        {ev.location && <div className="text-[10px] text-gray-400 mt-0.5">📍 {ev.location}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     );
@@ -337,6 +427,14 @@ export default function CalendarPage() {
           <button onClick={navNext} className="p-1.5 hover:bg-[#252525] rounded-lg transition-colors"><ChevronRight className="w-4 h-4 text-gray-400"/></button>
         </div>
         <h2 className="text-sm font-black text-white flex-1 truncate">{titleStr()}</h2>
+
+        {/* Real-time clock badge */}
+        {(view === 'week' || view === 'day') && (
+          <div className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold text-red-400 border border-red-500/20 px-2 py-1 rounded-lg">
+            <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"/>
+            {nowTime.toLocaleTimeString('vi-VN', { hour:'2-digit', minute:'2-digit' })}
+          </div>
+        )}
 
         {/* Legend */}
         <div className="hidden xl:flex items-center gap-2">

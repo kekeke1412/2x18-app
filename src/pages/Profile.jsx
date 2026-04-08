@@ -4,7 +4,7 @@ import {
   User, CreditCard, Calendar, Phone, MapPin,
   Save, Edit3, ChevronDown, ChevronUp, AlertTriangle, CheckCircle2,
   Download, Users, ShieldCheck, ChevronLeft, Search, Check, X,
-  Clock, Eye, BookOpen
+  Clock, Eye, BookOpen, Lock, CheckCircle
 } from 'lucide-react';
 import { subjectDatabase, calculateHe10, getHe4 } from '../data';
 import { useApp } from '../context/AppContext';
@@ -31,6 +31,21 @@ const PROVINCES_34 = [
   "Tây Ninh","TP. Cần Thơ","Vĩnh Long","Đồng Tháp","Cà Mau","An Giang",
   "Hà Nội","Bắc Giang","Vĩnh Phúc","Nam Định","Thanh Hóa","Nghệ An",
   "Hà Tĩnh","Thừa Thiên Huế","Bình Định","Đắk Nông","Bình Dương",
+];
+
+// Fields required for profile unlock
+const REQUIRED_FIELDS = [
+  { key: 'mssv',      label: 'Mã số sinh viên' },
+  { key: 'fullName',  label: 'Họ và tên' },
+  { key: 'gender',    label: 'Giới tính' },
+  { key: 'dob',       label: 'Ngày sinh' },
+  { key: 'ethnicity', label: 'Dân tộc' },
+  { key: 'bloodType', label: 'Nhóm máu' },
+  { key: 'pob',       label: 'Nơi sinh' },
+  { key: 'phone',     label: 'Số điện thoại' },
+  { key: 'mailVnu',   label: 'Mail VNU' },
+  { key: 'mailSchool',label: 'Mail HUS' },
+  { key: 'facebook',  label: 'Facebook' },
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -65,6 +80,7 @@ const getInitials = (name='') =>
   name.split(' ').filter(Boolean).map(w=>w[0]).slice(-2).join('').toUpperCase() || '??';
 
 // ── Grade helpers ──────────────────────────────────────────────────────────
+// CPA uses hệ 4, only counts subjects with status "Đã học"
 function calcGpaStats(grades) {
   let totalPoints = 0, totalCredits = 0, earnedCredits = 0;
   let learning = 0, done = 0;
@@ -74,17 +90,20 @@ function calcGpaStats(grades) {
     const g = grades[sub.id] || {};
     const st = g.status || 'Chưa học';
     if (st === 'Đang học') learning++;
-    const r = calcResult(g.cc, g.gk, g.ck);
-    const he10 = parseFloat(r.he10);
-    if (!isNaN(he10) && he10 > 0 && (st === 'Đã học' || g.ck)) {
-      done++;
-      totalPoints  += he10 * sub.credits;
-      totalCredits += sub.credits;
-      earnedCredits += sub.credits;
-      if (g.semester) {
-        if (!semGPA[g.semester]) semGPA[g.semester] = { pts:0, cr:0 };
-        semGPA[g.semester].pts += he10 * sub.credits;
-        semGPA[g.semester].cr  += sub.credits;
+    // Only count subjects explicitly marked "Đã học"
+    if (st === 'Đã học') {
+      const r = calcResult(g.cc, g.gk, g.ck);
+      const he4 = parseFloat(r.he4);
+      if (!isNaN(he4) && he4 >= 0) {
+        done++;
+        totalPoints  += he4 * sub.credits;
+        totalCredits += sub.credits;
+        earnedCredits += sub.credits;
+        if (g.semester) {
+          if (!semGPA[g.semester]) semGPA[g.semester] = { pts:0, cr:0 };
+          semGPA[g.semester].pts += he4 * sub.credits;
+          semGPA[g.semester].cr  += sub.credits;
+        }
       }
     }
   });
@@ -114,9 +133,12 @@ function exportGradesToCSV(profile, grades) {
 }
 
 // ── UI primitives ──────────────────────────────────────────────────────────
-const Field = ({ label, value, onChange, type='text', options, disabled }) => (
+const Field = ({ label, value, onChange, type='text', options, disabled, required, hint }) => (
   <div className="flex flex-col gap-1">
-    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{label}</label>
+    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
+      {label}
+      {required && !disabled && <span className="text-red-400">*</span>}
+    </label>
     {options ? (
       <select value={value||''} onChange={e=>onChange(e.target.value)} disabled={disabled}
         className={`text-sm px-3 py-2 rounded-xl outline-none transition-all
@@ -131,15 +153,16 @@ const Field = ({ label, value, onChange, type='text', options, disabled }) => (
         : <input type="date" value={value||''} onChange={e=>onChange(e.target.value)}
             className="text-sm px-3 py-2 rounded-xl outline-none bg-[#252525] border border-gray-700 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"/>
     ) : (
-      <input type={type} value={value||''} onChange={e=>onChange(e.target.value)} disabled={disabled}
+      <input type={type} value={value||''} onChange={onChange ? e=>onChange(e.target.value) : undefined} disabled={disabled}
         className={`text-sm px-3 py-2 rounded-xl outline-none transition-all
           ${disabled ? 'bg-transparent text-gray-300 border-transparent cursor-default'
                      : 'bg-[#252525] border border-gray-700 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30'}`}/>
     )}
+    {hint && <p className="text-[10px] text-gray-600 mt-0.5">{hint}</p>}
   </div>
 );
 
-const Section = ({ icon:Icon, title, children, defaultOpen=true }) => {
+const Section = ({ icon:Icon, title, children, defaultOpen=true, badge }) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl overflow-hidden mb-4">
@@ -147,12 +170,59 @@ const Section = ({ icon:Icon, title, children, defaultOpen=true }) => {
         className="w-full flex items-center gap-3 px-5 py-3.5 bg-[#1e1e1e] hover:bg-[#222] transition-colors text-left">
         <Icon className="w-4 h-4 text-gray-500 shrink-0"/>
         <span className="text-sm font-bold text-gray-300 flex-1">{title}</span>
+        {badge && <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/20">{badge}</span>}
         {open ? <ChevronUp className="w-4 h-4 text-gray-600"/> : <ChevronDown className="w-4 h-4 text-gray-600"/>}
       </button>
       {open && <div className="p-5 border-t border-gray-800/60">{children}</div>}
     </div>
   );
 };
+
+// ── Profile Completion Progress Bar ───────────────────────────────────────
+function ProfileCompletionBanner({ profile, isEditing, onStartEdit }) {
+  const missing = REQUIRED_FIELDS.filter(f => {
+    const val = f.key === 'mssv' ? (profile.mssv || profile.msv) : profile[f.key];
+    return !val || String(val).trim() === '';
+  });
+
+  if (missing.length === 0) return null;
+
+  const total = REQUIRED_FIELDS.length;
+  const filled = total - missing.length;
+  const pct = Math.round((filled / total) * 100);
+
+  return (
+    <div className="mb-5 bg-[#1a1a1a] border border-amber-500/20 rounded-2xl p-4">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0"/>
+          <span className="text-sm font-bold text-amber-300">Hoàn thiện hồ sơ để mở khóa tính năng</span>
+        </div>
+        <span className="text-sm font-black text-amber-400">{filled}/{total}</span>
+      </div>
+      {/* Progress bar */}
+      <div className="h-1.5 bg-gray-800 rounded-full mb-3 overflow-hidden">
+        <div className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full transition-all duration-500"
+          style={{width:`${pct}%`}}/>
+      </div>
+      {/* Missing fields */}
+      <div className="flex flex-wrap gap-1.5">
+        {missing.map(f => (
+          <span key={f.key}
+            className="text-[10px] font-bold px-2 py-1 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            {f.label}
+          </span>
+        ))}
+      </div>
+      {!isEditing && (
+        <button onClick={onStartEdit}
+          className="mt-3 w-full py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-500 rounded-xl transition-all">
+          Điền ngay →
+        </button>
+      )}
+    </div>
+  );
+}
 
 // ── GradeRow ──────────────────────────────────────────────────────────────
 function GradeRow({ subject, grades, onGradeChange, isEditing }) {
@@ -169,6 +239,9 @@ function GradeRow({ subject, grades, onGradeChange, isEditing }) {
       value={g[field]||''} onChange={e=>onGradeChange(subject.id, field, e.target.value)}
       className="w-14 text-center text-xs bg-[#252525] border border-gray-700 rounded-lg px-1 py-1 text-white outline-none focus:border-blue-500"/>
   );
+
+  // Only show grade inputs if status is "Đã học" or "Đang học"
+  const canEnterGrades = isEditing && (g.status === 'Đã học' || g.status === 'Đang học');
 
   return (
     <tr className="border-b border-gray-800/40 hover:bg-white/[0.02] transition-colors">
@@ -201,12 +274,12 @@ function GradeRow({ subject, grades, onGradeChange, isEditing }) {
           </span>
         )}
       </td>
-      <td className="px-1 py-2.5 text-center">{isEditing ? inp('cc') : <span className="text-xs text-gray-400">{g.cc||'—'}</span>}</td>
-      <td className="px-1 py-2.5 text-center">{isEditing ? inp('gk') : <span className="text-xs text-gray-400">{g.gk||'—'}</span>}</td>
-      <td className="px-1 py-2.5 text-center">{isEditing ? inp('ck') : <span className="text-xs text-gray-400">{g.ck||'—'}</span>}</td>
-      <td className={`px-2 py-2.5 text-center font-bold text-sm ${gradeColor(r.he10)}`}>{r.he10}</td>
-      <td className={`px-2 py-2.5 text-center font-bold text-xs ${gradeColor(r.he10)}`}>{r.chu}</td>
-      <td className={`px-2 py-2.5 text-center font-bold text-xs ${gradeColor(r.he4)}`}>{r.he4}</td>
+      <td className="px-1 py-2.5 text-center">{canEnterGrades ? inp('cc') : <span className="text-xs text-gray-400">{g.cc||'—'}</span>}</td>
+      <td className="px-1 py-2.5 text-center">{canEnterGrades ? inp('gk') : <span className="text-xs text-gray-400">{g.gk||'—'}</span>}</td>
+      <td className="px-1 py-2.5 text-center">{canEnterGrades ? inp('ck') : <span className="text-xs text-gray-400">{g.ck||'—'}</span>}</td>
+      <td className={`px-2 py-2.5 text-center font-bold text-sm ${gradeColor(r.he10)}`}>{g.status==='Đã học'?r.he10:'—'}</td>
+      <td className={`px-2 py-2.5 text-center font-bold text-xs ${gradeColor(r.he10)}`}>{g.status==='Đã học'?r.chu:'—'}</td>
+      <td className={`px-2 py-2.5 text-center font-bold text-xs ${gradeColor(r.he4)}`}>{g.status==='Đã học'?r.he4:'—'}</td>
     </tr>
   );
 }
@@ -232,10 +305,10 @@ function GradesTable({ profile, grades, onSave, canEdit }) {
     <div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
         {[
-          { label:'CPA Tích lũy',   value:gpaStats.cpa,              color:'text-green-400' },
-          { label:'Tín chỉ đạt',    value:`${gpaStats.credits}/133`, color:'text-blue-400'  },
-          { label:'Đang học',       value:`${gpaStats.learning} môn`,color:'text-yellow-400'},
-          { label:'Đã hoàn thành', value:`${gpaStats.done} môn`,    color:'text-purple-400'},
+          { label:'CPA Tích lũy (Hệ 4)', value:gpaStats.cpa,              color:'text-green-400' },
+          { label:'Tín chỉ đạt',          value:`${gpaStats.credits}/133`, color:'text-blue-400'  },
+          { label:'Đang học',             value:`${gpaStats.learning} môn`,color:'text-yellow-400'},
+          { label:'Đã hoàn thành',        value:`${gpaStats.done} môn`,    color:'text-purple-400'},
         ].map(s=>(
           <div key={s.label} className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl p-4">
             <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">{s.label}</div>
@@ -254,6 +327,12 @@ function GradesTable({ profile, grades, onSave, canEdit }) {
           ))}
         </div>
       )}
+
+      {/* Note about CPA calculation */}
+      <div className="mb-4 flex items-center gap-2 text-[11px] text-gray-500 bg-[#1a1a1a] border border-gray-800/60 rounded-xl px-4 py-2.5">
+        <CheckCircle className="w-3.5 h-3.5 text-green-400 shrink-0"/>
+        CPA tích lũy chỉ tính các môn có trạng thái <strong className="text-green-400 mx-1">Đã học</strong> theo thang điểm hệ 4.
+      </div>
 
       <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800/60 sticky top-0 bg-[#1a1a1a] z-10">
@@ -312,11 +391,18 @@ function GradesTable({ profile, grades, onSave, canEdit }) {
 
 // ── ProfileForm ───────────────────────────────────────────────────────────
 // Renders editable/viewable profile fields for any member
-function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfile }) {
+function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfile, onStartEdit }) {
   const rl = roleLabel(profile.role);
+  // Login email (from auth) is always the profile.email field — read-only
+  const loginEmail = profile.email || '';
 
   return (
     <>
+      {/* Completion banner — only for own profile */}
+      {isOwnProfile && (
+        <ProfileCompletionBanner profile={profile} isEditing={isEditing} onStartEdit={onStartEdit}/>
+      )}
+
       {/* Avatar & Identity */}
       <Section icon={User} title="Nhận diện">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -352,7 +438,7 @@ function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfil
       <Section icon={User} title="Thông tin cơ bản">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <Field label="STT"        value={profile.stt}      onChange={v=>setProfile(p=>({...p,stt:v}))}      disabled={!isEditing || !isSuperAdmin}/>
-          <Field label="MSV *"      value={profile.mssv||profile.msv} onChange={v=>setProfile(p=>({...p,mssv:v,msv:v}))} disabled={!isEditing}/>
+          <Field label="MSV" required value={profile.mssv||profile.msv} onChange={v=>setProfile(p=>({...p,mssv:v,msv:v}))} disabled={!isEditing}/>
 
           {/* Role — only super admin can change */}
           <div className="flex flex-col gap-1">
@@ -370,12 +456,12 @@ function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfil
             )}
           </div>
 
-          <Field label="Họ và tên *" value={profile.fullName}  onChange={v=>setProfile(p=>({...p,fullName:v}))}  disabled={!isEditing}/>
-          <Field label="Giới tính *" value={profile.gender}    onChange={v=>setProfile(p=>({...p,gender:v}))}    options={GENDERS}    disabled={!isEditing}/>
-          <Field label="Ngày sinh"   value={profile.dob}       onChange={v=>setProfile(p=>({...p,dob:v}))}       type="date"          disabled={!isEditing}/>
-          <Field label="Dân tộc"     value={profile.ethnicity} onChange={v=>setProfile(p=>({...p,ethnicity:v}))} options={ETHNICITIES} disabled={!isEditing}/>
-          <Field label="Nhóm máu"    value={profile.bloodType} onChange={v=>setProfile(p=>({...p,bloodType:v}))} options={BLOOD_TYPES} disabled={!isEditing}/>
-          <Field label="Nơi sinh"    value={profile.pob}       onChange={v=>setProfile(p=>({...p,pob:v}))}       options={PROVINCES_34} disabled={!isEditing}/>
+          <Field label="Họ và tên" required value={profile.fullName}  onChange={v=>setProfile(p=>({...p,fullName:v}))}  disabled={!isEditing}/>
+          <Field label="Giới tính" required value={profile.gender}    onChange={v=>setProfile(p=>({...p,gender:v}))}    options={GENDERS}    disabled={!isEditing}/>
+          <Field label="Ngày sinh" required value={profile.dob}       onChange={v=>setProfile(p=>({...p,dob:v}))}       type="date"          disabled={!isEditing}/>
+          <Field label="Dân tộc"   required value={profile.ethnicity} onChange={v=>setProfile(p=>({...p,ethnicity:v}))} options={ETHNICITIES} disabled={!isEditing}/>
+          <Field label="Nhóm máu"  required value={profile.bloodType} onChange={v=>setProfile(p=>({...p,bloodType:v}))} options={BLOOD_TYPES} disabled={!isEditing}/>
+          <Field label="Nơi sinh"  required value={profile.pob}       onChange={v=>setProfile(p=>({...p,pob:v}))}       options={PROVINCES_34} disabled={!isEditing}/>
         </div>
       </Section>
 
@@ -395,12 +481,24 @@ function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfil
 
       <Section icon={Phone} title="Liên hệ">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <Field label="SĐT *"          value={profile.phone}        onChange={v=>setProfile(p=>({...p,phone:v}))}        type="tel"   disabled={!isEditing}/>
-          <Field label="SĐT người thân" value={profile.phoneFamily}  onChange={v=>setProfile(p=>({...p,phoneFamily:v}))}  type="tel"   disabled={!isEditing}/>
-          <Field label="Mail HUS *"     value={profile.mailSchool}   onChange={v=>setProfile(p=>({...p,mailSchool:v}))}   type="email" disabled={!isEditing}/>
-          <Field label="Mail VNU"       value={profile.mailVnu}      onChange={v=>setProfile(p=>({...p,mailVnu:v}))}      type="email" disabled={!isEditing}/>
-          <Field label="Mail cá nhân"   value={profile.mailPersonal} onChange={v=>setProfile(p=>({...p,mailPersonal:v}))} type="email" disabled={!isEditing}/>
-          <Field label="Facebook"       value={profile.facebook}     onChange={v=>setProfile(p=>({...p,facebook:v}))}                 disabled={!isEditing}/>
+          <Field label="SĐT" required          value={profile.phone}        onChange={v=>setProfile(p=>({...p,phone:v}))}        type="tel"   disabled={!isEditing}/>
+          <Field label="SĐT người thân"        value={profile.phoneFamily}  onChange={v=>setProfile(p=>({...p,phoneFamily:v}))}  type="tel"   disabled={!isEditing}/>
+          <Field label="Mail HUS" required     value={profile.mailSchool}   onChange={v=>setProfile(p=>({...p,mailSchool:v}))}   type="email" disabled={!isEditing}/>
+          <Field label="Mail VNU" required     value={profile.mailVnu}      onChange={v=>setProfile(p=>({...p,mailVnu:v}))}      type="email" disabled={!isEditing}/>
+          <Field label="Facebook" required     value={profile.facebook}     onChange={v=>setProfile(p=>({...p,facebook:v}))}                 disabled={!isEditing}/>
+
+          {/* Login email — always read-only, never editable */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
+              Mail đăng nhập
+              <Lock className="w-2.5 h-2.5 text-gray-600"/>
+            </label>
+            <div className="flex items-center gap-2 text-sm px-3 py-2 rounded-xl bg-[#1a1a1a] border border-gray-800 text-gray-400">
+              <span className="flex-1 truncate">{loginEmail || '—'}</span>
+              <span className="text-[9px] font-bold text-gray-600 bg-gray-800 px-1.5 py-0.5 rounded-md shrink-0">Cố định</span>
+            </div>
+            <p className="text-[10px] text-gray-600">Email dùng để đăng nhập, không thể thay đổi.</p>
+          </div>
         </div>
       </Section>
 
@@ -774,6 +872,7 @@ export default function Profile() {
             isEditing={isEditing}
             isSuperAdmin={isSuperAdmin}
             isOwnProfile={true}
+            onStartEdit={()=>setIsEditing(true)}
           />
         )}
 
