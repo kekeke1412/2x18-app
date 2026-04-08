@@ -28,3 +28,9 @@ HƯNG: h 8/4/2026:
 * Profile: Khi có tài khoản mới đăng nhập, nó không hiện ra đơn duyệt của họ để tôi hay core duyệt mặc dù trước đó đã có 2 tài khoản được duyệt
 * Subject and Task: Khi tôi thêm link để dẫn đến tài liệu trên google, nó không hiện trên khung mon học đấy và trong task
 * Trash: Khi tôi xóa bất kỳ một cái gì trong các trang thì nó không hiện cái đấy trong trash. Fix nó
+
+*Subject: Khi môn học đã chuyển trạng thái thành đã học, môn đó sẽ hiển thị trong mục đã học và loại bỏ SME tức là người phụ trách đó đã hoàn thành nhiệm vụ.
+* Task: Mỗi lần tôi thêm mốc, màn hình sẽ trắng màn
+* Voting: mỗi lần tôi thêm vote, màn hình sẽ trắng màn
+* Attendance: Mỗi lần tôi thêm buổi, nó sẽ trắng màn
+* Profile: Tôi muốn khi nào môn đó

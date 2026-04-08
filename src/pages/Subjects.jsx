@@ -261,12 +261,18 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
           <div className="mt-3 pt-3 border-t border-gray-800/40">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-[10px] text-gray-500 font-bold shrink-0">Đang học:</span>
-              {learnerMap['Đang học'].slice(0, 5).map(m => (
-                <div key={m.id} title={m.fullName}
-                  className="w-5 h-5 rounded-full bg-blue-600/25 border border-blue-500/30 flex items-center justify-center text-[8px] font-bold text-blue-300 shrink-0">
-                  {m.avatar || m.fullName?.[0] || '?'}
-                </div>
-              ))}
+              {learnerMap['Đang học'].slice(0, 5).map(m => 
+                m.avatarUrl ? (
+                  <img key={m.id} src={m.avatarUrl} alt={m.fullName} title={m.fullName}
+                    className="w-5 h-5 rounded-full object-cover border border-blue-500/30 shrink-0"
+                    onError={(e)=>{e.target.style.display='none'}} />
+                ) : (
+                  <div key={m.id} title={m.fullName}
+                    className="w-5 h-5 rounded-full bg-blue-600/25 border border-blue-500/30 flex items-center justify-center text-[8px] font-bold text-blue-300 shrink-0">
+                    {m.avatar || m.fullName?.[0] || '?'}
+                  </div>
+                )
+              )}
               {learnerMap['Đang học'].length > 5 && (
                 <span className="text-[10px] text-gray-500">+{learnerMap['Đang học'].length - 5}</span>
               )}
