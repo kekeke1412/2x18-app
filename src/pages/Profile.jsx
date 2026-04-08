@@ -16,10 +16,40 @@ const SEMESTERS   = [1,2,3,4,5,6,7,8];
 
 // Cập nhật danh sách 23 Tỉnh/Thành phố
 const PROVINCES = [
-  "Tuyên Quang", "Lào Cai", "Thái Nguyên", "Phú Thọ", "Bắc Ninh", "Hưng Yên",
-  "TP. Hải Phòng", "Ninh Bình", "Quảng Trị", "TP. Đà Nẵng", "Quảng Ngãi",
-  "Gia Lai", "Khánh Hòa", "Lâm Đồng", "Đắk Lắk", "TP. Hồ Chí Minh", "Đồng Nai",
-  "Tây Ninh", "TP. Cần Thơ", "Vĩnh Long", "Đồng Tháp", "Cà Mau", "An Giang"
+  'Hà Nội',
+  'TP Hồ Chí Minh',
+  'Hải Phòng',
+  'Đà Nẵng',
+  'Cần Thơ',
+  'Huế',
+  'An Giang',
+  'Bắc Ninh',
+  'Cà Mau',
+  'Cao Bằng',
+  'Đắk Lắk',
+  'Điện Biên',
+  'Đồng Nai',
+  'Đồng Tháp',
+  'Gia Lai',
+  'Hà Tĩnh',
+  'Hưng Yên',
+  'Khánh Hòa',
+  'Lai Châu',
+  'Lâm Đồng',
+  'Lạng Sơn',
+  'Lào Cai',
+  'Nghệ An',
+  'Ninh Bình',
+  'Phú Thọ',
+  'Quảng Ngãi',
+  'Quảng Ninh',
+  'Quảng Trị',
+  'Sơn La',
+  'Tây Ninh',
+  'Thái Nguyên',
+  'Thanh Hóa',
+  'Tuyên Quang',
+  'Vĩnh Long'
 ];
 
 const REQUIRED_FIELDS = [
