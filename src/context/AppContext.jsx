@@ -378,12 +378,18 @@ export function AppProvider({ children }) {
     }
   }, [state.members]); // eslint-disable-line
 
-  // ── Auto-sync to Firebase (debounced) ─────────────────────────────────────
+  // ── Auto-sync to Firebase ─────────────────────────────────────────────────
   useEffect(() => {
+    // Bỏ qua nếu data vừa đến từ Firebase (tránh vòng lặp ghi → onValue → ghi → ...)
     if (fromFirebaseRef.current) {
       fromFirebaseRef.current = false;
       return;
     }
+    // QUAN TRỌNG: Chỉ sync khi có user đang đăng nhập và đã được duyệt.
+    // Nếu không có guard này, khi tài khoản mới login (pending/new),
+    // onAuthStateChanged → subscribeDB → load data → fromFirebaseRef reset về false
+    // → auto-sync có thể ghi state chưa đầy đủ lên Firebase → reset DB.
+    if (!state.currentUser || state.currentUser.status === 'pending') return;
     if (state.isLoading || !state.members.length) return;
     
     // FIX QUAN TRỌNG: Ép mảng thành Object (Map) trước khi gửi lên DB
@@ -446,10 +452,18 @@ export function AppProvider({ children }) {
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
       const fbUser = cred.user;
-      
-      const snap = await get(ref(db, `2x18_members/${fbUser.uid}`));
-      const member = snap.val();
-      
+
+      // Thử đọc trực tiếp theo UID (tài khoản mới, id === fbUser.uid)
+      let member = null;
+      const snap1 = await get(ref(db, `2x18_members/${fbUser.uid}`));
+      if (snap1.val()) {
+        member = snap1.val();
+      } else {
+        // Fallback: tìm theo email (tài khoản cũ có id là random string ≠ fbUser.uid)
+        const snapAll = await get(ref(db, '2x18_members'));
+        member = toArr(snapAll.val()).find(m => m.email === email || m.mailSchool === email);
+      }
+
       if (!member) {
         await signOut(auth).catch(() => {});
         throw new Error('NOT_FOUND');
