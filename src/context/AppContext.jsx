@@ -37,6 +37,7 @@ const A = {
   DEL_ROADMAP_EVENT:'DEL_ROADMAP_EVENT', ADD_ROADMAP_YEAR:'ADD_ROADMAP_YEAR', DELETE_ROADMAP_YEAR:'DELETE_ROADMAP_YEAR',
   ADD_VOTE:'ADD_VOTE', CAST_VOTE:'CAST_VOTE', CLOSE_VOTE:'CLOSE_VOTE', ADD_VOTE_OPTION:'ADD_VOTE_OPTION',
   MARK_NOTIF:'MARK_NOTIF', ADD_NOTIF:'ADD_NOTIF', MARK_ALL_READ:'MARK_ALL_READ',
+  DELETE_ATTENDANCE_SESSION:'DELETE_ATTENDANCE_SESSION',
   ADD_ATTENDANCE_SESSION:'ADD_ATTENDANCE_SESSION', CHECK_ATTENDANCE:'CHECK_ATTENDANCE',
   ADD_DOC:'ADD_DOC', DELETE_DOC:'DELETE_DOC', RATE_DOC:'RATE_DOC',
   UPDATE_MEMBER_ROLE:'UPDATE_MEMBER_ROLE', REMOVE_MEMBER:'REMOVE_MEMBER',
@@ -202,6 +203,11 @@ function reducer(s, { type, payload }) {
       // FIX: dùng toArr để tránh crash khi present là object từ Firebase
       return { ...s, attendance:s.attendance.map(sess=>sess.sessionId===sessionId?{...sess,present:checked?[...new Set([...toArr(sess.present),userId])]:toArr(sess.present).filter(u=>u!==userId)}:sess) };
     }
+
+    // <--- THÊM BLOCK NÀY VÀO --->
+    case A.DELETE_ATTENDANCE_SESSION:
+      return { ...s, attendance: s.attendance.filter(a => a.sessionId !== payload) };
+    // <-------------------------->
 
     case A.ADD_DOC: {
       const {subjectId,doc}=payload;
@@ -662,6 +668,13 @@ export function AppProvider({ children }) {
     dispatch({type:A.CHECK_ATTENDANCE,payload:{sessionId,userId,checked}});
   }, [state.attendance]);
 
+  // <--- THÊM HÀM NÀY VÀO --->
+  const deleteAttendanceSession = useCallback((sessionId) => {
+    dispatch({ type: A.DELETE_ATTENDANCE_SESSION, payload: sessionId });
+    toast('Đã xóa buổi họp!', 'info');
+  }, [toast]);
+  // <-------------------------->
+
   const addDoc = useCallback((subjectId,doc) => {
     const full = {...doc,id:uid(),uploadedBy:state.currentUser?.id,uploadedByName:state.currentUser?.fullName,uploadedAt:new Date().toLocaleDateString('vi-VN'),ratings:{},avgRating:0};
     dispatch({type:A.ADD_DOC,payload:{subjectId,doc:full}});
@@ -742,7 +755,7 @@ export function AppProvider({ children }) {
     updateRoadmap, addRoadmapEvent, delRoadmapEvent, addRoadmapYear, deleteRoadmapYear,
     addVote, castVote, closeVote, addVoteOption,
     markNotif, markAllRead, addNotif,
-    addAttendanceSession, checkAttendance,
+    addAttendanceSession, checkAttendance, deleteAttendanceSession,
     addDoc, deleteDoc, rateDoc,
     updateRole, addContribution, updateSemesterLabel,
     restoreFromTrash, permanentDeleteTrash, emptyTrash,
