@@ -38,7 +38,7 @@ const A = {
   ADD_VOTE:'ADD_VOTE', CAST_VOTE:'CAST_VOTE', CLOSE_VOTE:'CLOSE_VOTE', ADD_VOTE_OPTION:'ADD_VOTE_OPTION',
   MARK_NOTIF:'MARK_NOTIF', ADD_NOTIF:'ADD_NOTIF', MARK_ALL_READ:'MARK_ALL_READ',
   DELETE_ATTENDANCE_SESSION:'DELETE_ATTENDANCE_SESSION',
-  ADD_ATTENDANCE_SESSION:'ADD_ATTENDANCE_SESSION', CHECK_ATTENDANCE:'CHECK_ATTENDANCE',
+  ADD_ATTENDANCE_SESSION:'ADD_ATTENDANCE_SESSION', CHECK_ATTENDANCE:'CHECK_ATTENDANCE',EDIT_ATTENDANCE_SESSION:'EDIT_ATTENDANCE_SESSION',
   ADD_DOC:'ADD_DOC', DELETE_DOC:'DELETE_DOC', RATE_DOC:'RATE_DOC',
   UPDATE_MEMBER_ROLE:'UPDATE_MEMBER_ROLE', REMOVE_MEMBER:'REMOVE_MEMBER',
   ADD_CONTRIBUTION:'ADD_CONTRIBUTION',
@@ -204,9 +204,19 @@ function reducer(s, { type, payload }) {
       return { ...s, attendance:s.attendance.map(sess=>sess.sessionId===sessionId?{...sess,present:checked?[...new Set([...toArr(sess.present),userId])]:toArr(sess.present).filter(u=>u!==userId)}:sess) };
     }
 
-    // <--- THÊM BLOCK NÀY VÀO --->
+    // <--- BLOCK DELTE NÀY VÀO --->
     case A.DELETE_ATTENDANCE_SESSION:
       return { ...s, attendance: s.attendance.filter(a => a.sessionId !== payload) };
+    // <-------------------------->
+
+    // <--- THÊM BLOCK EDIT NÀY VÀO --->
+    case A.EDIT_ATTENDANCE_SESSION:
+      return { 
+        ...s, 
+        attendance: s.attendance.map(a => 
+          a.sessionId === payload.sessionId ? { ...a, ...payload } : a
+        ) 
+      };
     // <-------------------------->
 
     case A.ADD_DOC: {
@@ -668,10 +678,17 @@ export function AppProvider({ children }) {
     dispatch({type:A.CHECK_ATTENDANCE,payload:{sessionId,userId,checked}});
   }, [state.attendance]);
 
-  // <--- THÊM HÀM NÀY VÀO --->
+  // <--- THÊM HÀM delete NÀY VÀO --->
   const deleteAttendanceSession = useCallback((sessionId) => {
     dispatch({ type: A.DELETE_ATTENDANCE_SESSION, payload: sessionId });
     toast('Đã xóa buổi họp!', 'info');
+  }, [toast]);
+  // <-------------------------->
+
+  // <--- THÊM HÀM edit NÀY VÀO --->
+  const editAttendanceSession = useCallback((data) => {
+    dispatch({ type: A.EDIT_ATTENDANCE_SESSION, payload: data });
+    toast('Đã cập nhật thông tin!', 'success');
   }, [toast]);
   // <-------------------------->
 
@@ -755,7 +772,7 @@ export function AppProvider({ children }) {
     updateRoadmap, addRoadmapEvent, delRoadmapEvent, addRoadmapYear, deleteRoadmapYear,
     addVote, castVote, closeVote, addVoteOption,
     markNotif, markAllRead, addNotif,
-    addAttendanceSession, checkAttendance, deleteAttendanceSession,
+    addAttendanceSession, checkAttendance, deleteAttendanceSession, editAttendanceSession,
     addDoc, deleteDoc, rateDoc,
     updateRole, addContribution, updateSemesterLabel,
     restoreFromTrash, permanentDeleteTrash, emptyTrash,
