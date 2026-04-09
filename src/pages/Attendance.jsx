@@ -1,6 +1,6 @@
 // src/pages/Attendance.jsx
 import React, { useState, useEffect } from 'react';
-import { Users, CheckCheck, Plus, X, Calendar, Clock, Link2, Trash2, ExternalLink } from 'lucide-react';
+import { Users, CheckCheck, Plus, X, Calendar, Clock, Link2, Trash2, ExternalLink, Pencil } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 const isToday = (dateStr) => {
@@ -28,7 +28,8 @@ export default function Attendance() {
     currentUser,
     checkAttendance,
     addAttendanceSession,
-    deleteAttendanceSession,   // ← giờ đã có trong AppContext
+    deleteAttendanceSession,
+    editAttendanceSession,
     isCore,
     members,
     toast,
@@ -40,6 +41,7 @@ export default function Attendance() {
   const [newDate,   setNewDate]   = useState('');
   const [newLink,   setNewLink]   = useState('');
   const [confirmDel, setConfirmDel] = useState(null);
+  const [editData, setEditData] = useState(null);
 
   useEffect(() => {
     if (attendance.length > 0 && !selected) setSelected(attendance[0].sessionId);
@@ -70,6 +72,18 @@ export default function Attendance() {
       if (selected === sessionId) setSelected(attendance.find(s => s.sessionId !== sessionId)?.sessionId || null);
     }
     setConfirmDel(null);
+  };
+
+
+  const handleSaveEdit = () => {
+    if (!editData?.sessionTitle.trim() || !editData?.date) return;
+    editAttendanceSession({
+      sessionId: editData.sessionId,
+      sessionTitle: editData.sessionTitle.trim(),
+      date: editData.date,
+      meetLink: editData.meetLink.trim()
+    });
+    setEditData(null); // Đóng modal
   };
 
   useEffect(() => {
@@ -181,12 +195,22 @@ export default function Attendance() {
                       <div className="flex items-center gap-1 shrink-0">
                         {today && <span className="badge badge-green flex items-center gap-1"><Clock className="w-2.5 h-2.5"/> Hôm nay</span>}
                         {isCore && (
+                        <div className="flex gap-0.5">
+                          <button
+                            onClick={e => { 
+                              e.stopPropagation(); 
+                              setEditData({ sessionId: s.sessionId, sessionTitle: s.sessionTitle, date: s.date, meetLink: s.meetLink || '' }); 
+                            }}
+                            className="p-1 text-gray-600 hover:text-blue-400 transition-colors rounded-lg hover:bg-blue-500/10">
+                            <Pencil className="w-3.5 h-3.5"/>
+                          </button>
                           <button
                             onClick={e => { e.stopPropagation(); setConfirmDel(s.sessionId); }}
                             className="p-1 text-gray-600 hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/10">
                             <Trash2 className="w-3.5 h-3.5"/>
                           </button>
-                        )}
+                        </div>
+                      )}
                       </div>
                     </div>
                     <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
@@ -322,6 +346,44 @@ export default function Attendance() {
           </div>
         </div>
       )}
+        {/* CHÈN CODE MODAL SỬA VÀO ĐÂY */}
+      {editData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="bg-[#1e1e1e] border border-blue-500/30 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl fade-in">
+            <h3 className="text-white font-bold mb-4 flex items-center gap-2">
+              <Pencil className="w-4 h-4 text-blue-400"/> Chỉnh sửa buổi họp
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] text-gray-500 font-bold block mb-1">TÊN BUỔI HỌP *</label>
+                <input className="input-dark w-full" value={editData.sessionTitle} 
+                  onChange={e => setEditData({...editData, sessionTitle: e.target.value})} />
+              </div>
+              <div>
+                <label className="text-[10px] text-gray-500 font-bold block mb-1">NGÀY HỌP *</label>
+                <input type="date" className="input-dark w-full" value={editData.date} 
+                  onChange={e => setEditData({...editData, date: e.target.value})} />
+              </div>
+              <div>
+                <label className="text-[10px] text-gray-500 font-bold block mb-1">LINK HỌP (tùy chọn)</label>
+                <input className="input-dark w-full" value={editData.meetLink} 
+                  onChange={e => setEditData({...editData, meetLink: e.target.value})} />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setEditData(null)} className="flex-1 py-2 border border-gray-700 rounded-xl text-sm text-gray-400 hover:bg-[#252525]">Hủy</button>
+              <button 
+                onClick={handleSaveEdit} 
+                disabled={!editData.sessionTitle.trim() || !editData.date}
+                className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-bold text-sm rounded-xl">
+                Lưu thay đổi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* KẾT THÚC MODAL SỬA */}
+      
     </div>
   );
 }
