@@ -34,3 +34,21 @@ HƯNG: h 8/4/2026:
 * Voting: mỗi lần tôi thêm vote, màn hình sẽ trắng màn
 * Attendance: Mỗi lần tôi thêm buổi, nó sẽ trắng màn
 * Profile: Bảng điểm, tôi muốn khi môn đó ở trạng thái chưa học thì sẽ không có điểm vì khi tôi ở đang học/đã học và có điểm mà chỉnh về chưa học thì nó không tự mất điểm mà vẫn giữ nguyên. Thêm nữa, khi super_admin hoặc core chỉnh sửa thông tin của thành viên thì tôi thường bị vào tài khoản của người đó luôn. Fix cho tôi
+
+PHÚC:09/04/2026
+-FIX LỖI:
+  *Đã Fix lỗi DB
+-Thay đổi
+  *Hiện popup thông báo đang chờ xét duyệt
+  *Tuỳ chọn xoá danh hiệu
+  *Điểm F không tính vào GPA
+  *Thêm tín chỉ trượt
+  *Xóa danh sách cuộc họp (Điểm danh).
+  *Trừ điểm khi trễ hạn nộp task.
+  *Thêm rõ việc cần làm khi nhấn Task chờ ( Dashboard).
+  *Mục tiêu CPA
+  *Giới hạn đoạn chat trong môn học, thêm tuỳ chọn xoá.
+  *Biểu đồ Radar: Hiển thị một biểu đồ hình nhện (Radar Chart) về thế mạnh của người dùng. Nếu điểm các môn Lập trình cao, biểu đồ sẽ lệch về phía "Kỹ thuật". Điều này cực kỳ hữu ích để định hướng nghề nghiệp sau này. (nằm cạnh bảng điểm).
+  *Group Velocity: Đo lường "tốc độ" học tập của cả nhóm. Nếu tốc độ làm task của nhóm đang giảm, app sẽ gửi thông báo: "Nhóm đang chậm tiến độ 15% so với mục tiêu đề ra, cần một buổi họp nhóm!"
+  
+
