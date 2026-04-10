@@ -4,7 +4,7 @@ import {
   User, CreditCard, Calendar, Phone, MapPin,
   Save, Edit3, ChevronDown, ChevronUp, AlertTriangle, CheckCircle2,
   Download, Users, ChevronLeft, Search, Check, X,
-  Clock, Eye, BookOpen, Lock, CheckCircle
+  Clock, Eye, BookOpen, Lock, CheckCircle, GraduationCap, XCircle
 } from 'lucide-react';
 import { subjectDatabase, calculateHe10, getHe4, electiveLimits } from '../data';
 import { useApp } from '../context/AppContext';
@@ -112,6 +112,7 @@ function calcGpaStats(grades) {
   let totalPoints = 0, totalCredits = 0, earnedCredits = 0;
   let learning = 0, done = 0;
   const semGPA = {};
+  const failed = []; // môn trượt (Điểm F — không tính CPA)
 
   // 1. Tính toán trước số tín chỉ hiện tại của từng khối tự chọn
   const groupCredits = {};
@@ -150,13 +151,19 @@ function calcGpaStats(grades) {
         if (st === 'Đã học') {
           const r = calcResult(g.cc, g.gk, g.ck);
           const he4 = parseFloat(r.he4);
-          if (!isNaN(he4) && he4 >= 0) {
-            totalPoints  += he4 * sub.credits;
-            totalCredits += sub.credits;
-            if (g.semester) {
-              if (!semGPA[g.semester]) semGPA[g.semester] = { pts:0, cr:0 };
-              semGPA[g.semester].pts += he4 * sub.credits;
-              semGPA[g.semester].cr  += sub.credits;
+          if (!isNaN(he4)) {
+            if (he4 >= 1.0) {
+              // Điểm từ D trở lên → tính vào CPA
+              totalPoints  += he4 * sub.credits;
+              totalCredits += sub.credits;
+              if (g.semester) {
+                if (!semGPA[g.semester]) semGPA[g.semester] = { pts:0, cr:0 };
+                semGPA[g.semester].pts += he4 * sub.credits;
+                semGPA[g.semester].cr  += sub.credits;
+              }
+            } else {
+              // Điểm F → không tính CPA, ghi vào danh sách môn trượt
+              failed.push({ ...sub, he10: r.he10, chu: r.chu, he4: r.he4, semester: g.semester });
             }
           }
         }
@@ -169,7 +176,8 @@ function calcGpaStats(grades) {
   Object.entries(semGPA).forEach(([k,v]) => {
     semGPAFmt[k] = v.cr ? (v.pts/v.cr).toFixed(2) : '—';
   });
-  return { cpa, credits: earnedCredits, learning, done, semGPA: semGPAFmt };
+  return { cpa, credits: earnedCredits, learning, done, semGPA: semGPAFmt,
+           failed, rawPoints: totalPoints, rawCredits: totalCredits };
 }
 
 function exportGradesToCSV(profile, grades) {
@@ -366,6 +374,7 @@ function GradeRow({ subject, grades, onGradeChange, isEditing, isDimmed }) {
 function GradesTable({ profile, grades, onSave, canEdit }) {
   const [localGrades, setLocalGrades] = useState(grades);
   const [isEditing, setIsEditing]     = useState(false);
+  const [cpaGoal,   setCpaGoal]       = useState('');
   useEffect(() => { setLocalGrades(grades); }, [grades]);
 
   const handleChange = (subjectId, field, value) => {
@@ -378,6 +387,23 @@ function GradesTable({ profile, grades, onSave, canEdit }) {
   const handleSave = () => { onSave(localGrades); setIsEditing(false); };
 
   const gpaStats = useMemo(() => calcGpaStats(localGrades), [localGrades]);
+
+  // Tổng tín chỉ chương trình (chỉ tính môn có điểm CPA)
+  const totalProgramCredits = useMemo(
+    () => subjectDatabase.filter(s => !s.excludeCPA).reduce((s, sub) => s + sub.credits, 0),
+    []
+  );
+
+  // Tính điểm TB cần đạt mỗi kỳ để đạt mục tiêu CPA
+  const cpaGoalResult = useMemo(() => {
+    const goal = parseFloat(cpaGoal);
+    if (!cpaGoal || isNaN(goal) || goal <= 0 || goal > 4.0) return null;
+    const { rawPoints, rawCredits } = gpaStats;
+    const remaining = totalProgramCredits - rawCredits;
+    if (remaining <= 0) return { needed: null, remaining: 0 };
+    const needed = (goal * (rawCredits + remaining) - rawPoints) / remaining;
+    return { needed: Math.min(4.0, Math.max(0, needed)).toFixed(2), remaining };
+  }, [cpaGoal, gpaStats, totalProgramCredits]);
 
   return (
     <div>
@@ -410,12 +436,56 @@ function GradesTable({ profile, grades, onSave, canEdit }) {
       <div className="mb-4 flex flex-col gap-1.5 text-[11px] text-gray-500 bg-[#1a1a1a] border border-gray-800/60 rounded-xl px-4 py-2.5">
         <div className="flex items-center gap-2">
           <CheckCircle className="w-3.5 h-3.5 text-green-400 shrink-0"/>
-          <span>CPA tích lũy chỉ tính các môn có trạng thái <strong className="text-green-400">Đã học</strong> theo thang điểm hệ 4.</span>
+          <span>CPA tích lũy chỉ tính các môn có trạng thái <strong className="text-green-400">Đã học</strong> với điểm từ <strong className="text-green-400">D trở lên</strong> (hệ 4). Điểm F bị loại trừ.</span>
         </div>
         <div className="flex items-center gap-2">
           <CheckCircle className="w-3.5 h-3.5 text-blue-400 shrink-0"/>
           <span>Các môn Thể chất, QPAN, Kỹ năng bổ trợ chỉ ghi nhận <strong className="text-blue-400">Đạt/Chưa đạt</strong> và không tính vào CPA.</span>
         </div>
+      </div>
+
+      {/* CPA Goal Panel */}
+      <div className="mb-5 bg-[#1a1a1a] border border-purple-500/20 rounded-2xl p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <GraduationCap className="w-4 h-4 text-purple-400"/>
+          <span className="text-sm font-bold text-purple-300">Mục tiêu CPA khi ra trường</span>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2 flex-1 min-w-[180px]">
+            <label className="text-[10px] font-bold text-gray-500 uppercase whitespace-nowrap">CPA mục tiêu (hệ 4)</label>
+            <input
+              type="number" min="0" max="4" step="0.01"
+              placeholder="VD: 3.20"
+              value={cpaGoal}
+              onChange={e => setCpaGoal(e.target.value)}
+              className="w-24 text-sm bg-[#252525] border border-gray-700 rounded-xl px-3 py-1.5 text-white outline-none focus:border-purple-500 text-center"/>
+          </div>
+          {cpaGoalResult && cpaGoalResult.remaining > 0 && (
+            <div className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-center border ${
+              parseFloat(cpaGoalResult.needed) <= 4.0
+                ? 'bg-purple-500/10 border-purple-500/20 text-purple-300'
+                : 'bg-red-500/10 border-red-500/20 text-red-300'
+            }`}>
+              {parseFloat(cpaGoalResult.needed) <= 4.0
+                ? <>Cần duy trì TB <span className="text-lg font-black">{cpaGoalResult.needed}</span>/4.0 trong {cpaGoalResult.remaining} TC còn lại</>
+                : <>Mục tiêu này <span className="text-red-400 font-black">không khả thi</span> với điểm số hiện tại</>
+              }
+            </div>
+          )}
+          {cpaGoalResult && cpaGoalResult.remaining === 0 && (
+            <div className="flex-1 px-4 py-2.5 rounded-xl text-sm text-gray-500 text-center border border-gray-800">
+              Đã hoàn thành chương trình học.
+            </div>
+          )}
+          {!cpaGoalResult && cpaGoal && (
+            <div className="flex-1 px-4 py-2.5 rounded-xl text-xs text-amber-400 border border-amber-500/20 bg-amber-500/10">
+              Nhập CPA mục tiêu từ 0.00 đến 4.00
+            </div>
+          )}
+        </div>
+        <p className="text-[10px] text-gray-600 mt-2">
+          Tính dựa trên {gpaStats.rawCredits} TC đã có điểm và còn {Math.max(0, totalProgramCredits - gpaStats.rawCredits)} TC chưa được đánh giá.
+        </p>
       </div>
 
       <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl overflow-hidden">
@@ -534,11 +604,52 @@ function GradesTable({ profile, grades, onSave, canEdit }) {
           </table>
         </div>
       </div>
+
+      {/* ── Môn trượt (Điểm F) ── */}
+      {gpaStats.failed && gpaStats.failed.length > 0 && (
+        <div className="mt-5 bg-[#1a1a1a] border border-red-500/20 rounded-2xl overflow-hidden">
+          <div className="flex items-center gap-3 px-5 py-3.5 bg-red-500/5 border-b border-red-500/20">
+            <XCircle className="w-4 h-4 text-red-400"/>
+            <span className="font-bold text-red-300 text-sm">Môn trượt ({gpaStats.failed.length} môn · không tính CPA)</span>
+            <span className="ml-auto text-[10px] text-red-500 font-medium">
+              {gpaStats.failed.reduce((s, f) => s + f.credits, 0)} TC bị ảnh hưởng
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="text-[10px] font-black uppercase text-gray-500 bg-[#1e1e1e]">
+                <tr>
+                  <th className="px-4 py-2.5 border-b border-gray-800 min-w-[200px]">Môn học</th>
+                  <th className="px-3 py-2.5 text-center border-b border-gray-800">Kỳ</th>
+                  <th className="px-3 py-2.5 text-center border-b border-gray-800">Hệ 10</th>
+                  <th className="px-3 py-2.5 text-center border-b border-gray-800">Chữ</th>
+                  <th className="px-3 py-2.5 text-center border-b border-gray-800">Hệ 4</th>
+                </tr>
+              </thead>
+              <tbody>
+                {gpaStats.failed.map(f => (
+                  <tr key={f.id} className="border-b border-gray-800/40 hover:bg-red-500/5 transition-colors">
+                    <td className="px-4 py-2.5">
+                      <div className="text-xs font-semibold text-gray-200">{f.name}</div>
+                      <div className="text-[10px] text-gray-600 mt-0.5">{f.code} · {f.credits} TC</div>
+                    </td>
+                    <td className="px-3 py-2.5 text-center text-xs text-gray-500">{f.semester ? `Kỳ ${f.semester}` : '—'}</td>
+                    <td className="px-3 py-2.5 text-center text-sm font-bold text-red-400">{f.he10}</td>
+                    <td className="px-3 py-2.5 text-center text-xs font-bold text-red-400">{f.chu}</td>
+                    <td className="px-3 py-2.5 text-center text-xs font-bold text-red-400">{f.he4}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="px-5 py-3 bg-red-500/5 border-t border-red-500/10 text-[10px] text-red-500">
+            ⚠ Các môn trên có điểm F (hệ 4 &lt; 1.0) và bị loại khỏi công thức tính CPA. Cần học lại để cải thiện điểm.
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-// ── ProfileForm ───────────────────────────────────────────────────────────
 function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfile, onStartEdit }) {
   const rl = roleLabel(profile.role);
   const loginEmail = profile.email || '';

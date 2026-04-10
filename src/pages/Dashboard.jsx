@@ -2,7 +2,7 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import {
   TrendingUp, BookOpen, AlertCircle, Clock, Award, Zap, Users,
-  CheckCircle2, Activity, Edit3, Check, X, GraduationCap, BarChart2
+  CheckCircle2, Activity, Edit3, Check, X, GraduationCap, BarChart2, Hexagon
 } from 'lucide-react';
 import { subjectDatabase, getHe4, calculateHe10 } from '../data';
 import { useApp } from '../context/AppContext';
@@ -308,6 +308,219 @@ function LearningProgressCard({ myGrades, allGrades, members }) {
   );
 }
 
+// ── Radar Chart Card ───────────────────────────────────────────────────────
+function RadarChartCard({ myGrades }) {
+  const axes = useMemo(() => {
+    const typeMap = {};
+    subjectDatabase.forEach(sub => {
+      const g = myGrades[sub.id];
+      if (!g || g.status !== 'Đã học' || sub.excludeCPA) return;
+      const h10 = calculateHe10(parseFloat(g.cc), parseFloat(g.gk), parseFloat(g.ck));
+      if (h10 === null) return;
+      const h4 = getHe4(h10);
+      if (h4 < 1.0) return; // bỏ điểm F
+      const type = sub.type || 'Khác';
+      if (!typeMap[type]) typeMap[type] = { sum: 0, count: 0 };
+      typeMap[type].sum += h4;
+      typeMap[type].count++;
+    });
+    return Object.entries(typeMap)
+      .filter(([, v]) => v.count > 0)
+      .map(([label, v]) => ({ label, value: v.sum / v.count, max: 4.0 }));
+  }, [myGrades]);
+
+  if (axes.length < 3) {
+    return (
+      <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl overflow-hidden flex flex-col">
+        <div className="px-5 py-3.5 border-b border-gray-800/60 flex items-center gap-2">
+          <Hexagon className="w-4 h-4 text-purple-400"/>
+          <h3 className="font-bold text-white text-sm">Biểu đồ thế mạnh</h3>
+        </div>
+        <div className="flex-1 flex items-center justify-center py-12 text-center">
+          <div>
+            <Hexagon className="w-10 h-10 text-gray-700 mx-auto mb-2"/>
+            <p className="text-xs text-gray-600">Cần điểm ít nhất 3 loại môn học<br/>để hiển thị biểu đồ</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const SIZE = 220, CX = 110, CY = 110, R = 78;
+  const n = axes.length;
+  const angle = (i) => (Math.PI * 2 * i / n) - Math.PI / 2;
+  const pt = (i, val) => ({
+    x: CX + ((val / 4.0) * R) * Math.cos(angle(i)),
+    y: CY + ((val / 4.0) * R) * Math.sin(angle(i)),
+  });
+  const bgPoly = (pct) => axes.map((_, i) => {
+    const a = angle(i), d = pct * R;
+    return `${CX + d * Math.cos(a)},${CY + d * Math.sin(a)}`;
+  }).join(' ');
+
+  const dataPoints = axes.map((a, i) => pt(i, a.value));
+  const dataPolygon = dataPoints.map(p => `${p.x},${p.y}`).join(' ');
+
+  const AXIS_COLORS = ['#818cf8','#34d399','#fb923c','#f472b6','#38bdf8','#a3e635','#e879f9'];
+
+  return (
+    <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-gray-800/60 flex items-center gap-2">
+        <Hexagon className="w-4 h-4 text-purple-400"/>
+        <h3 className="font-bold text-white text-sm">Biểu đồ thế mạnh</h3>
+        <span className="text-[10px] text-gray-600 ml-1">· GPA trung bình theo loại môn</span>
+      </div>
+      <div className="p-4 flex flex-col items-center">
+        <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
+          {/* Background circles */}
+          {[0.25, 0.5, 0.75, 1.0].map((pct, i) => (
+            <polygon key={i} points={bgPoly(pct)}
+              fill="none" stroke={pct === 1.0 ? '#374151' : '#1f2937'} strokeWidth={pct === 1.0 ? '1.5' : '1'}/>
+          ))}
+          {/* Axis lines */}
+          {axes.map((_, i) => {
+            const outer = pt(i, 4.0);
+            return <line key={i} x1={CX} y1={CY} x2={outer.x} y2={outer.y} stroke="#1f2937" strokeWidth="1"/>;
+          })}
+          {/* Data polygon */}
+          <polygon points={dataPolygon}
+            fill="rgba(129,140,248,0.18)" stroke="#818cf8" strokeWidth="2" strokeLinejoin="round"/>
+          {/* Data dots */}
+          {dataPoints.map((p, i) => (
+            <circle key={i} cx={p.x} cy={p.y} r="4" fill={AXIS_COLORS[i % AXIS_COLORS.length]} stroke="#1a1a1a" strokeWidth="1.5"/>
+          ))}
+          {/* Labels */}
+          {axes.map((a, i) => {
+            const la = angle(i), lx = CX + (R + 24) * Math.cos(la), ly = CY + (R + 24) * Math.sin(la);
+            const label = a.label.length > 12 ? a.label.slice(0, 11) + '…' : a.label;
+            return (
+              <text key={i} x={lx} y={ly} textAnchor="middle" dominantBaseline="middle"
+                fontSize="8.5" fill="#9ca3af" fontWeight="bold">{label}</text>
+            );
+          })}
+          {/* Center label */}
+          <text x={CX} y={CY} textAnchor="middle" dominantBaseline="middle" fontSize="10" fill="#6b7280">GPA</text>
+        </svg>
+
+        {/* Legend */}
+        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 w-full mt-1 px-1">
+          {axes.map((a, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full shrink-0" style={{ background: AXIS_COLORS[i % AXIS_COLORS.length] }}/>
+              <span className="text-[10px] text-gray-400 truncate flex-1">{a.label}</span>
+              <span className="text-[10px] font-black shrink-0" style={{ color: AXIS_COLORS[i % AXIS_COLORS.length] }}>
+                {a.value.toFixed(2)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Group Velocity Card ────────────────────────────────────────────────────
+function GroupVelocityCard({ allGrades, members }) {
+  const { semVelocity, latestTrend, alertMsg } = useMemo(() => {
+    const semMap = {};   // { semKey: totalSubjectsDone }
+    let activeMemberCount = 0;
+
+    members.forEach(m => {
+      const g = allGrades[m.id] || {};
+      let hasSemData = false;
+      subjectDatabase.forEach(sub => {
+        const sg = g[sub.id];
+        if (sg?.status === 'Đã học' && sg.semester) {
+          const sem = String(sg.semester);
+          semMap[sem] = (semMap[sem] || 0) + 1;
+          hasSemData = true;
+        }
+      });
+      if (hasSemData) activeMemberCount++;
+    });
+
+    if (!activeMemberCount) return { semVelocity: {}, latestTrend: 0, alertMsg: null };
+
+    const avgPerSem = {};
+    Object.entries(semMap).forEach(([k, v]) => { avgPerSem[k] = v / activeMemberCount; });
+
+    const keys = Object.keys(avgPerSem).sort((a, b) => Number(a) - Number(b));
+    let latestTrend = 0, alertMsg = null;
+    if (keys.length >= 2) {
+      const last = avgPerSem[keys[keys.length - 1]];
+      const prev = avgPerSem[keys[keys.length - 2]];
+      latestTrend = last - prev;
+      if (latestTrend < -0.5 && prev > 0) {
+        const pct = Math.round(Math.abs(latestTrend) / prev * 100);
+        alertMsg = `Nhóm đang chậm tiến độ ${pct}% so với kỳ trước — cần tổ chức buổi học bù! 📢`;
+      }
+    }
+    return { semVelocity: avgPerSem, latestTrend, alertMsg };
+  }, [allGrades, members]);
+
+  const semKeys = Object.keys(semVelocity).sort((a, b) => Number(a) - Number(b));
+  const maxVal  = Math.max(...Object.values(semVelocity).map(Number), 1);
+
+  return (
+    <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-gray-800/60 flex items-center gap-2">
+        <Zap className="w-4 h-4 text-yellow-400"/>
+        <h3 className="font-bold text-white text-sm">Vận tốc học tập nhóm</h3>
+        <span className="text-[10px] text-gray-600 ml-1">· Số môn TB/người mỗi kỳ</span>
+      </div>
+      <div className="p-5">
+        {alertMsg && (
+          <div className="mb-4 flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300 leading-relaxed">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400"/>
+            <span>{alertMsg}</span>
+          </div>
+        )}
+
+        {semKeys.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <Activity className="w-9 h-9 text-gray-700 mb-2"/>
+            <p className="text-xs text-gray-600">Chưa đủ dữ liệu học kỳ<br/>để tính vận tốc nhóm</p>
+          </div>
+        ) : (
+          <>
+            {/* Bar chart */}
+            <div className="flex items-end gap-2 mb-3" style={{ height: 80 }}>
+              {semKeys.map((k, i) => {
+                const val = semVelocity[k];
+                const heightPct = Math.max(8, (val / maxVal) * 100);
+                const isLast    = i === semKeys.length - 1;
+                const barColor  = isLast
+                  ? (latestTrend < -0.5 ? 'bg-red-500/70' : latestTrend >= 0 ? 'bg-yellow-400/80' : 'bg-yellow-400/50')
+                  : 'bg-blue-500/50';
+                return (
+                  <div key={k} className="flex-1 flex flex-col items-center gap-1">
+                    <span className="text-[9px] font-bold text-gray-500">{val.toFixed(1)}</span>
+                    <div className="w-full bg-gray-800 rounded-t-lg overflow-hidden flex flex-col justify-end" style={{ height: 52 }}>
+                      <div className={`w-full rounded-t-lg transition-all duration-700 ${barColor}`}
+                        style={{ height: `${heightPct}%` }}/>
+                    </div>
+                    <span className="text-[8px] text-gray-600 whitespace-nowrap">Kỳ {k}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Trend summary */}
+            <div className="flex items-center justify-between text-[10px] text-gray-500 pt-2.5 border-t border-gray-800/40">
+              <span>Trung bình số môn/người/kỳ</span>
+              {semKeys.length >= 2 && (
+                <span className={`font-black text-xs flex items-center gap-1 ${latestTrend >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {latestTrend >= 0 ? '↑' : '↓'} {Math.abs(latestTrend).toFixed(1)} môn so với kỳ trước
+                </span>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Dashboard ─────────────────────────────────────────────────────────
 export default function Dashboard() {
   const {
@@ -390,6 +603,12 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         <GroupGPACard myGrades={myGrades} allGrades={allGrades} members={members}/>
         <LearningProgressCard myGrades={myGrades} allGrades={allGrades} members={members}/>
+      </div>
+
+      {/* ── Radar + Group Velocity ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <RadarChartCard myGrades={myGrades}/>
+        <GroupVelocityCard allGrades={allGrades} members={members}/>
       </div>
 
       {/* ── Deadlines + Right col ── */}

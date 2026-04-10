@@ -39,16 +39,14 @@ PHÚC:09/04/2026
 -FIX LỖI:
   *Đã Fix lỗi DB
 -Thay đổi
+  * Profile: Điểm F không tính vào GPA và thêm mục môn trượt trong bảng điểm. Mục tiêu CPA: Người dùng nhập mục tiêu CPA muốn đạt được khi ra trường. App sẽ tính toán xem với số tín chỉ còn lại, họ cần duy trì điểm trung bình mỗi kỳ là bao nhiêu.
+  * Dashboard: Biểu đồ Radar: Hiển thị một biểu đồ hình nhện (Radar Chart) về thế mạnh của người dùng. Nếu điểm các môn Lập trình cao, biểu đồ sẽ lệch về phía "Kỹ thuật". Điều này cực kỳ hữu ích để định hướng nghề nghiệp sau này. (nằm cạnh bảng điểm). Group Velocity: Đo lường "tốc độ" học tập của cả nhóm. Nếu tốc độ làm task của nhóm đang giảm, app sẽ gửi thông báo: "Nhóm đang chậm tiến độ 15% so với mục tiêu đề ra, cần một buổi họp nhóm!"
+  * Attendence: Khi xóa họp nhóm thì cho vào thùng rác
+
   *Hiện popup thông báo đang chờ xét duyệt
   *Tuỳ chọn xoá danh hiệu
-  *Điểm F không tính vào GPA
   *Thêm tín chỉ trượt
-  *Xóa danh sách cuộc họp (Điểm danh).
   *Trừ điểm khi trễ hạn nộp task.
   *Thêm rõ việc cần làm khi nhấn Task chờ ( Dashboard).
-  *Mục tiêu CPA
   *Giới hạn đoạn chat trong môn học, thêm tuỳ chọn xoá.
-  *Biểu đồ Radar: Hiển thị một biểu đồ hình nhện (Radar Chart) về thế mạnh của người dùng. Nếu điểm các môn Lập trình cao, biểu đồ sẽ lệch về phía "Kỹ thuật". Điều này cực kỳ hữu ích để định hướng nghề nghiệp sau này. (nằm cạnh bảng điểm).
-  *Group Velocity: Đo lường "tốc độ" học tập của cả nhóm. Nếu tốc độ làm task của nhóm đang giảm, app sẽ gửi thông báo: "Nhóm đang chậm tiến độ 15% so với mục tiêu đề ra, cần một buổi họp nhóm!"
   
-

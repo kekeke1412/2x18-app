@@ -67,8 +67,10 @@ export default function Attendance() {
   };
 
   const handleDelete = (sessionId) => {
-    if (deleteAttendanceSession) {
-      deleteAttendanceSession(sessionId);
+    const sess = attendance.find(s => s.sessionId === sessionId);
+    if (sess && deleteAttendanceSession) {
+      // Đưa vào thùng rác thay vì xóa vĩnh viễn
+      deleteAttendanceSession(sessionId, { sendToTrash: true });
       if (selected === sessionId) setSelected(attendance.find(s => s.sessionId !== sessionId)?.sessionId || null);
     }
     setConfirmDel(null);
@@ -336,12 +338,12 @@ export default function Attendance() {
               </div>
               <div>
                 <div className="font-bold text-white">Xóa buổi họp?</div>
-                <div className="text-xs text-gray-500 mt-0.5">Hành động này không thể hoàn tác</div>
+                <div className="text-xs text-gray-500 mt-0.5">Buổi họp sẽ được chuyển vào <span className="text-red-400 font-bold">Thùng rác</span> — có thể khôi phục sau.</div>
               </div>
             </div>
             <div className="flex gap-3">
               <button onClick={() => setConfirmDel(null)} className="flex-1 py-2 border border-gray-700 rounded-xl text-sm text-gray-400 hover:bg-[#252525]">Hủy</button>
-              <button onClick={() => handleDelete(confirmDel)} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-sm rounded-xl">Xóa</button>
+              <button onClick={() => handleDelete(confirmDel)} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-sm rounded-xl">Chuyển vào thùng rác</button>
             </div>
           </div>
         </div>

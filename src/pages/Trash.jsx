@@ -8,32 +8,35 @@ import { useApp } from '../context/AppContext';
 
 // Type metadata
 const TYPE_META = {
-  task:         { label:'Task',           Icon:ClipboardList, color:'text-blue-400',  bg:'bg-blue-500/10' },
-  doc:          { label:'Tài liệu',       Icon:FileText,      color:'text-yellow-400',bg:'bg-yellow-500/10' },
-  event:        { label:'Sự kiện lịch',   Icon:Calendar,      color:'text-purple-400',bg:'bg-purple-500/10' },
-  subjectTask:  { label:'Checklist môn',  Icon:BookOpen,      color:'text-green-400', bg:'bg-green-500/10' },
-  roadmapEvent: { label:'Lộ trình',       Icon:Map,           color:'text-orange-400',bg:'bg-orange-500/10' },
+  task:             { label:'Task',           Icon:ClipboardList, color:'text-blue-400',  bg:'bg-blue-500/10' },
+  doc:              { label:'Tài liệu',       Icon:FileText,      color:'text-yellow-400',bg:'bg-yellow-500/10' },
+  event:            { label:'Sự kiện lịch',   Icon:Calendar,      color:'text-purple-400',bg:'bg-purple-500/10' },
+  subjectTask:      { label:'Checklist môn',  Icon:BookOpen,      color:'text-green-400', bg:'bg-green-500/10' },
+  roadmapEvent:     { label:'Lộ trình',       Icon:Map,           color:'text-orange-400',bg:'bg-orange-500/10' },
+  attendanceSession:{ label:'Buổi họp nhóm', Icon:Calendar,      color:'text-cyan-400',  bg:'bg-cyan-500/10'  },
 };
 
 function getItemName(item) {
   switch (item.type) {
-    case 'task':         return item.data?.task        || '(Không tên)';
-    case 'doc':          return item.data?.name        || '(Không tên)';
-    case 'event':        return item.data?.title       || '(Không tên)';
-    case 'subjectTask':  return item.data?.title       || '(Không tên)';
-    case 'roadmapEvent': return item.data?.title       || '(Không tên)';
-    default:             return '(Mục không rõ)';
+    case 'task':              return item.data?.task          || '(Không tên)';
+    case 'doc':               return item.data?.name         || '(Không tên)';
+    case 'event':             return item.data?.title        || '(Không tên)';
+    case 'subjectTask':       return item.data?.title        || '(Không tên)';
+    case 'roadmapEvent':      return item.data?.title        || '(Không tên)';
+    case 'attendanceSession': return item.data?.sessionTitle || '(Không tên)';
+    default:                  return '(Mục không rõ)';
   }
 }
 
 function getItemSub(item) {
   switch (item.type) {
-    case 'task':         return item.data?.code ? `Môn: ${item.data.code}` : '';
-    case 'doc':          return item.data?.type ? `Loại: ${item.data.type}` : '';
-    case 'event':        return item.data?.date ? `Ngày: ${item.data.date}` : '';
-    case 'subjectTask':  return item.meta?.subjectId ? `Môn: ${item.meta.subjectId}` : '';
-    case 'roadmapEvent': return item.meta?.year ? `Năm: ${item.meta.year}` : '';
-    default:             return '';
+    case 'task':              return item.data?.code ? `Môn: ${item.data.code}` : '';
+    case 'doc':               return item.data?.type ? `Loại: ${item.data.type}` : '';
+    case 'event':             return item.data?.date ? `Ngày: ${item.data.date}` : '';
+    case 'subjectTask':       return item.meta?.subjectId ? `Môn: ${item.meta.subjectId}` : '';
+    case 'roadmapEvent':      return item.meta?.year ? `Năm: ${item.meta.year}` : '';
+    case 'attendanceSession': return item.data?.date ? `Ngày họp: ${item.data.date}` : '';
+    default:                  return '';
   }
 }
 
@@ -134,7 +137,7 @@ function TrashRow({ item, onRestore, onDelete }) {
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────
-const ALL_TYPES = ['task','doc','subjectTask','event','roadmapEvent'];
+const ALL_TYPES = ['task','doc','subjectTask','event','roadmapEvent','attendanceSession'];
 
 export default function Trash() {
   const { isCore, trash, restoreFromTrash, permanentDeleteTrash, emptyTrash } = useApp();
