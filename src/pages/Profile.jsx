@@ -146,14 +146,16 @@ function calcGpaStats(grades) {
       
       // 3. Loại bỏ các môn Giáo dục thể chất, QPAN, Kỹ năng bổ trợ khỏi GPA và Tín chỉ
       if (!sub.excludeCPA) {
-        if (st === 'Đã học' || st === 'Được miễn') earnedCredits += sub.credits;
-        
+        // Môn được miễn luôn tính vào tín chỉ đạt
+        if (st === 'Được miễn') earnedCredits += sub.credits;
+
         if (st === 'Đã học') {
           const r = calcResult(g.cc, g.gk, g.ck);
           const he4 = parseFloat(r.he4);
           if (!isNaN(he4)) {
             if (he4 >= 1.0) {
-              // Điểm từ D trở lên → tính vào CPA
+              // Điểm từ D trở lên → tính vào CPA và tín chỉ đạt
+              earnedCredits += sub.credits;
               totalPoints  += he4 * sub.credits;
               totalCredits += sub.credits;
               if (g.semester) {
@@ -162,7 +164,7 @@ function calcGpaStats(grades) {
                 semGPA[g.semester].cr  += sub.credits;
               }
             } else {
-              // Điểm F → không tính CPA, ghi vào danh sách môn trượt
+              // Điểm F → không tính CPA, không tính tín chỉ đạt
               failed.push({ ...sub, he10: r.he10, chu: r.chu, he4: r.he4, semester: g.semester });
             }
           }
