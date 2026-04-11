@@ -49,4 +49,8 @@ PHÚC:09/04/2026
   *Trừ điểm khi trễ hạn nộp task.
   *Thêm rõ việc cần làm khi nhấn Task chờ ( Dashboard).
   *Giới hạn đoạn chat trong môn học, thêm tuỳ chọn xoá.
-  
+
+* Tôi muốn có thể thêm được web này vào màn hình chính để dùng như 1 app (trên điện thoại)
+* AppContext: Tôi muốn tăng cỡ chữ của app vì chữ này hơi bé
+* Notification: Các hoạt động trong app chưa được thông báo hay nằm trong hòm thông báo. Tôi muốn web chấp nhận và thông báo lên thiết bị
+* Voting: Bình chọn chưa xóa được sau khi đóng
