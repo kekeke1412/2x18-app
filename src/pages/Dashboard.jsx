@@ -21,16 +21,29 @@ function useSemesterNames(semesterLabels, updateSemesterLabel) {
 }
 
 // ── Helper: compute CPA from a grades object ───────────────────────────────
+// Logic đồng nhất với calcGpaStats trong Profile.jsx:
+// - 'Được miễn' → luôn tính vào tín chỉ đạt, không tính GPA
+// - 'Đã học' + he4 >= 1.0 → tính cả GPA lẫn tín chỉ đạt
+// - 'Đã học' + he4 < 1.0 (Điểm F) → không tính vào GPA, không tính tín chỉ đạt
 function computeCPA(grades) {
   let w = 0, c = 0, passed = 0, learning = 0;
   subjectDatabase.forEach(sub => {
     const g = grades[sub.id]; if (!g) return;
     if (g.status === 'Đang học') learning++;
-    if ((g.status === 'Đã học' || g.status === 'Được miễn') && !sub.excludeCPA) {
-      const h10 = calculateHe10(parseFloat(g.cc), parseFloat(g.gk), parseFloat(g.ck));
-      const h4  = getHe4(h10);
-      if (g.status === 'Đã học' && h10 !== null) { w += h4 * sub.credits; c += sub.credits; }
-      if (h4 >= 1.0 || g.status === 'Được miễn') passed += sub.credits;
+    if (!sub.excludeCPA) {
+      // Được miễn: tính tín chỉ đạt, không tính điểm
+      if (g.status === 'Được miễn') passed += sub.credits;
+      // Đã học: chỉ tính khi điểm từ D trở lên (he4 >= 1.0)
+      if (g.status === 'Đã học') {
+        const h10 = calculateHe10(parseFloat(g.cc), parseFloat(g.gk), parseFloat(g.ck));
+        const h4  = getHe4(h10);
+        if (h10 !== null && h4 >= 1.0) {
+          w      += h4 * sub.credits;
+          c      += sub.credits;
+          passed += sub.credits;
+        }
+        // Điểm F (h4 < 1.0): không tính CPA, không tính tín chỉ đạt
+      }
     }
   });
   const semGPA = {};
@@ -39,7 +52,8 @@ function computeCPA(grades) {
     if (g.status === 'Đã học' && !sub.excludeCPA) {
       const h10 = calculateHe10(parseFloat(g.cc), parseFloat(g.gk), parseFloat(g.ck));
       const h4  = getHe4(h10);
-      if (h10 !== null) {
+      // Chỉ tính semGPA khi điểm từ D trở lên
+      if (h10 !== null && h4 >= 1.0) {
         const sem = String(g.semester || '?');
         if (!semGPA[sem]) semGPA[sem] = { w: 0, c: 0 };
         semGPA[sem].w += h4 * sub.credits; semGPA[sem].c += sub.credits;
