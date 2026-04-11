@@ -151,13 +151,13 @@ export default function Auth() {
   const navigate  = useNavigate();
   const { login, loginWithGoogle, register } = useApp();
 
-  // tab: 'login' | 'register' | 'registerSuccess' | 'pending'
-  const [tab,      setTab]     = useState('login');
-  const [loading,  setLoading] = useState(false);
-  const [gLoading, setGLoad]   = useState(false);
-  const [errors,   setErrors]  = useState({});
-  const [pendingInfo, setPendingInfo] = useState(null);
-  const [regInfo,     setRegInfo]     = useState(null);
+  // tab: 'login' | 'register' | 'registerSuccess'
+  const [tab,          setTab]        = useState('login');
+  const [loading,      setLoading]    = useState(false);
+  const [gLoading,     setGLoad]      = useState(false);
+  const [errors,       setErrors]     = useState({});
+  const [pendingInfo,  setPendingInfo] = useState(null);   // null = closed, object = open modal
+  const [regInfo,      setRegInfo]     = useState(null);
 
   const [showP,  setShowP]  = useState(false);
   const [showP2, setShowP2] = useState(false);
@@ -184,7 +184,7 @@ export default function Auth() {
     } catch (err) {
       if (err.message === 'PENDING') {
         setPendingInfo({ email: lf.email.trim() });
-        setTab('pending');
+        // Không đổi tab — hiện overlay modal phía trên
       } else {
         setErrors({ form: err.message });
       }
@@ -200,7 +200,7 @@ export default function Auth() {
       const result = await loginWithGoogle();
       if (result?.status === 'pending') {
         setPendingInfo({ name: result.name, email: result.email });
-        setTab('pending');
+        // Không đổi tab — hiện overlay modal phía trên
       } else {
         navigate('/dashboard', { replace: true });
       }
@@ -295,9 +295,7 @@ export default function Auth() {
           )}
 
           {/* ─── PENDING (login attempted but not approved yet) ─────── */}
-          {tab === 'pending' && (
-            <PendingScreen info={pendingInfo} onBack={() => { switchTab('login'); setPendingInfo(null); }}/>
-          )}
+          {/* Removed: was tab === 'pending' — now shown as overlay modal below */}
 
           {/* ─── LOGIN ─────────────────────────────────────────────── */}
           {tab === 'login' && (
@@ -454,6 +452,66 @@ export default function Auth() {
           )}
         </div>
       </div>
+
+      {/* ── Pending overlay modal (Google / Email login khi chưa được duyệt) ── */}
+      {pendingInfo && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          onClick={() => setPendingInfo(null)}>
+          <div
+            className="w-full max-w-sm bg-[#111118] border border-amber-500/25 rounded-3xl shadow-2xl shadow-black/60 overflow-hidden"
+            onClick={e => e.stopPropagation()}>
+            {/* Amber accent bar */}
+            <div className="h-1 w-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500"/>
+            <div className="p-7 space-y-5 text-center">
+              {/* Icon */}
+              <div className="w-16 h-16 bg-amber-500/10 border-2 border-amber-500/25 rounded-full flex items-center justify-center mx-auto">
+                <Clock className="w-8 h-8 text-amber-400"/>
+              </div>
+              {/* Title */}
+              <div>
+                <h2 className="text-xl font-black text-white mb-1.5">Đang chờ xét duyệt</h2>
+                <p className="text-gray-400 text-sm leading-relaxed">
+                  Tài khoản của bạn chưa được Core Team 2X18 phê duyệt. Kết quả sẽ được thông báo qua email trong vòng{' '}
+                  <strong className="text-white">1–2 ngày</strong>.
+                </p>
+              </div>
+              {/* Info card */}
+              {(pendingInfo.name || pendingInfo.email) && (
+                <div className="bg-[#1a1a22] border border-gray-800 rounded-2xl overflow-hidden text-left">
+                  {[
+                    pendingInfo.name  && ['Họ tên', pendingInfo.name],
+                    pendingInfo.email && ['Email',  pendingInfo.email],
+                  ].filter(Boolean).map(([k, v]) => (
+                    <div key={k} className="flex justify-between items-center px-4 py-2.5 border-b border-gray-800/60 last:border-0">
+                      <span className="text-xs text-gray-500">{k}</span>
+                      <span className="text-sm font-semibold text-white">{v}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Status pill */}
+              <div className="flex items-center justify-center gap-2 py-2.5 px-4 bg-amber-500/8 border border-amber-500/20 rounded-xl">
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0"/>
+                <span className="text-sm font-medium text-amber-300">Core Team đang xem xét đơn của bạn…</span>
+              </div>
+              {/* Zalo hint */}
+              <div className="p-3 bg-blue-500/5 border border-blue-500/15 rounded-xl flex items-start gap-2 text-left">
+                <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0 mt-0.5"/>
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  Cần gấp? Nhắn vào <strong className="text-white">Zalo nhóm 2X18</strong> để được Core duyệt sớm hơn.
+                </p>
+              </div>
+              {/* Close button */}
+              <button
+                onClick={() => setPendingInfo(null)}
+                className="w-full h-10 flex items-center justify-center gap-2 border border-gray-700 hover:border-gray-600 hover:bg-white/5 text-gray-300 font-medium text-sm rounded-xl transition-all">
+                <ChevronLeft className="w-4 h-4"/> Quay lại đăng nhập
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

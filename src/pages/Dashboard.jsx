@@ -3,8 +3,7 @@ import React, { useMemo, useState, useRef, useEffect } from 'react';
 import {
   TrendingUp, BookOpen, AlertCircle, Clock, Award, Zap, Users,
   CheckCircle2, Activity, Edit3, Check, X, GraduationCap, BarChart2, Hexagon
-} from 'lucide-react';
-import { subjectDatabase, getHe4, calculateHe10 } from '../data';
+} from 'lucide-react';import { subjectDatabase, getHe4, calculateHe10 } from '../data';
 import { useApp } from '../context/AppContext';
 
 // ── Semester names — persisted via AppContext ──────────────────────────────
@@ -530,6 +529,7 @@ export default function Dashboard() {
   } = useApp();
 
   const [semesterNames, updateSemesterName] = useSemesterNames(semesterLabels, updateSemesterLabel);
+  const [showTaskPanel, setShowTaskPanel] = useState(false);
 
   // My personal stats
   const myStats = useMemo(() => computeCPA(myGrades), [myGrades]);
@@ -593,15 +593,106 @@ export default function Dashboard() {
         <StatCard icon={TrendingUp} label="CPA Tích lũy" value={myStats.cpa} valueClass={cpaColor(myStats.cpa)} sub="Hệ 4 điểm" color="green"/>
         <StatCard icon={Award}      label="Tín chỉ đạt"  value={`${myStats.credits}`} sub="trên 133 TC" color="blue"/>
         <StatCard icon={BookOpen}   label="Đang học"      value={myStats.learning}    sub="môn học kỳ này" color="purple"/>
-        <StatCard icon={AlertCircle}label="Task chờ"      value={myTasks.filter(t=>!t.done).length} sub="cần hoàn thành" color="red"/>
+        <div onClick={() => setShowTaskPanel(v => !v)} className="cursor-pointer">
+          <StatCard icon={AlertCircle} label="Task chờ" value={myTasks.filter(t=>!t.done).length} sub={showTaskPanel ? 'Nhấn để thu gọn ↑' : 'Nhấn để xem chi tiết ↓'} color="red"/>
+        </div>
       </div>
+
+      {/* ── Task panel (expandable) ── */}
+      {showTaskPanel && (
+        <div className="mb-6 bg-[#1a1a1a] border border-red-500/20 rounded-2xl overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-red-500/15 flex items-center justify-between bg-red-500/5">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-red-400"/>
+              <h3 className="font-bold text-white text-sm">Danh sách Task cần làm</h3>
+              <span className="text-[10px] bg-red-500/20 text-red-400 border border-red-500/20 px-2 py-0.5 rounded-full font-bold">
+                {myTasks.filter(t=>!t.done).length} việc
+              </span>
+            </div>
+            <button onClick={() => setShowTaskPanel(false)} className="text-gray-600 hover:text-gray-300 transition-colors">
+              <X className="w-4 h-4"/>
+            </button>
+          </div>
+          {myTasks.filter(t=>!t.done).length === 0 ? (
+            <div className="px-5 py-8 text-center text-gray-600 text-sm">
+              <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-gray-700"/>
+              Không có task nào đang chờ 🎉
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-800/60">
+              {[...myTasks]
+                .filter(t => !t.done)
+                .sort((a, b) => new Date(a.deadline) - new Date(b.deadline))
+                .map(t => {
+                  const d = daysDiff(t.deadline);
+                  const isLate = d <= 0;
+                  const isSoon = d > 0 && d <= 3;
+                  return (
+                    <div key={t.id} className={`flex items-start gap-4 px-5 py-3.5 hover:bg-[#1e1e1e] transition-colors ${isLate ? 'bg-red-500/5' : ''}`}>
+                      <div className={`mt-0.5 w-2.5 h-2.5 rounded-full shrink-0 ${isLate ? 'bg-red-400 animate-pulse' : isSoon ? 'bg-yellow-400' : 'bg-gray-600'}`}/>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-gray-200 leading-snug">{t.task}</div>
+                        <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-2 flex-wrap">
+                          {t.subjectId && <span className="text-blue-400 font-medium">{t.subjectId}</span>}
+                          {t.subjectId && <span>·</span>}
+                          <span className="flex items-center gap-1"><Clock className="w-3 h-3"/> {t.deadline}</span>
+                          {t.assignedTo && <span>· {t.assignedTo}</span>}
+                        </div>
+                        {t.desc && <div className="text-xs text-gray-600 mt-1 leading-relaxed line-clamp-2">{t.desc}</div>}
+                      </div>
+                      <span className={`shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-lg border ${
+                        isLate
+                          ? 'bg-red-500/15 border-red-500/30 text-red-400'
+                          : isSoon
+                            ? 'bg-yellow-500/15 border-yellow-500/30 text-yellow-400'
+                            : 'bg-gray-800/60 border-gray-700 text-gray-500'
+                      }`}>
+                        {isLate ? `Trễ ${Math.abs(d)} ngày` : d === 0 ? 'Hôm nay!' : `Còn ${d} ngày`}
+                      </span>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Semester GPA Selector ── */}
       <SemesterSelector semGPA={myStats.semGPA} semesterNames={semesterNames} updateSemesterName={updateSemesterName}/>
 
       {/* ── Group tracking ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <GroupGPACard myGrades={myGrades} allGrades={allGrades} members={members}/>
+        <div className="flex flex-col gap-6">
+          <GroupGPACard myGrades={myGrades} allGrades={allGrades} members={members}/>
+          {/* Deadline sắp tới — nằm dưới GroupGPACard */}
+          <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-800/60 flex items-center gap-2">
+              <Clock className="w-4 h-4 text-red-400"/>
+              <h3 className="font-bold text-white text-sm">Deadline sắp tới</h3>
+            </div>
+            <div className="divide-y divide-gray-800/60">
+              {upcomingTasks.length > 0 ? upcomingTasks.map(t => {
+                const d = daysDiff(t.deadline);
+                return (
+                  <div key={t.id} className="flex items-center justify-between px-5 py-3.5 hover:bg-[#1e1e1e] transition-colors">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-sm text-gray-200 truncate">{t.task}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">{t.subjectId} · {t.deadline}</div>
+                    </div>
+                    <span className={`badge ml-3 shrink-0 ${d<=0?'badge-red':d<=7?'badge-yellow':'badge-gray'}`}>
+                      {d<=0?'Trễ hạn':d===1?'Còn 1 ngày':`Còn ${d} ngày`}
+                    </span>
+                  </div>
+                );
+              }) : (
+                <div className="px-5 py-8 text-center text-gray-600 text-sm">
+                  <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-gray-700"/>
+                  Không có deadline nào 🎉
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
         <LearningProgressCard myGrades={myGrades} allGrades={allGrades} members={members}/>
       </div>
 
@@ -611,39 +702,9 @@ export default function Dashboard() {
         <GroupVelocityCard allGrades={allGrades} members={members}/>
       </div>
 
-      {/* ── Deadlines + Right col ── */}
+      {/* ── Right col: SME / Top cống hiến / Nhóm info ── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Deadlines */}
-        <div className="xl:col-span-2 bg-[#1a1a1a] border border-gray-800/60 rounded-2xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-800/60 flex items-center gap-2">
-            <Clock className="w-4 h-4 text-red-400"/>
-            <h3 className="font-bold text-white text-sm">Deadline sắp tới</h3>
-          </div>
-          <div className="divide-y divide-gray-800/60">
-            {upcomingTasks.length > 0 ? upcomingTasks.map(t => {
-              const d = daysDiff(t.deadline);
-              return (
-                <div key={t.id} className="flex items-center justify-between px-5 py-3.5 hover:bg-[#1e1e1e] transition-colors">
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium text-sm text-gray-200 truncate">{t.task}</div>
-                    <div className="text-xs text-gray-500 mt-0.5">{t.subjectId} · {t.deadline}</div>
-                  </div>
-                  <span className={`badge ml-3 shrink-0 ${d<=0?'badge-red':d<=7?'badge-yellow':'badge-gray'}`}>
-                    {d<=0?'Trễ hạn':d===1?'Còn 1 ngày':`Còn ${d} ngày`}
-                  </span>
-                </div>
-              );
-            }) : (
-              <div className="px-5 py-8 text-center text-gray-600 text-sm">
-                <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-gray-700"/>
-                Không có deadline nào 🎉
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right column */}
-        <div className="space-y-4">
+        <div className="xl:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* SME subjects */}
           {mySmeSubjects.length > 0 && (
             <div className="bg-[#1a1a1a] border border-blue-500/20 rounded-2xl overflow-hidden">

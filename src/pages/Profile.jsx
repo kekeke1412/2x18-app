@@ -388,11 +388,8 @@ function GradesTable({ profile, grades, onSave, canEdit }) {
 
   const gpaStats = useMemo(() => calcGpaStats(localGrades), [localGrades]);
 
-  // Tổng tín chỉ chương trình (chỉ tính môn có điểm CPA)
-  const totalProgramCredits = useMemo(
-    () => subjectDatabase.filter(s => !s.excludeCPA).reduce((s, sub) => s + sub.credits, 0),
-    []
-  );
+  // Tổng tín chỉ chương trình — cố định 133 TC (theo chương trình đào tạo)
+  const totalProgramCredits = 133;
 
   // Tính điểm TB cần đạt mỗi kỳ để đạt mục tiêu CPA
   const cpaGoalResult = useMemo(() => {
@@ -407,12 +404,16 @@ function GradesTable({ profile, grades, onSave, canEdit }) {
 
   return (
     <div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-5">
         {[
-          { label:'CPA Tích lũy (Hệ 4)', value:gpaStats.cpa,              color:'text-green-400' },
-          { label:'Tín chỉ đạt',          value:`${gpaStats.credits}/133`, color:'text-blue-400'  },
-          { label:'Đang học',             value:`${gpaStats.learning} môn`,color:'text-yellow-400'},
-          { label:'Đã hoàn thành',        value:`${gpaStats.done} môn`,    color:'text-purple-400'},
+          { label:'CPA Tích lũy (Hệ 4)', value:gpaStats.cpa,                                             color:'text-green-400' },
+          { label:'Tín chỉ đạt',          value:`${gpaStats.credits}/133`,                               color:'text-blue-400'  },
+          { label:'TC trượt (Điểm F)',    value: gpaStats.failed?.length
+              ? `${gpaStats.failed.reduce((s,f)=>s+f.credits,0)} TC`
+              : '0 TC',
+            color: gpaStats.failed?.length ? 'text-red-400' : 'text-gray-500' },
+          { label:'Đang học',             value:`${gpaStats.learning} môn`,                              color:'text-yellow-400'},
+          { label:'Đã hoàn thành',        value:`${gpaStats.done} môn`,                                  color:'text-purple-400'},
         ].map(s=>(
           <div key={s.label} className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl p-4">
             <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">{s.label}</div>

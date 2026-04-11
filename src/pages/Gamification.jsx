@@ -8,26 +8,26 @@ import { uid } from '../context/AppContext';
    HỆ THỐNG RANK — 20 bậc (Đồng I→III … Tinh Anh I→III, Huyền Thoại, Cao Thủ)
 ═══════════════════════════════════════════════════════════════ */
 const RANKS = [
-  { id:'d1', tier:'Đồng',       sub:'I',   min:0,    max:19,       color:'#b87333', glow:'rgba(184,115,51,0.55)', bg:'rgba(184,115,51,0.09)' },
-  { id:'d2', tier:'Đồng',       sub:'II',  min:20,   max:39,       color:'#c08840', glow:'rgba(192,136,64,0.55)', bg:'rgba(192,136,64,0.09)' },
-  { id:'d3', tier:'Đồng',       sub:'III', min:40,   max:59,       color:'#d09050', glow:'rgba(208,144,80,0.55)', bg:'rgba(208,144,80,0.09)' },
-  { id:'s1', tier:'Bạc',        sub:'I',   min:60,   max:89,       color:'#9ca3af', glow:'rgba(156,163,175,0.55)', bg:'rgba(156,163,175,0.08)' },
-  { id:'s2', tier:'Bạc',        sub:'II',  min:90,   max:119,      color:'#b0b7c0', glow:'rgba(176,183,192,0.55)', bg:'rgba(176,183,192,0.08)' },
-  { id:'s3', tier:'Bạc',        sub:'III', min:120,  max:149,      color:'#c8cfd8', glow:'rgba(200,207,216,0.55)', bg:'rgba(200,207,216,0.08)' },
-  { id:'g1', tier:'Vàng',       sub:'I',   min:150,  max:199,      color:'#fbbf24', glow:'rgba(251,191,36,0.55)',  bg:'rgba(251,191,36,0.08)' },
-  { id:'g2', tier:'Vàng',       sub:'II',  min:200,  max:249,      color:'#fcd34d', glow:'rgba(252,211,77,0.55)',  bg:'rgba(252,211,77,0.08)' },
-  { id:'g3', tier:'Vàng',       sub:'III', min:250,  max:299,      color:'#fde68a', glow:'rgba(253,230,138,0.55)', bg:'rgba(253,230,138,0.08)' },
-  { id:'p1', tier:'Bạch Kim',   sub:'I',   min:300,  max:374,      color:'#bfdbfe', glow:'rgba(191,219,254,0.5)',  bg:'rgba(191,219,254,0.06)' },
-  { id:'p2', tier:'Bạch Kim',   sub:'II',  min:375,  max:449,      color:'#c8e8ff', glow:'rgba(200,232,255,0.5)',  bg:'rgba(200,232,255,0.06)' },
-  { id:'p3', tier:'Bạch Kim',   sub:'III', min:450,  max:549,      color:'#ddf0ff', glow:'rgba(221,240,255,0.5)',  bg:'rgba(221,240,255,0.06)' },
-  { id:'k1', tier:'Kim Cương',  sub:'I',   min:550,  max:649,      color:'#38bdf8', glow:'rgba(56,189,248,0.6)',   bg:'rgba(56,189,248,0.08)' },
-  { id:'k2', tier:'Kim Cương',  sub:'II',  min:650,  max:799,      color:'#0ea5e9', glow:'rgba(14,165,233,0.6)',   bg:'rgba(14,165,233,0.08)' },
-  { id:'k3', tier:'Kim Cương',  sub:'III', min:800,  max:999,      color:'#7dd3fc', glow:'rgba(125,211,252,0.6)',  bg:'rgba(125,211,252,0.09)' },
-  { id:'e1', tier:'Tinh Anh',   sub:'I',   min:1000, max:1199,     color:'#c084fc', glow:'rgba(192,132,252,0.6)',  bg:'rgba(192,132,252,0.09)' },
-  { id:'e2', tier:'Tinh Anh',   sub:'II',  min:1200, max:1499,     color:'#a855f7', glow:'rgba(168,85,247,0.6)',   bg:'rgba(168,85,247,0.09)' },
-  { id:'e3', tier:'Tinh Anh',   sub:'III', min:1500, max:1899,     color:'#d946ef', glow:'rgba(217,70,239,0.6)',   bg:'rgba(217,70,239,0.09)' },
-  { id:'hl', tier:'Huyền Thoại',sub:null,  min:1900, max:2499,     color:'#fb923c', glow:'rgba(251,146,60,0.65)',  bg:'rgba(251,146,60,0.1)'  },
-  { id:'ct', tier:'Cao Thủ',    sub:null,  min:2500, max:Infinity, color:'#fde047', glow:'rgba(253,224,71,0.7)',   bg:'rgba(253,224,71,0.1)'  },
+  { id:'d1', tier:'Đồng',       sub:'I',   min:0,       max:3_999,    color:'#b87333', glow:'rgba(184,115,51,0.55)', bg:'rgba(184,115,51,0.09)' },
+  { id:'d2', tier:'Đồng',       sub:'II',  min:4_000,   max:7_999,    color:'#c08840', glow:'rgba(192,136,64,0.55)', bg:'rgba(192,136,64,0.09)' },
+  { id:'d3', tier:'Đồng',       sub:'III', min:8_000,   max:11_999,   color:'#d09050', glow:'rgba(208,144,80,0.55)', bg:'rgba(208,144,80,0.09)' },
+  { id:'s1', tier:'Bạc',        sub:'I',   min:12_000,  max:17_999,   color:'#9ca3af', glow:'rgba(156,163,175,0.55)', bg:'rgba(156,163,175,0.08)' },
+  { id:'s2', tier:'Bạc',        sub:'II',  min:18_000,  max:23_999,   color:'#b0b7c0', glow:'rgba(176,183,192,0.55)', bg:'rgba(176,183,192,0.08)' },
+  { id:'s3', tier:'Bạc',        sub:'III', min:24_000,  max:29_999,   color:'#c8cfd8', glow:'rgba(200,207,216,0.55)', bg:'rgba(200,207,216,0.08)' },
+  { id:'g1', tier:'Vàng',       sub:'I',   min:30_000,  max:39_999,   color:'#fbbf24', glow:'rgba(251,191,36,0.55)',  bg:'rgba(251,191,36,0.08)' },
+  { id:'g2', tier:'Vàng',       sub:'II',  min:40_000,  max:49_999,   color:'#fcd34d', glow:'rgba(252,211,77,0.55)',  bg:'rgba(252,211,77,0.08)' },
+  { id:'g3', tier:'Vàng',       sub:'III', min:50_000,  max:59_999,   color:'#fde68a', glow:'rgba(253,230,138,0.55)', bg:'rgba(253,230,138,0.08)' },
+  { id:'p1', tier:'Bạch Kim',   sub:'I',   min:60_000,  max:74_999,   color:'#bfdbfe', glow:'rgba(191,219,254,0.5)',  bg:'rgba(191,219,254,0.06)' },
+  { id:'p2', tier:'Bạch Kim',   sub:'II',  min:75_000,  max:89_999,   color:'#c8e8ff', glow:'rgba(200,232,255,0.5)',  bg:'rgba(200,232,255,0.06)' },
+  { id:'p3', tier:'Bạch Kim',   sub:'III', min:90_000,  max:109_999,  color:'#ddf0ff', glow:'rgba(221,240,255,0.5)',  bg:'rgba(221,240,255,0.06)' },
+  { id:'k1', tier:'Kim Cương',  sub:'I',   min:110_000, max:129_999,  color:'#38bdf8', glow:'rgba(56,189,248,0.6)',   bg:'rgba(56,189,248,0.08)' },
+  { id:'k2', tier:'Kim Cương',  sub:'II',  min:130_000, max:159_999,  color:'#0ea5e9', glow:'rgba(14,165,233,0.6)',   bg:'rgba(14,165,233,0.08)' },
+  { id:'k3', tier:'Kim Cương',  sub:'III', min:160_000, max:199_999,  color:'#7dd3fc', glow:'rgba(125,211,252,0.6)',  bg:'rgba(125,211,252,0.09)' },
+  { id:'e1', tier:'Tinh Anh',   sub:'I',   min:200_000, max:239_999,  color:'#c084fc', glow:'rgba(192,132,252,0.6)',  bg:'rgba(192,132,252,0.09)' },
+  { id:'e2', tier:'Tinh Anh',   sub:'II',  min:240_000, max:299_999,  color:'#a855f7', glow:'rgba(168,85,247,0.6)',   bg:'rgba(168,85,247,0.09)' },
+  { id:'e3', tier:'Tinh Anh',   sub:'III', min:300_000, max:379_999,  color:'#d946ef', glow:'rgba(217,70,239,0.6)',   bg:'rgba(217,70,239,0.09)' },
+  { id:'hl', tier:'Huyền Thoại',sub:null,  min:380_000, max:499_999,  color:'#fb923c', glow:'rgba(251,146,60,0.65)',  bg:'rgba(251,146,60,0.1)'  },
+  { id:'ct', tier:'Cao Thủ',    sub:null,  min:500_000, max:Infinity, color:'#fde047', glow:'rgba(253,224,71,0.7)',   bg:'rgba(253,224,71,0.1)'  },
 ];
 
 const EMBLEMS = {
@@ -567,21 +567,39 @@ export default function Gamification() {
             </h3>
             <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
               {[
-                ['+20','📄','Upload tài liệu mới cho nhóm'],
-                ['+30','⭐','Tài liệu được đánh giá 5 sao'],
-                ['+10','✅','Điểm danh buổi họp SME (1 lần/buổi)'],
-                ['+15','⏰','Hoàn thành task đúng hạn'],
-                ['+30','📈','Tiến độ môn học đạt 100%'],
-                ['+5', '🗳️','Tham gia bình chọn nhóm'],
-                ['+100','🎓','Tổ chức buổi học nhóm thành công'],
-              ].map(([pts,icon,action]) => (
-                <div key={action} style={{ display:'flex', alignItems:'center', gap:12, padding:'11px 14px',
-                  borderRadius:10, background:'rgba(255,255,255,0.025)', border:'1px solid rgba(255,255,255,0.05)' }}>
-                  <span style={{ fontSize:18 }}>{icon}</span>
-                  <span style={{ flex:1, fontSize:12, color:'#d4d4d8' }}>{action}</span>
-                  <span style={{ fontSize:14, fontWeight:900, color:'#4ade80' }}>{pts}</span>
-                </div>
-              ))}
+                // ── Cộng điểm
+                ['+2,000', '📄','Upload tài liệu mới cho nhóm'],
+                ['+3,000', '⭐','Tài liệu được đánh giá 5 sao'],
+                ['+1,000', '✅','Điểm danh buổi họp SME (1 lần/buổi)'],
+                ['+1,500', '⏰','Hoàn thành task đúng hạn'],
+                ['+3,000', '📈','Tiến độ môn học đạt 100%'],
+                ['+500',   '🗳️','Tham gia bình chọn nhóm'],
+                ['+10,000','🎓','Tổ chức buổi học nhóm thành công'],
+                ['+5,000', '📝','Viết báo cáo tổng kết buổi học'],
+                ['+2,500', '💡','Chia sẻ kinh nghiệm học tập được upvote'],
+                ['+1,000', '⭐','Đánh giá/phản hồi tài liệu của thành viên khác'],
+                ['+800',   '🤝','Mời/giới thiệu thành viên mới được duyệt'],
+                ['+500',   '💬','Góp ý cải thiện app được Core ghi nhận'],
+                // ── Trừ điểm
+                ['-2,000', '⏱️','Nộp task trễ hạn (mỗi lần trễ)'],
+                ['-5,000', '🚫','Vắng không phép buổi họp bắt buộc'],
+                ['-1,000', '⚠️','Bị nhắc nhở vi phạm quy định nhóm'],
+              ].map(([pts, icon, action]) => {
+                const isNeg = pts.startsWith('-');
+                return (
+                  <div key={action} style={{ display:'flex', alignItems:'center', gap:12, padding:'11px 14px',
+                    borderRadius:10,
+                    background: isNeg ? 'rgba(239,68,68,0.04)' : 'rgba(255,255,255,0.025)',
+                    border: isNeg ? '1px solid rgba(239,68,68,0.12)' : '1px solid rgba(255,255,255,0.05)' }}>
+                    <span style={{ fontSize:18 }}>{icon}</span>
+                    <span style={{ flex:1, fontSize:12, color: isNeg ? '#fca5a5' : '#d4d4d8' }}>{action}</span>
+                    <span style={{ fontSize:14, fontWeight:900, color: isNeg ? '#f87171' : '#4ade80' }}>{pts}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ marginTop:12, padding:'10px 14px', borderRadius:10, background:'rgba(251,191,36,0.04)', border:'1px solid rgba(251,191,36,0.12)', fontSize:11, color:'#a16207', lineHeight:1.6 }}>
+              💡 <strong style={{color:'#fbbf24'}}>Lưu ý:</strong> Điểm âm được trừ trực tiếp vào tổng điểm cống hiến. Hãy hoàn thành task đúng hạn và tham gia đầy đủ các buổi họp!
             </div>
           </div>
         )}
@@ -644,7 +662,7 @@ export default function Gamification() {
                           <span style={{ fontSize:15 }}>{t.icon}</span>
                           <span style={{ flex:1, fontSize:12, color:'#d4d4d8' }}>{m.fullName}</span>
                           <span style={{ fontSize:10, color:'#71717a' }}>{t.name}</span>
-                          {isSuperAdmin && (
+                          {canAdmin && (
                             <button onClick={()=>handleRevoke(uid,tid)}
                               style={{ padding:'2px 8px', borderRadius:5, fontSize:9, fontWeight:800, cursor:'pointer',
                                 background:'rgba(239,68,68,0.1)', border:'1px solid rgba(239,68,68,0.3)', color:'#f87171' }}>
