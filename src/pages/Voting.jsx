@@ -270,7 +270,6 @@ export default function Voting() {
   const handleDeleteConfirm = () => {
     if (deleteVote && delTarget) {
       deleteVote(delTarget.id);
-      toast('Đã xóa bình chọn', 'info');
     }
     setDelTarget(null);
   };

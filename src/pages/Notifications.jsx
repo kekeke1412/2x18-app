@@ -24,43 +24,109 @@ function timeAgo(iso) {
   return 'Vừa xong';
 }
 
+// ── Platform detection helpers ─────────────────────────────────────────────
+function isIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+function isIOSPWA() {
+  return isIOS() && window.matchMedia('(display-mode: standalone)').matches;
+}
+
+function isNotifSupported() {
+  return 'Notification' in window;
+}
+
 // ── Push permission status widget ─────────────────────────────────────────
 function PushPermissionBanner() {
-  const [perm, setPerm] = useState(() =>
-    'Notification' in window ? Notification.permission : 'unsupported'
-  );
+  const [perm, setPerm] = useState(() => {
+    if (!isNotifSupported()) return 'unsupported';
+    return Notification.permission; // 'default' | 'granted' | 'denied'
+  });
+  const [showIOSGuide, setShowIOSGuide] = useState(false);
 
+  // Nothing to show if already granted
+  if (perm === 'granted') return null;
+
+  // ── iOS non-PWA: push is impossible without installing to Home Screen ────
+  if (isIOS() && !isIOSPWA()) {
+    return (
+      <>
+        <div className="mx-6 mt-4 flex items-center gap-3 px-4 py-3 rounded-2xl border bg-amber-500/5 border-amber-500/20">
+          <BellRing className="w-4 h-4 text-amber-400 shrink-0"/>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-amber-300 font-medium">Cài app để nhận thông báo trên iPhone / iPad</p>
+            <p className="text-[10px] text-amber-400/70 mt-0.5">Nhấn nút chia sẻ <span className="font-bold">⬆</span> → "Thêm vào Màn hình chính"</p>
+          </div>
+          <button onClick={() => setShowIOSGuide(true)}
+            className="text-xs font-bold text-white bg-amber-600 hover:bg-amber-500 px-3 py-1.5 rounded-xl transition-all shrink-0">
+            Hướng dẫn
+          </button>
+        </div>
+
+        {showIOSGuide && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center p-4 bg-black/70 backdrop-blur-sm"
+            onClick={() => setShowIOSGuide(false)}>
+            <div className="bg-[#1e1e1e] border border-gray-700 rounded-2xl w-full max-w-sm shadow-2xl p-5"
+              onClick={e => e.stopPropagation()}>
+              <h3 className="font-bold text-white text-sm mb-3 flex items-center gap-2">
+                <BellRing className="w-4 h-4 text-amber-400"/> Cài app 2X18 lên iPhone
+              </h3>
+              <ol className="space-y-2.5">
+                {[
+                  { step:'1', text: 'Mở trang này trong Safari (không phải Chrome hay app khác)' },
+                  { step:'2', text: 'Nhấn nút chia sẻ ⬆ ở thanh công cụ phía dưới' },
+                  { step:'3', text: 'Cuộn xuống và chọn "Thêm vào Màn hình chính"' },
+                  { step:'4', text: 'Nhấn "Thêm" — app sẽ xuất hiện như ứng dụng thật' },
+                  { step:'5', text: 'Mở app từ màn hình chính → cho phép thông báo khi được hỏi' },
+                ].map(({ step, text }) => (
+                  <li key={step} className="flex items-start gap-3">
+                    <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">{step}</span>
+                    <span className="text-xs text-gray-300 leading-relaxed">{text}</span>
+                  </li>
+                ))}
+              </ol>
+              <p className="text-[10px] text-gray-500 mt-3">Yêu cầu iOS 16.4 trở lên.</p>
+              <button onClick={() => setShowIOSGuide(false)}
+                className="mt-4 w-full py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-xl transition-all">
+                Đã hiểu
+              </button>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  // ── API not supported at all (very old browser) ───────────────────────────
+  if (!isNotifSupported()) return null;
+
+  // ── Denied: user must manually re-enable in browser settings ─────────────
+  if (perm === 'denied') {
+    return (
+      <div className="mx-6 mt-4 flex items-center gap-3 px-4 py-3 rounded-2xl border bg-red-500/5 border-red-500/20">
+        <BellOff className="w-4 h-4 text-red-400 shrink-0"/>
+        <p className="text-xs text-red-300 flex-1">Thông báo đã bị chặn. Vào cài đặt trình duyệt → Quyền riêng tư để bật lại.</p>
+      </div>
+    );
+  }
+
+  // ── Default: not yet asked ────────────────────────────────────────────────
   const request = async () => {
     if (!('Notification' in window)) return;
     const result = await Notification.requestPermission();
     setPerm(result);
   };
 
-  if (perm === 'granted' || perm === 'unsupported') return null;
-
   return (
-    <div className={`mx-6 mt-4 flex items-center gap-3 px-4 py-3 rounded-2xl border ${
-      perm === 'denied'
-        ? 'bg-red-500/5 border-red-500/20'
-        : 'bg-blue-500/5 border-blue-500/20'
-    }`}>
-      {perm === 'denied'
-        ? <BellOff className="w-4 h-4 text-red-400 shrink-0"/>
-        : <BellRing className="w-4 h-4 text-blue-400 shrink-0"/>
-      }
-      <div className="flex-1 min-w-0">
-        {perm === 'denied' ? (
-          <p className="text-xs text-red-300">Thông báo đã bị chặn. Vào cài đặt trình duyệt để bật lại.</p>
-        ) : (
-          <p className="text-xs text-blue-300">Bật thông báo để nhận cập nhật ngay cả khi không mở app.</p>
-        )}
-      </div>
-      {perm !== 'denied' && (
-        <button onClick={request}
-          className="text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded-xl transition-all shrink-0">
-          Bật ngay
-        </button>
-      )}
+    <div className="mx-6 mt-4 flex items-center gap-3 px-4 py-3 rounded-2xl border bg-blue-500/5 border-blue-500/20">
+      <BellRing className="w-4 h-4 text-blue-400 shrink-0"/>
+      <p className="text-xs text-blue-300 flex-1">Bật thông báo để nhận cập nhật ngay cả khi không mở app.</p>
+      <button onClick={request}
+        className="text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded-xl transition-all shrink-0">
+        Bật ngay
+      </button>
     </div>
   );
 }

@@ -167,8 +167,12 @@ function reducer(s, { type, payload }) {
     }
     case A.CLOSE_VOTE:      return { ...s, votes:s.votes.map(x=>x.id===payload?{...x,closed:true}:x) };
     case A.ADD_VOTE_OPTION: return { ...s, votes:s.votes.map(x=>x.id===payload.voteId?{...x,options:[...(x.options||[]),{id:uid(),text:payload.text,votes:[]}]}:x) };
-    // ── FIX: xóa vote hoàn toàn ──
-    case A.DELETE_VOTE:     return { ...s, votes:s.votes.filter(x=>x.id!==payload) };
+    case A.DELETE_VOTE: {
+      const { id, trashId, deletedAt, deletedBy, deletedByName } = payload;
+      const item = s.votes.find(v => v.id === id);
+      const trashItem = item ? makeTrashItem('vote', item, {}, { trashId, deletedAt, deletedBy, deletedByName }) : null;
+      return { ...s, votes: s.votes.filter(v => v.id !== id), trash: trashItem ? [...(s.trash||[]), trashItem] : (s.trash||[]) };
+    }
 
     case A.MARK_NOTIF: {
       const n=s.notifications.map(x=>x.id===payload?{...x,read:true}:x);
@@ -225,6 +229,7 @@ function reducer(s, { type, payload }) {
         case 'task':        return { ...s, trash:newTrash, tasks:[item.data,...s.tasks] };
         case 'doc':         return { ...s, trash:newTrash, docs:{...s.docs,[item.meta.subjectId]:[item.data,...(s.docs[item.meta.subjectId]||[])]} };
         case 'event':       return { ...s, trash:newTrash, calEvents:[...s.calEvents,item.data] };
+        case 'vote':        return { ...s, trash:newTrash, votes:[item.data,...s.votes] };
         case 'subjectTask': return { ...s, trash:newTrash, subjectTasks:{...s.subjectTasks,[item.meta.subjectId]:[...(s.subjectTasks[item.meta.subjectId]||[]),item.data]} };
         case 'roadmapEvent':return { ...s, trash:newTrash, roadmap:s.roadmap.map(y=>y.year===item.meta.year?{...y,events:[...y.events,item.data]}:y) };
         default:            return { ...s, trash:newTrash };
@@ -240,22 +245,61 @@ const AppContext = createContext(null);
 const timerMap  = {};
 
 // ── Push Notification helpers ─────────────────────────────────────────────
+/**
+ * Cross-platform push notification support:
+ *  • Windows / Linux / macOS Chrome & Edge  → ServiceWorker showNotification
+ *  • macOS Safari 16+                       → ServiceWorker showNotification
+ *  • Android Chrome / Samsung Browser       → ServiceWorker showNotification
+ *  • iOS Safari 16.4+ (PWA only)            → ServiceWorker showNotification
+ *  • Desktop Firefox                        → new Notification() fallback
+ *  • iOS Safari (non-PWA)                   → API not available, guide shown in UI
+ *
+ * iOS requires the user to "Add to Home Screen" first (PWA install).
+ * Once installed, iOS 16.4+ supports Web Push natively.
+ */
+
 async function requestPushPermission() {
   if (!('Notification' in window)) return false;
   if (Notification.permission === 'granted') return true;
   if (Notification.permission === 'denied')  return false;
-  const result = await Notification.requestPermission();
-  return result === 'granted';
+  try {
+    const result = await Notification.requestPermission();
+    return result === 'granted';
+  } catch {
+    return false;
+  }
 }
 
 function firePushNotif({ title, body, url = '/notifications', tag = 'default' }) {
+  // Guard: API must exist and be granted
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+  const opts = {
+    body:      body || '',
+    icon:      '/icon-192.png',
+    badge:     '/icon-192.png',
+    tag,
+    renotify:  true,
+    data:      { url },
+    vibrate:   [200, 100, 200],
+    // Required for iOS PWA push to work
+    silent:    false,
+  };
+
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.ready
-      .then(reg => reg.showNotification(title, { body, icon:'/icon-192.png', badge:'/icon-192.png', tag, renotify:true, data:{ url }, vibrate:[200,100,200] }))
-      .catch(() => new Notification(title, { body, icon:'/icon-192.png', tag }));
+    // Race serviceWorker.ready against a 3-second timeout so we always fire
+    const swReady = navigator.serviceWorker.ready;
+    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('SW timeout')), 3000));
+
+    Promise.race([swReady, timeout])
+      .then(reg => reg.showNotification(title, opts))
+      .catch(() => {
+        // Fallback: direct Notification constructor (works on desktop Firefox,
+        // older Safari, etc. — will throw on iOS non-PWA, so we wrap in try/catch)
+        try { new Notification(title, { body: opts.body, icon: opts.icon, tag }); } catch {}
+      });
   } else {
-    new Notification(title, { body, icon:'/icon-192.png', tag });
+    try { new Notification(title, { body: opts.body, icon: opts.icon, tag }); } catch {}
   }
 }
 
@@ -580,11 +624,11 @@ export function AppProvider({ children }) {
     addNotif({ type:'vote', msg:`🔒 Bình chọn "${title}" đã đóng`, link:'/voting' });
   }, [state.votes, addNotif]);
   const addVoteOption = useCallback(p => dispatch({type:A.ADD_VOTE_OPTION, payload:p}), []);
-  // ── FIX: deleteVote hoàn toàn xóa khỏi state ────────────────────────────
+  // ── FIX: deleteVote chuyển vào thùng rác (có trashMeta) ────────────────
   const deleteVote = useCallback(id => {
-    dispatch({ type:A.DELETE_VOTE, payload:id });
-    toast('Đã xóa bình chọn.', 'info');
-  }, [toast]);
+    dispatch({ type:A.DELETE_VOTE, payload:{ id, ...trashMeta() } });
+    toast('Đã chuyển vào thùng rác.', 'info');
+  }, [trashMeta, toast]);
 
   // ── NOTIFICATIONS ─────────────────────────────────────────────────────────
   const markNotif   = useCallback(id => dispatch({type:A.MARK_NOTIF,   payload:id}), []);

@@ -14,6 +14,7 @@ const TYPE_META = {
   subjectTask:      { label:'Checklist môn',  Icon:BookOpen,      color:'text-green-400', bg:'bg-green-500/10' },
   roadmapEvent:     { label:'Lộ trình',       Icon:Map,           color:'text-orange-400',bg:'bg-orange-500/10' },
   attendanceSession:{ label:'Buổi họp nhóm', Icon:Calendar,      color:'text-cyan-400',  bg:'bg-cyan-500/10'  },
+  vote:             { label:'Bình chọn',      Icon:ClipboardList, color:'text-pink-400',  bg:'bg-pink-500/10'  },
 };
 
 function getItemName(item) {
@@ -23,6 +24,7 @@ function getItemName(item) {
     case 'event':             return item.data?.title        || '(Không tên)';
     case 'subjectTask':       return item.data?.title        || '(Không tên)';
     case 'roadmapEvent':      return item.data?.title        || '(Không tên)';
+    case 'vote':              return item.data?.title        || '(Không tên)';
     case 'attendanceSession': return item.data?.sessionTitle || '(Không tên)';
     default:                  return '(Mục không rõ)';
   }
@@ -35,6 +37,7 @@ function getItemSub(item) {
     case 'event':             return item.data?.date ? `Ngày: ${item.data.date}` : '';
     case 'subjectTask':       return item.meta?.subjectId ? `Môn: ${item.meta.subjectId}` : '';
     case 'roadmapEvent':      return item.meta?.year ? `Năm: ${item.meta.year}` : '';
+    case 'vote':              return item.data?.creator ? `Tạo bởi: ${item.data.creator}` : '';
     case 'attendanceSession': return item.data?.date ? `Ngày họp: ${item.data.date}` : '';
     default:                  return '';
   }
@@ -137,7 +140,7 @@ function TrashRow({ item, onRestore, onDelete }) {
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────
-const ALL_TYPES = ['task','doc','subjectTask','event','roadmapEvent','attendanceSession'];
+const ALL_TYPES = ['task','doc','subjectTask','event','roadmapEvent','vote','attendanceSession'];
 
 export default function Trash() {
   const { isCore, trash, restoreFromTrash, permanentDeleteTrash, emptyTrash } = useApp();
