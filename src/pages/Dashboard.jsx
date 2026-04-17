@@ -538,8 +538,8 @@ function GroupVelocityCard({ allGrades, members }) {
 // ── Main Dashboard ─────────────────────────────────────────────────────────
 export default function Dashboard() {
   const {
-    currentUser, myGrades, myTasks, smeMap, members, auditLogs,
-    contributions, grades: allGrades, isCore, exportMembersCSV,
+    currentUser, myGrades, myTasks, tasks, smeMap, members, auditLogs,
+    contributions, grades: allGrades, isCore, isSuperAdmin, exportMembersCSV,
     semesterLabels, updateSemesterLabel,
   } = useApp();
 
@@ -552,7 +552,7 @@ export default function Dashboard() {
     setIsAiAnalyzing(true);
     setAiAnalysis(null);
     try {
-      const res = await analyzeEarlyWarning(members, [], myTasks); // Fix: need global tasks
+      const res = await analyzeEarlyWarning(members, [], tasks);
       setAiAnalysis(res);
     } catch (err) {
       console.error(err);

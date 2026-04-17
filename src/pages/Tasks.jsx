@@ -32,7 +32,7 @@ const daysDiff = d => Math.ceil((new Date(d)-new Date())/(1000*60*60*24));
 export default function Tasks() {
   const {
     currentUser, myGrades: grades, myTasks, subjectTasks,
-    docs, smeMap,
+    docs, smeMap, members, isCore, isSuperAdmin,
     addTask:    ctxAddTask,
     deleteTask: ctxDeleteTask,
     addDoc:     ctxAddDoc,
@@ -43,6 +43,8 @@ export default function Tasks() {
   const myName  = profile.fullName || '';
 
   const [activeTab,  setActiveTab]  = useState('tasks');
+  const [isAdding,   setIsAdding]   = useState(false);
+  const [uploadSub,  setUploadSub]  = useState(null);
   const [expandProg, setExpandProg] = useState({});
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState(null);
