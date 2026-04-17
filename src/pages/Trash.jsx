@@ -15,6 +15,7 @@ const TYPE_META = {
   roadmapEvent:     { label:'Lộ trình',       Icon:Map,           color:'text-orange-400',bg:'bg-orange-500/10' },
   attendanceSession:{ label:'Buổi họp nhóm', Icon:Calendar,      color:'text-cyan-400',  bg:'bg-cyan-500/10'  },
   vote:             { label:'Bình chọn',      Icon:ClipboardList, color:'text-pink-400',  bg:'bg-pink-500/10'  },
+  report:           { label:'Báo cáo',        Icon:FileText,      color:'text-teal-400',  bg:'bg-teal-500/10'  },
 };
 
 function getItemName(item) {
@@ -26,6 +27,7 @@ function getItemName(item) {
     case 'roadmapEvent':      return item.data?.title        || '(Không tên)';
     case 'vote':              return item.data?.title        || '(Không tên)';
     case 'attendanceSession': return item.data?.sessionTitle || '(Không tên)';
+    case 'report':            return item.data?.title        || '(Không tên)';
     default:                  return '(Mục không rõ)';
   }
 }
@@ -39,6 +41,7 @@ function getItemSub(item) {
     case 'roadmapEvent':      return item.meta?.year ? `Năm: ${item.meta.year}` : '';
     case 'vote':              return item.data?.creator ? `Tạo bởi: ${item.data.creator}` : '';
     case 'attendanceSession': return item.data?.date ? `Ngày họp: ${item.data.date}` : '';
+    case 'report':            return item.data?.type === 'event' ? 'Tóm tắt sự kiện' : 'Báo cáo nghiên cứu';
     default:                  return '';
   }
 }
@@ -140,7 +143,7 @@ function TrashRow({ item, onRestore, onDelete }) {
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────
-const ALL_TYPES = ['task','doc','subjectTask','event','roadmapEvent','vote','attendanceSession'];
+const ALL_TYPES = ['task','doc','subjectTask','event','roadmapEvent','vote','attendanceSession','report'];
 
 export default function Trash() {
   const { isCore, trash, restoreFromTrash, permanentDeleteTrash, emptyTrash } = useApp();

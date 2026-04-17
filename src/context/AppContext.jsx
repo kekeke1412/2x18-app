@@ -47,6 +47,7 @@ const A = {
   RESTORE_FROM_TRASH:'RESTORE_FROM_TRASH',
   PERMANENT_DELETE_TRASH:'PERMANENT_DELETE_TRASH',
   EMPTY_TRASH:'EMPTY_TRASH',
+  ADD_REPORT:'ADD_REPORT', APPROVE_REPORT:'APPROVE_REPORT', DELETE_REPORT:'DELETE_REPORT',
 };
 
 const init = {
@@ -55,7 +56,7 @@ const init = {
   calEvents:[], roadmap:[], votes:[], notifications:[],
   attendance:[], docs:{}, contributions:{},
   auditLogs:[], toasts:[], unreadCount:0, semesterLabels:{},
-  trash:[],
+  trash:[], reports:[],
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -259,6 +260,18 @@ function reducer(s, { type, payload }) {
     case A.ADD_TOAST:    return { ...s, toasts:[...s.toasts,payload] };
     case A.REMOVE_TOAST: return { ...s, toasts:s.toasts.filter(t=>t.id!==payload) };
     case A.UPDATE_SEMESTER_LABEL: return { ...s, semesterLabels:{...s.semesterLabels,[payload.key]:payload.label} };
+    
+    case A.ADD_REPORT: return { ...s, reports: [payload, ...(s.reports||[])] };
+    case A.APPROVE_REPORT: return { ...s, reports: (s.reports||[]).map(r => r.id === payload ? { ...r, status: 'approved' } : r) };
+    case A.DELETE_REPORT: {
+      const { id, trashId, deletedAt, deletedBy, deletedByName } = payload;
+      const item = (s.reports||[]).find(r => r.id === id);
+      const trashItem = item ? makeTrashItem('report', item, {}, { trashId, deletedAt, deletedBy, deletedByName }) : null;
+      return {
+        ...s, reports: (s.reports||[]).filter(r => r.id !== id),
+        trash: trashItem ? [...(s.trash||[]), trashItem] : (s.trash||[]),
+      };
+    }
 
     case A.RESTORE_FROM_TRASH: {
       const item = (s.trash||[]).find(t=>t.id===payload);
@@ -279,6 +292,7 @@ function reducer(s, { type, payload }) {
           const year = item.meta.year;
           return { ...s, trash:newTrash, roadmap:s.roadmap.map(y=>y.year===year?{...y,events:[...y.events,item.data]}:y) };
         }
+        case 'report':       return { ...s, trash:newTrash, reports:[item.data, ...s.reports] };
         default: return { ...s, trash:newTrash };
       }
     }
@@ -347,7 +361,6 @@ export function AppProvider({ children }) {
           smeMap:           val['2x18_sme']              || {},
           tasks:            toArr(val['2x18_tasks']),
           calEvents:        toArr(val['2x18_events']),
-          // FIX: Firebase trả object thay vì array cho nested arrays → cần normalize
           roadmap:          toArr(val['2x18_roadmap']).map(y => ({
             ...y,
             events: toArr(y.events),
@@ -371,6 +384,7 @@ export function AppProvider({ children }) {
           subjectComments:  val['2x18_subject_comments']  || {},
           semesterLabels:   val['2x18_semester_labels']   || {},
           trash:            toArr(val['2x18_trash']),
+          reports:          toArr(val['2x18_reports']),
         }});
       }, (err) => {
         console.error('[Firebase DB] Access denied:', err.message);
@@ -391,7 +405,7 @@ export function AppProvider({ children }) {
           calEvents:[], roadmap:[], votes:[],
           notifications:[], attendance:[], contributions:{},
           docs:{}, auditLogs:[], subjectTasks:{}, subjectComments:{},
-          semesterLabels:{}, trash:[],
+          semesterLabels:{}, trash:[], reports:[],
         }});
       }
     });
@@ -418,20 +432,13 @@ export function AppProvider({ children }) {
 
   // ── Auto-sync to Firebase ─────────────────────────────────────────────────
   useEffect(() => {
-    // Bỏ qua nếu data vừa đến từ Firebase (tránh vòng lặp ghi → onValue → ghi → ...)
     if (fromFirebaseRef.current) {
       fromFirebaseRef.current = false;
       return;
     }
-    // QUAN TRỌNG: Chỉ sync khi có user đang đăng nhập và đã được duyệt.
-    // Nếu không có guard này, khi tài khoản mới login (pending/new),
-    // onAuthStateChanged → subscribeDB → load data → fromFirebaseRef reset về false
-    // → auto-sync có thể ghi state chưa đầy đủ lên Firebase → reset DB.
     if (!state.currentUser || state.currentUser.status === 'pending') return;
     if (state.isLoading || !state.members.length) return;
     
-    // FIX QUAN TRỌNG: Ép mảng thành Object (Map) trước khi gửi lên DB
-    // Điều này sẽ trị dứt điểm lỗi "scalar field"
     const membersMap = {};
     state.members.forEach(m => { if (m.id) membersMap[m.id] = m; });
     fbSet('2x18_members', membersMap);
@@ -450,6 +457,7 @@ export function AppProvider({ children }) {
     fbSet('2x18_subject_comments', state.subjectComments);
     fbSet('2x18_semester_labels',  state.semesterLabels);
     fbSet('2x18_trash',            state.trash);
+    fbSet('2x18_reports',          state.reports);
     Object.entries(state.grades).forEach(([uid, g]) => {
       if (uid && g) fbSet(`${uid}_grades`, g);
     });
@@ -457,7 +465,7 @@ export function AppProvider({ children }) {
     state.members, state.smeMap, state.tasks, state.calEvents, state.roadmap,
     state.votes, state.notifications, state.attendance, state.contributions,
     state.docs, state.auditLogs, state.subjectTasks, state.subjectComments,
-    state.semesterLabels, state.grades, state.trash
+    state.semesterLabels, state.grades, state.trash, state.reports
   ]);
 
   // ── Toast auto-dismiss ────────────────────────────────────────────────────
@@ -489,7 +497,6 @@ export function AppProvider({ children }) {
   const pushNotif = useCallback((msg, type = 'system', link = '') => {
     const n = { id: uid(), msg, type, link, read: false, time: new Date().toISOString() };
     dispatch({ type: A.ADD_NOTIF, payload: n });
-    // Browser push (chỉ khi được cấp quyền và không đang focus trang)
     if ('Notification' in window && Notification.permission === 'granted' && document.visibilityState !== 'visible') {
       try {
         new Notification('2X18 — ' + (type === 'task' ? '📋' : type === 'vote' ? '🗳️' : type === 'calendar' ? '📅' : type === 'member' ? '👥' : type === 'sme' ? '📄' : '🔔') + ' Thông báo mới', {
@@ -508,13 +515,11 @@ export function AppProvider({ children }) {
       const cred = await signInWithEmailAndPassword(auth, email, password);
       const fbUser = cred.user;
 
-      // Thử đọc trực tiếp theo UID (tài khoản mới, id === fbUser.uid)
       let member = null;
       const snap1 = await get(ref(db, `2x18_members/${fbUser.uid}`));
       if (snap1.val()) {
         member = snap1.val();
       } else {
-        // Fallback: tìm theo email (tài khoản cũ có id là random string ≠ fbUser.uid)
         const snapAll = await get(ref(db, '2x18_members'));
         member = toArr(snapAll.val()).find(m => m.email === email || m.mailSchool === email);
       }
@@ -550,7 +555,6 @@ export function AppProvider({ children }) {
     const fbUser = cred.user;
     const isSA = fbUser.email === SUPER_ADMIN_EMAIL;
 
-    // FIX: Chỉ tải dữ liệu của chính mình thay vì tải cả array
     const snap = await get(ref(db, `2x18_members/${fbUser.uid}`));
     let member = snap.val();
 
@@ -568,7 +572,6 @@ export function AppProvider({ children }) {
       };
       await set(ref(db, `2x18_members/${fbUser.uid}`), member);
     } else {
-      // Sync avatarUrl from Google every login (keep profile picture up-to-date)
       const googlePhoto = fbUser.photoURL || '';
       const needsAvatarSync = googlePhoto && member.avatarUrl !== googlePhoto;
       const needsAdminFix = isSA && (member.role !== 'super_admin' || member.status !== 'active');
@@ -611,7 +614,6 @@ export function AppProvider({ children }) {
       registeredAt: new Date().toISOString(),
     };
     
-    // FIX: Ghi trực tiếp vào Object riêng, không đọc và đè mảng nữa
     await set(ref(db, `2x18_members/${fbUser.uid}`), newMember);
     await signOut(auth).catch(() => {});
     return newMember;
@@ -622,7 +624,7 @@ export function AppProvider({ children }) {
     localStorage.removeItem('2x18_current_user');
   }, []);
 
-  // ── PROFILE ───────────────────────────────────────────────────────────────
+  // ── PROFILE & FEATURES ────────────────────────────────────────────────────
   const updateProfile = useCallback((profileData) => {
     skipSyncRef.current = true;
     const merged = { ...state.currentUser, ...profileData };
@@ -841,6 +843,7 @@ export function AppProvider({ children }) {
     addDoc, deleteDoc, rateDoc,
     updateRole, addContribution, updateSemesterLabel,
     restoreFromTrash, permanentDeleteTrash, emptyTrash,
+    addReport, approveReport, deleteReport,
     getMemberById, getSmeMember, isProfileComplete, exportMembersCSV,
   };
 
