@@ -154,7 +154,12 @@ async function getOrCreateFolder(token, folderName) {
   });
 
   if (!createRes.ok) {
-    throw new Error('Không thể tạo thư mục trên Drive');
+    const errData = await createRes.json().catch(() => ({}));
+    const status = createRes.status;
+    if (status === 403) {
+      throw new Error('Thiếu quyền truy cập Drive. Vui lòng đăng xuất và đăng nhập lại, lưu ý tích chọn tất cả các quyền Google Drive.');
+    }
+    throw new Error(`Lỗi Google Drive (${status}): ${errData.error?.message || 'Không thể tạo thư mục lưu trữ'}`);
   }
 
   const createData = await createRes.json();
