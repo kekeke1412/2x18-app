@@ -87,6 +87,26 @@ export async function uploadToDrive(token, file, folderName = '2X18_Reports') {
   }
 
   const data = await response.json();
+  const fileId = data.id;
+
+  // 3. Mở quyền xem cho bất kỳ ai có link (anyone with link can view)
+  try {
+    await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        role: 'reader',
+        type: 'anyone'
+      })
+    });
+  } catch (err) {
+    console.error('Lỗi khi set quyền Drive:', err);
+    // Vẫn tiếp tục vì file đã upload xong, chỉ là quyền có thể chưa mở
+  }
+
   // WebViewLink là link có thể mở trực tiếp để xem file
   return data.webViewLink;
 }
