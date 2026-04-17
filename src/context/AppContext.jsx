@@ -519,15 +519,15 @@ export function AppProvider({ children }) {
     fbSet('2x18_roadmap',          state.roadmap);
     fbSet('2x18_votes',            state.votes);
     fbSet('2x18_notifs',           state.notifications);
-    // fbSet('2x18_attendance',       state.attendance);
+    fbSet('2x18_attendance',       state.attendance);
     fbSet('2x18_contributions',    state.contributions);
     fbSet('2x18_docs',             state.docs);
     fbSet('2x18_audit',            state.auditLogs);
     fbSet('2x18_subject_tasks',    state.subjectTasks);
     fbSet('2x18_subject_comments', state.subjectComments);
     fbSet('2x18_semester_labels',  state.semesterLabels);
-    // fbSet('2x18_trash',            state.trash);
-    // fbSet('2x18_reports',          state.reports);
+    fbSet('2x18_trash',            state.trash);
+    fbSet('2x18_reports',          state.reports);
     Object.entries(state.grades).forEach(([uid, g]) => {
       if (uid && g) fbSet(`${uid}_grades`, g);
     });
@@ -535,7 +535,7 @@ export function AppProvider({ children }) {
     state.members, state.smeMap, state.tasks, state.calEvents, state.roadmap,
     state.votes, state.notifications, state.contributions,
     state.docs, state.auditLogs, state.subjectTasks, state.subjectComments,
-    state.semesterLabels, state.grades
+    state.semesterLabels, state.grades, state.attendance, state.trash, state.reports
   ]);
 
   // ── Toast auto-dismiss ────────────────────────────────────────────────────

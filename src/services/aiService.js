@@ -15,17 +15,23 @@ async function callGemini(prompt, { maxTokens = 2048, temperature = 0.7 } = {}) 
   const apiKey = getApiKey();
   if (!apiKey) throw new Error('NO_API_KEY');
 
-  const ai = new GoogleGenAI({ apiKey });
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.0-flash',
-    contents: prompt,
-    config: {
-      maxOutputTokens: maxTokens,
-      temperature,
-    },
-  });
+  try {
+    const genAI = new GoogleGenAI(apiKey);
+    const model = genAI.getGenerativeModel({ 
+      model: 'gemini-2.0-flash',
+      generationConfig: {
+        maxOutputTokens: maxTokens,
+        temperature: temperature,
+      }
+    });
 
-  return response.text;
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text();
+  } catch (err) {
+    console.error('[Gemini API Error]', err);
+    throw err;
+  }
 }
 
 // ── 1. Smart Task: Gợi ý phân công & chia nhỏ task ────────────────────────
