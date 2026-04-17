@@ -209,8 +209,16 @@ function reducer(s, { type, payload }) {
     }
 
     // <--- BLOCK DELTE NÀY VÀO --->
-    case A.DELETE_ATTENDANCE_SESSION:
-      return { ...s, attendance: s.attendance.filter(a => a.sessionId !== payload) };
+    case A.DELETE_ATTENDANCE_SESSION: {
+      const { sessionId, trashId, deletedAt, deletedBy, deletedByName } = payload;
+      const item = s.attendance.find(a => a.sessionId === sessionId);
+      const trashItem = item ? makeTrashItem('attendanceSession', item, {}, { trashId, deletedAt, deletedBy, deletedByName }) : null;
+      return { 
+        ...s, 
+        attendance: s.attendance.filter(a => a.sessionId !== sessionId),
+        trash: trashItem ? [...(s.trash||[]), trashItem] : (s.trash||[]),
+      };
+    }
     // <-------------------------->
 
     // <--- THÊM BLOCK EDIT NÀY VÀO --->
@@ -295,6 +303,7 @@ function reducer(s, { type, payload }) {
           return { ...s, trash:newTrash, roadmap:s.roadmap.map(y=>y.year===year?{...y,events:[...y.events,item.data]}:y) };
         }
         case 'report':       return { ...s, trash:newTrash, reports:[item.data, ...s.reports] };
+        case 'attendanceSession': return { ...s, trash:newTrash, attendance:[item.data, ...s.attendance] };
         default: return { ...s, trash:newTrash };
       }
     }
@@ -781,9 +790,9 @@ export function AppProvider({ children }) {
 
   // <--- THÊM HÀM delete NÀY VÀO --->
   const deleteAttendanceSession = useCallback((sessionId) => {
-    dispatch({ type: A.DELETE_ATTENDANCE_SESSION, payload: sessionId });
-    toast('Đã xóa buổi họp!', 'info');
-  }, [toast]);
+    dispatch({ type: A.DELETE_ATTENDANCE_SESSION, payload: { sessionId, ...trashMeta() } });
+    toast('Đã chuyển vào thùng rác.', 'info');
+  }, [trashMeta, toast]);
   // <-------------------------->
 
   // <--- THÊM HÀM edit NÀY VÀO --->

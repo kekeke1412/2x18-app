@@ -3,7 +3,7 @@
 /**
  * Tạo sự kiện trên Google Calendar, có tùy chọn sinh link Google Meet.
  */
-export async function createCalendarEvent(token, { title, description, date, startTime, endTime, createMeetLink }) {
+export async function createCalendarEvent(token, { title, description, date, startTime, endTime, createMeetLink, reminderMinutes }) {
   // Định dạng ISO 8601 string
   const startDateTime = new Date(`${date}T${startTime}:00`).toISOString();
   // Nếu không có endTime, mặc định cộng 1 tiếng
@@ -21,12 +21,22 @@ export async function createCalendarEvent(token, { title, description, date, sta
     description: description || '',
     start: { dateTime: startDateTime, timeZone: 'Asia/Ho_Chi_Minh' },
     end: { dateTime: endDateTime, timeZone: 'Asia/Ho_Chi_Minh' },
+    // Gửi reminder lên Google Calendar nếu có chọn
+    reminders: reminderMinutes
+      ? {
+          useDefault: false,
+          overrides: [
+            { method: 'popup',  minutes: reminderMinutes }, // Thông báo popup trên GG Cal
+            { method: 'email',  minutes: reminderMinutes }, // Email nhắc nhở
+          ],
+        }
+      : { useDefault: true }, // Dùng cài đặt mặc định của GG Calendar
   };
 
   if (createMeetLink) {
     event.conferenceData = {
       createRequest: {
-        requestId: crypto.randomUUID(), // Tạo ID ngẫu nhiên cho request
+        requestId: crypto.randomUUID(),
         conferenceSolutionKey: { type: 'hangoutsMeet' }
       }
     };

@@ -3,6 +3,16 @@ import React, { useState, useEffect } from 'react';
 import { Users, CheckCheck, Plus, X, Calendar, Clock, Link2, Trash2, ExternalLink, Pencil } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { createCalendarEvent } from '../services/googleApi';
+import { scheduleReminder } from '../services/notificationService';
+
+const REMINDER_OPTIONS = [
+  { value: 0,    label: 'Không nhắc' },
+  { value: 5,    label: '5 phút trước' },
+  { value: 15,   label: '15 phút trước' },
+  { value: 30,   label: '30 phút trước' },
+  { value: 60,   label: '1 giờ trước' },
+  { value: 1440, label: '1 ngày trước' },
+];
 
 const isToday = (dateStr) => {
   if (!dateStr) return false;
@@ -44,6 +54,7 @@ export default function Attendance() {
   const [newLink,    setNewLink]    = useState('');
   const [newStartTime, setNewStartTime] = useState('20:00');
   const [newEndTime,   setNewEndTime]   = useState('21:30');
+  const [newReminderMinutes, setNewReminderMinutes] = useState(30);
   
   const [createMeet, setCreateMeet] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -85,7 +96,8 @@ export default function Attendance() {
           date: newDate,
           startTime: newStartTime || '20:00',
           endTime: newEndTime || '',
-          createMeetLink: true
+          createMeetLink: true,
+          reminderMinutes: newReminderMinutes || 0,
         });
         if (eventRes.meetLink) {
           finalLink = eventRes.meetLink;
@@ -98,14 +110,26 @@ export default function Attendance() {
     }
 
     addAttendanceSession({ sessionTitle: newTitle.trim(), date: newDate, meetLink: finalLink, startTime: newStartTime, endTime: newEndTime });
-    setNewTitle(''); setNewDate(''); setNewLink(''); setNewStartTime('20:00'); setNewEndTime('21:30'); setShowAdd(false); setCreateMeet(false);
+
+    // Lên lịch nhắc nhở cục bộ (browser notification)
+    if (newReminderMinutes > 0 && newDate) {
+      scheduleReminder({
+        id: `attend-new-${Date.now()}`,
+        title: newTitle.trim(),
+        date: newDate,
+        startTime: newStartTime || '20:00',
+        reminderMinutes: newReminderMinutes,
+      });
+    }
+
+    setNewTitle(''); setNewDate(''); setNewLink(''); setNewStartTime('20:00'); setNewEndTime('21:30'); setNewReminderMinutes(30); setShowAdd(false); setCreateMeet(false);
   };
 
   const handleDelete = (sessionId) => {
     const sess = attendance.find(s => s.sessionId === sessionId);
     if (sess && deleteAttendanceSession) {
       // Đưa vào thùng rác thay vì xóa vĩnh viễn
-      deleteAttendanceSession(sessionId, { sendToTrash: true });
+      deleteAttendanceSession(sessionId);
       if (selected === sessionId) setSelected(attendance.find(s => s.sessionId !== sessionId)?.sessionId || null);
     }
     setConfirmDel(null);
@@ -184,6 +208,23 @@ export default function Attendance() {
                 <label className="text-[10px] text-gray-500 font-bold block mb-1">GIỜ KẾT THÚC</label>
                 <input type="time" className="input-dark w-full" value={newEndTime} onChange={e => setNewEndTime(e.target.value)}/>
               </div>
+            </div>
+            {/* Nhắc nhở */}
+            <div>
+              <label className="text-[10px] text-gray-500 font-bold block mb-1 flex items-center gap-1">
+                <Clock className="w-3 h-3"/> NHẮC NHỞ TRƯỚC KHI HỌP
+              </label>
+              <select className="input-dark w-full" value={newReminderMinutes}
+                onChange={e => setNewReminderMinutes(Number(e.target.value))}>
+                {REMINDER_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              {newReminderMinutes > 0 && (
+                <p className="text-[10px] text-blue-400 mt-1">
+                  ⏰ Sẽ nhắc trên màn hình {createMeet ? '+ gửi vào GG Calendar' : '(bật "Tạo Meet" để nhắc qua GG Calendar)'}
+                </p>
+              )}
             </div>
             <div className="flex gap-3 items-end">
               <div className="flex-1">

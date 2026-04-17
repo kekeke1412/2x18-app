@@ -6,6 +6,18 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { ChevronLeft, ChevronRight, Plus, X, Clock, MapPin, Users, AlignLeft, ExternalLink, CalendarCheck } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { createCalendarEvent } from '../services/googleApi';
+import { requestNotificationPermission, scheduleReminder, cancelReminder, syncAllReminders } from '../services/notificationService';
+
+const REMINDER_OPTIONS = [
+  { value: 0,    label: 'Không nhắc' },
+  { value: 5,    label: '5 phút trước' },
+  { value: 10,   label: '10 phút trước' },
+  { value: 15,   label: '15 phút trước' },
+  { value: 30,   label: '30 phút trước' },
+  { value: 60,   label: '1 giờ trước' },
+  { value: 120,  label: '2 giờ trước' },
+  { value: 1440, label: '1 ngày trước' },
+];
 
 const MONTHS_VI = ['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6',
                    'Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
@@ -49,6 +61,15 @@ export default function CalendarPage() {
   const popupRef    = useRef(null);
   const scrollRef   = useRef(null); // ref for the hour-grid scroll container
   const nextId      = useRef(Date.now());
+
+  // ── Xin quyền thông báo + Sync reminders khi events thay đổi ─────
+  useEffect(() => {
+    requestNotificationPermission();
+  }, []);
+
+  useEffect(() => {
+    syncAllReminders(allEvents.filter(e => e.reminderMinutes > 0));
+  }, [allEvents]); // eslint-disable-line
 
   // ── Real-time clock (updates every 30s) ──────────────────────────────────
   useEffect(() => {
@@ -160,7 +181,7 @@ export default function CalendarPage() {
   // ── Form helpers ──────────────────────────────────────────
   const openNew = (date, hour=null) => {
     const d = date || ds(curYear,curMonth,curDay);
-    setForm({ title:'', date:d, startTime:hour!=null?`${String(hour).padStart(2,'0')}:00`:'', endTime:'', type:'study', location:'', desc:'', guests:'', allDay:hour==null });
+    setForm({ title:'', date:d, startTime:hour!=null?`${String(hour).padStart(2,'0')}:00`:'', endTime:'', type:'study', location:'', desc:'', guests:'', allDay:hour==null, reminderMinutes:30 });
     setModal({ mode:'new' });
   };
   const openEdit = ev => {
@@ -185,15 +206,24 @@ export default function CalendarPage() {
             startTime: ev.startTime || '08:00',
             endTime: ev.endTime || '',
             createMeetLink: false,
+            reminderMinutes: ev.reminderMinutes || 0,
           });
           toast(`Đã đồng bộ lên Google Calendar! ✅`, 'success');
-          // Nếu có link mở sự kiện, mở tab mới
           if (res.htmlLink) window.open(res.htmlLink, '_blank');
         }
       } catch (err) {
         toast(err.message || 'Lỗi đồng bộ Calendar', 'error');
       }
       setIsSyncing(false);
+    }
+
+    // Lên lịch nhắc nhở local (browser notification)
+    if (ev.reminderMinutes > 0) {
+      scheduleReminder(ev);
+      const label = REMINDER_OPTIONS.find(o => o.value === ev.reminderMinutes)?.label || `${ev.reminderMinutes} phút trước`;
+      if (!syncToGoogle) toast(`⏰ Đã đặt nhắc: ${label}`, 'success');
+    } else {
+      cancelReminder(ev.id || nextId.current);
     }
 
     setModal(null);
@@ -607,6 +637,23 @@ export default function CalendarPage() {
               <div>
                 <label className="text-[10px] text-gray-500 font-bold block mb-1">GHI CHÚ</label>
                 <textarea rows={2} className="input-dark resize-none" value={form.desc||''} onChange={e=>setForm(f=>({...f,desc:e.target.value}))} placeholder="Mô tả thêm..."/>
+              </div>
+              {/* Nhắc nhở */}
+              <div>
+                <label className="text-[10px] text-gray-500 font-bold block mb-1 flex items-center gap-1">
+                  <Clock className="w-3 h-3"/> NHẮC NHỞ
+                </label>
+                <select className="input-dark" value={form.reminderMinutes ?? 30}
+                  onChange={e => setForm(f => ({...f, reminderMinutes: Number(e.target.value)}))}>
+                  {REMINDER_OPTIONS.map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+                {(form.reminderMinutes > 0) && (
+                  <p className="text-[10px] text-blue-400 mt-1 flex items-center gap-1">
+                    ⏰ Sẽ nhắc trên màn hình + email khi đồng bộ GG Calendar
+                  </p>
+                )}
               </div>
             </div>
             <div className="flex gap-3 px-5 py-4 border-t border-gray-800 flex-wrap">
