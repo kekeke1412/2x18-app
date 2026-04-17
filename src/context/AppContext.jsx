@@ -75,11 +75,22 @@ function reducer(s, { type, payload }) {
     case A.SET_USER:    return { ...s, currentUser: payload };
     case A.SET_LOADING: return { ...s, isLoading: payload };
     case A.SET_GOOGLE_TOKEN: return { ...s, googleToken: payload };
-    case A.INIT_DATA:   return {
-      ...s, ...payload,
-      unreadCount: (payload.notifications||[]).filter(n=>!n.read).length,
-      isLoading: false,
-    };
+    case A.INIT_DATA: {
+      // Smart-merge reports and trash to avoid wiping optimistic updates
+      const mergeById = (existing, incoming, key = 'id') => {
+        const map = new Map();
+        (existing || []).forEach(x => x && x[key] && map.set(x[key], x));
+        (incoming || []).forEach(x => x && x[key] && map.set(x[key], x)); // Firebase wins for existing records
+        return Array.from(map.values());
+      };
+      return {
+        ...s, ...payload,
+        reports: mergeById(s.reports, payload.reports),
+        trash:   mergeById(s.trash,   payload.trash),
+        unreadCount: (payload.notifications||[]).filter(n=>!n.read).length,
+        isLoading: false,
+      };
+    }
 
     case A.UPDATE_PROFILE: {
       const members = s.members.map(m => m.id===payload.id ? {...m,...payload} : m);
