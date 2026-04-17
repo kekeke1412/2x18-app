@@ -94,12 +94,15 @@ export default function CalendarPage() {
     // Attendance sessions
     (attendance || []).forEach(s => {
       if (s.date) {
+        const hasTime = !!s.startTime;
         evs.push({
           id: `attend-${s.sessionId}`,
           title: `📅 ${s.sessionTitle}`,
           date: s.date,
+          startTime: s.startTime || '',
+          endTime: s.endTime || '',
           type: 'attend',
-          allDay: true,
+          allDay: !hasTime,
           auto: true,
           location: s.meetLink || '',
           desc: `${s.present?.length || 0}/${s.total || 0} thành viên`,

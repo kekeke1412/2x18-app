@@ -39,9 +39,11 @@ export default function Attendance() {
 
   const [selected,  setSelected]  = useState(null);
   const [showAdd,   setShowAdd]   = useState(false);
-  const [newTitle,  setNewTitle]  = useState('');
-  const [newDate,   setNewDate]   = useState('');
-  const [newLink,   setNewLink]   = useState('');
+  const [newTitle,   setNewTitle]   = useState('');
+  const [newDate,    setNewDate]    = useState('');
+  const [newLink,    setNewLink]    = useState('');
+  const [newStartTime, setNewStartTime] = useState('20:00');
+  const [newEndTime,   setNewEndTime]   = useState('21:30');
   
   const [createMeet, setCreateMeet] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -81,7 +83,8 @@ export default function Attendance() {
           title: newTitle.trim(),
           description: 'Họp nhóm / Điểm danh 2X18',
           date: newDate,
-          startTime: '20:00', // Giờ mặc định
+          startTime: newStartTime || '20:00',
+          endTime: newEndTime || '',
           createMeetLink: true
         });
         if (eventRes.meetLink) {
@@ -94,8 +97,8 @@ export default function Attendance() {
       setIsCreating(false);
     }
 
-    addAttendanceSession({ sessionTitle: newTitle.trim(), date: newDate, meetLink: finalLink });
-    setNewTitle(''); setNewDate(''); setNewLink(''); setShowAdd(false); setCreateMeet(false);
+    addAttendanceSession({ sessionTitle: newTitle.trim(), date: newDate, meetLink: finalLink, startTime: newStartTime, endTime: newEndTime });
+    setNewTitle(''); setNewDate(''); setNewLink(''); setNewStartTime('20:00'); setNewEndTime('21:30'); setShowAdd(false); setCreateMeet(false);
   };
 
   const handleDelete = (sessionId) => {
@@ -115,6 +118,8 @@ export default function Attendance() {
       sessionId: editData.sessionId,
       sessionTitle: editData.sessionTitle.trim(),
       date: editData.date,
+      startTime: editData.startTime || '',
+      endTime: editData.endTime || '',
       meetLink: editData.meetLink.trim()
     });
     setEditData(null); // Đóng modal
@@ -167,6 +172,17 @@ export default function Attendance() {
               <div>
                 <label className="text-[10px] text-gray-500 font-bold block mb-1">NGÀY HỌP *</label>
                 <input type="date" className="input-dark" value={newDate} onChange={e => setNewDate(e.target.value)}/>
+              </div>
+            </div>
+            {/* Giờ họp */}
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label className="text-[10px] text-gray-500 font-bold block mb-1">GIỜ BẮT ĐẦU</label>
+                <input type="time" className="input-dark w-full" value={newStartTime} onChange={e => setNewStartTime(e.target.value)}/>
+              </div>
+              <div className="flex-1">
+                <label className="text-[10px] text-gray-500 font-bold block mb-1">GIỜ KẾT THÚC</label>
+                <input type="time" className="input-dark w-full" value={newEndTime} onChange={e => setNewEndTime(e.target.value)}/>
               </div>
             </div>
             <div className="flex gap-3 items-end">
@@ -242,7 +258,7 @@ export default function Attendance() {
                           <button
                             onClick={e => { 
                               e.stopPropagation(); 
-                              setEditData({ sessionId: s.sessionId, sessionTitle: s.sessionTitle, date: s.date, meetLink: s.meetLink || '' }); 
+                            setEditData({ sessionId: s.sessionId, sessionTitle: s.sessionTitle, date: s.date, startTime: s.startTime || '', endTime: s.endTime || '', meetLink: s.meetLink || '' }); 
                             }}
                             className="p-1 text-gray-600 hover:text-blue-400 transition-colors rounded-lg hover:bg-blue-500/10">
                             <Pencil className="w-3.5 h-3.5"/>
@@ -257,7 +273,9 @@ export default function Attendance() {
                       </div>
                     </div>
                     <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                      <Calendar className="w-3 h-3"/> {formatDate(s.date)} · {s.present.length}/{s.total} có mặt
+                      <Calendar className="w-3 h-3"/> {formatDate(s.date)}
+                      {s.startTime && <><span className="mx-1 text-gray-700">·</span><Clock className="w-3 h-3"/>{s.startTime}{s.endTime && `–${s.endTime}`}</> }
+                      <span className="mx-1 text-gray-700">·</span>{s.present.length}/{s.total} có mặt
                     </div>
                     {s.meetLink && (
                       <a href={s.meetLink} target="_blank" rel="noopener noreferrer"
@@ -287,9 +305,16 @@ export default function Attendance() {
                   <div className="px-5 py-4 border-b border-gray-800/60 flex items-center justify-between gap-4 flex-wrap">
                     <div>
                       <h3 className="font-bold text-white">{session.sessionTitle}</h3>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        {formatDate(session.date)} · <strong className="text-green-400">{session.present.length}</strong>/{session.total} thành viên có mặt
-                        <span className="ml-2 text-gray-600">({attendRate(session)}%)</span>
+                      <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                        <span>{formatDate(session.date)}</span>
+                        {session.startTime && (
+                          <span className="flex items-center gap-1 text-blue-400">
+                            <Clock className="w-3 h-3"/>
+                            {session.startTime}{session.endTime ? `–${session.endTime}` : ''}
+                          </span>
+                        )}
+                        <span>· <strong className="text-green-400">{session.present.length}</strong>/{session.total} thành viên có mặt</span>
+                        <span className="text-gray-600">({attendRate(session)}%)</span>
                       </p>
                       {session.meetLink && (
                         <a href={session.meetLink} target="_blank" rel="noopener noreferrer"
@@ -414,9 +439,21 @@ export default function Attendance() {
                 <input type="date" className="input-dark w-full" value={editData.date} 
                   onChange={e => setEditData({...editData, date: e.target.value})} />
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] text-gray-500 font-bold block mb-1">GIỜ BẮT ĐẦU</label>
+                  <input type="time" className="input-dark w-full" value={editData.startTime || ''}
+                    onChange={e => setEditData({...editData, startTime: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-[10px] text-gray-500 font-bold block mb-1">GIỜ KẾT THÚC</label>
+                  <input type="time" className="input-dark w-full" value={editData.endTime || ''}
+                    onChange={e => setEditData({...editData, endTime: e.target.value})} />
+                </div>
+              </div>
               <div>
                 <label className="text-[10px] text-gray-500 font-bold block mb-1">LINK HỌP (tùy chọn)</label>
-                <input className="input-dark w-full" value={editData.meetLink} 
+                <input className="input-dark w-full" value={editData.meetLink}
                   onChange={e => setEditData({...editData, meetLink: e.target.value})} />
               </div>
             </div>
