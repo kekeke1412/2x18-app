@@ -787,6 +787,21 @@ export function AppProvider({ children }) {
   const addContribution     = useCallback(p => dispatch({type:A.ADD_CONTRIBUTION,  payload:p}), []);
   const updateSemesterLabel = useCallback((key,label) => dispatch({type:A.UPDATE_SEMESTER_LABEL,payload:{key,label}}), []);
 
+  const addReport = useCallback((r) => {
+    dispatch({ type: A.ADD_REPORT, payload: { ...r, id: uid(), createdAt: new Date().toISOString() } });
+    toast('Đã lưu tài liệu!', 'success');
+  }, [toast]);
+
+  const approveReport = useCallback((id) => {
+    dispatch({ type: A.APPROVE_REPORT, payload: id });
+    toast('Đã duyệt tài liệu!', 'success');
+  }, [toast]);
+
+  const deleteReport = useCallback((id) => {
+    dispatch({ type: A.DELETE_REPORT, payload: { id, ...trashMeta() } });
+    toast('Đã chuyển tài liệu vào thùng rác', 'info');
+  }, [trashMeta, toast]);
+
   const restoreFromTrash     = useCallback(id => { dispatch({type:A.RESTORE_FROM_TRASH,     payload:id}); toast('Đã khôi phục!','success'); }, [toast]);
   const permanentDeleteTrash = useCallback(id => { dispatch({type:A.PERMANENT_DELETE_TRASH, payload:id}); toast('Đã xóa vĩnh viễn.','info'); }, [toast]);
   const emptyTrash           = useCallback(()  => { dispatch({type:A.EMPTY_TRASH});                        toast('Đã dọn sạch thùng rác.','success'); }, [toast]);
