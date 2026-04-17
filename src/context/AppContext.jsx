@@ -361,8 +361,8 @@ export function AppProvider({ children }) {
 
   // ── Boot ──────────────────────────────────────────────────────────────────
   useEffect(() => {
-    let unsubDB = null;
-    let unsubReports = null;
+    let unsubListeners = [];
+    let gradeUnsubs = {};
 
     try {
       const stored = localStorage.getItem('2x18_current_user');
@@ -372,61 +372,85 @@ export function AppProvider({ children }) {
     } catch {}
 
     const subscribeDB = () => {
-      if (unsubDB) { unsubDB(); unsubDB = null; }
-      if (unsubReports) { unsubReports(); unsubReports = null; }
+      // Clear old listeners if re-subscribing
+      unsubListeners.forEach(u => u());
+      unsubListeners = [];
+      Object.values(gradeUnsubs).forEach(u => u());
+      gradeUnsubs = {};
+
       dispatch({ type:A.SET_LOADING, payload:true });
 
-      unsubDB = onValue(ref(db, '/'), (snapshot) => {
-        const val = snapshot.val() || {};
-        const members = toArr(val['2x18_members']);
-        const grades  = {};
-        members.forEach(m => { if (m?.id) grades[m.id] = val[`${m.id}_grades`] || {}; });
+      const loadedNodes = new Set();
+      const nodesToLoad = 15; // Total primary nodes to listen to
 
-        fromFirebaseRef.current = true;
+      const checkLoaded = (nodeKey) => {
+        loadedNodes.add(nodeKey);
+        if (loadedNodes.size >= nodesToLoad) {
+          dispatch({ type: A.SET_LOADING, payload: false });
+        }
+      };
 
-        dispatch({ type:A.INIT_DATA, payload: {
-          members,
-          grades,
-          smeMap:           val['2x18_sme']              || {},
-          tasks:            toArr(val['2x18_tasks']),
-          calEvents:        toArr(val['2x18_events']),
-          roadmap:          toArr(val['2x18_roadmap']).map(y => ({
-            ...y,
-            events: toArr(y.events),
-          })),
-          votes:            toArr(val['2x18_votes']).map(v => ({
-            ...v,
-            options: toArr(v.options).map(o => ({
-              ...o,
-              votes: toArr(o.votes),
-            })),
-          })),
-          notifications:    toArr(val['2x18_notifs']),
-          attendance:       toArr(val['2x18_attendance']).map(sess => ({
-            ...sess,
-            present: Array.isArray(sess.present) ? sess.present.filter(Boolean) : toArr(sess.present),
-            total: sess.total || 0,
-          })),
-          contributions:    val['2x18_contributions']     || {},
-          docs:             val['2x18_docs']              || {},
-          auditLogs:        toArr(val['2x18_audit']),
-          subjectTasks:     val['2x18_subject_tasks']     || {},
-          subjectComments:  val['2x18_subject_comments']  || {},
-          semesterLabels:   val['2x18_semester_labels']   || {},
-          trash:            toArr(val['2x18_trash']),
-          // reports: managed by dedicated listener below
-        }});
-      }, (err) => {
-        console.error('[Firebase DB] Access denied:', err.message);
-        dispatch({ type:A.SET_LOADING, payload:false });
+      const listen = (dbKey, stateKey, transform) => {
+        const u = onValue(ref(db, dbKey), (snap) => {
+          const finalVal = transform ? transform(snap.val()) : snap.val();
+          fromFirebaseRef.current = true;
+          // Reuse INIT_DATA as a MERGE_DATA action since it uses ...s, ...payload
+          dispatch({ type: A.INIT_DATA, payload: { [stateKey]: finalVal } });
+          checkLoaded(dbKey);
+        }, (err) => {
+          console.error(`[Firebase DB] Access denied for ${dbKey}:`, err.message);
+          checkLoaded(dbKey);
+        });
+        unsubListeners.push(u);
+      };
+
+      // 1. Members and dynamic Grades listeners
+      listen('2x18_members', 'members', (val) => {
+        const membersArr = toArr(val);
+        const currentIds = membersArr.filter(m => m && m.id).map(m => m.id);
+        
+        // Cleanup grade listeners for deleted members
+        Object.keys(gradeUnsubs).forEach(id => {
+          if (!currentIds.includes(id)) {
+            gradeUnsubs[id]();
+            delete gradeUnsubs[id];
+          }
+        });
+
+        // Add grade listeners for new members
+        currentIds.forEach(id => {
+          if (!gradeUnsubs[id]) {
+            gradeUnsubs[id] = onValue(ref(db, `${id}_grades`), (snap) => {
+               fromFirebaseRef.current = true;
+               dispatch({ type: A.SYNC_GRADES, payload: { userId: id, gradesData: snap.val() || {} } });
+            });
+          }
+        });
+        
+        return membersArr;
       });
 
-      // Dedicated listener for 2x18_reports — completely isolated from root snapshot.
-      // This is the ONLY source of truth for reports. SET_REPORTS reducer
-      // applies local-wins merge so optimistic updates survive Firebase reverts.
-      unsubReports = onValue(ref(db, '2x18_reports'), (snap) => {
+      // 2. All other nodes
+      listen('2x18_sme', 'smeMap', v => v || {});
+      listen('2x18_tasks', 'tasks', toArr);
+      listen('2x18_events', 'calEvents', toArr);
+      listen('2x18_roadmap', 'roadmap', v => toArr(v).map(y => ({ ...y, events: toArr(y.events) })));
+      listen('2x18_votes', 'votes', v => toArr(v).map(vt => ({ ...vt, options: toArr(vt.options).map(o => ({ ...o, votes: toArr(o.votes) })) })));
+      listen('2x18_notifs', 'notifications', toArr);
+      listen('2x18_attendance', 'attendance', v => toArr(v).map(sess => ({ ...sess, present: Array.isArray(sess.present) ? sess.present.filter(Boolean) : toArr(sess.present), total: sess.total || 0 })));
+      listen('2x18_contributions', 'contributions', v => v || {});
+      listen('2x18_docs', 'docs', v => v || {});
+      listen('2x18_audit', 'auditLogs', toArr);
+      listen('2x18_subject_tasks', 'subjectTasks', v => v || {});
+      listen('2x18_subject_comments', 'subjectComments', v => v || {});
+      listen('2x18_semester_labels', 'semesterLabels', v => v || {});
+      listen('2x18_trash', 'trash', toArr);
+
+      // 3. Isolated Reports Listener
+      const unsubReports = onValue(ref(db, '2x18_reports'), (snap) => {
         dispatch({ type: A.SET_REPORTS, payload: toArr(snap.val()) });
       });
+      unsubListeners.push(unsubReports);
     };
 
     const unsubAuth = onAuthStateChanged(auth, (fbUser) => {
@@ -434,8 +458,11 @@ export function AppProvider({ children }) {
         subscribeDB();
       } else {
         localStorage.removeItem('2x18_current_user');
-        if (unsubDB) { unsubDB(); unsubDB = null; }
-        if (unsubReports) { unsubReports(); unsubReports = null; }
+        unsubListeners.forEach(u => u());
+        unsubListeners = [];
+        Object.values(gradeUnsubs).forEach(u => u());
+        gradeUnsubs = {};
+        
         fromFirebaseRef.current = false;
         dispatch({ type:A.SET_USER, payload:null });
         dispatch({ type:A.INIT_DATA, payload: {
@@ -448,7 +475,11 @@ export function AppProvider({ children }) {
       }
     });
 
-    return () => { if (unsubDB) unsubDB(); if (unsubReports) unsubReports(); unsubAuth(); };
+    return () => { 
+      unsubListeners.forEach(u => u());
+      Object.values(gradeUnsubs).forEach(u => u());
+      unsubAuth(); 
+    };
   }, []);
 
 
