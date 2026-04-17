@@ -240,7 +240,7 @@ function AppLayout() {
           <div className="font-black text-blue-400 text-lg">2X18</div>
         </div>
 
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-y-auto custom-scrollbar fade-in-up">
           <Routes>
             <Route path="/dashboard"     element={<Dashboard   />}/>
             <Route path="/profile"       element={<Profile     />}/>

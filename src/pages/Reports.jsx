@@ -165,7 +165,7 @@ export default function Reports() {
             { id: 'research', label: 'Báo cáo nghiên cứu' }
           ].map(t => (
             <button key={t.id} onClick={() => setActiveTab(t.id)}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+              className={`px-4 py-2 rounded-lg text-sm font-semibold tab-transition ${
                 activeTab === t.id 
                   ? 'bg-blue-600 text-white shadow-md' 
                   : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
@@ -184,7 +184,7 @@ export default function Reports() {
       </div>
 
       {/* ── Content List ── */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-6 fade-in-up">
         <div className="max-w-6xl mx-auto space-y-8">
           
           {/* Pending Section */}
@@ -224,8 +224,8 @@ export default function Reports() {
 
       {/* ── Modal Add ── */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setShowModal(false)}>
-          <div className="w-full max-w-md bg-[#1a1a1a] border border-gray-800 rounded-2xl shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm backdrop-enter" onClick={() => setShowModal(false)}>
+          <div className="w-full max-w-md bg-[#1a1a1a] border border-gray-800 rounded-2xl shadow-2xl flex flex-col modal-enter" onClick={e => e.stopPropagation()}>
             
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
               <h3 className="font-bold text-white flex items-center gap-2">
@@ -307,11 +307,11 @@ export default function Reports() {
 
             <div className="p-5 border-t border-gray-800 bg-[#121212] rounded-b-2xl flex justify-end gap-3">
               <button onClick={() => setShowModal(false)}
-                className="px-5 h-10 rounded-xl text-sm font-bold text-gray-400 hover:text-white hover:bg-gray-800 transition-colors">
+                className="px-5 h-10 rounded-xl text-sm font-bold text-gray-400 hover:text-white hover:bg-gray-800 transition-colors btn-active">
                 Hủy
               </button>
               <button onClick={handleAdd} disabled={isUploading}
-                className="px-6 h-10 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-900/20 transition-all flex items-center gap-2">
+                className="px-6 h-10 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-900/20 transition-all flex items-center gap-2 btn-active">
                 {isUploading ? <><Clock className="w-4 h-4 animate-spin"/> Đang tải lên...</> : 'Đăng tài liệu'}
               </button>
             </div>

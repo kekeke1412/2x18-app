@@ -78,6 +78,56 @@
 }
 .event-pill:hover { opacity: 0.85; }
 
+/* ── Animations ── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in-up { animation: fadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.slide-in-right { animation: slideInRight 0.3s ease-out forwards; }
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.scale-in { animation: scaleIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+
+/* ── Interactive Effects ── */
+.btn-active:active { transform: scale(0.96); transition: transform 0.1s; }
+.tap-highlight:active { background-color: rgba(255,255,255,0.05); }
+
+.tab-transition { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+
+/* ── Card hover ── */
+.card-hover { transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+.card-hover:hover { 
+  border-color: rgba(59,130,246,0.5); 
+  transform: translateY(-4px); 
+  box-shadow: 0 12px 30px -10px rgba(0,0,0,0.5), 0 0 20px -5px rgba(59,130,246,0.15); 
+}
+
 /* ── Sidebar transition ── */
-.sidebar-item { transition: all 0.15s ease; border-left: 3px solid transparent; }
-.sidebar-item.active { border-left-color: #3b82f6; }
+.sidebar-item { 
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); 
+  position: relative;
+  overflow: hidden;
+}
+.sidebar-item::after {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0; width: 0;
+  background: #3b82f6;
+  transition: width 0.2s ease;
+  z-index: 0;
+}
+.sidebar-item.active::after { width: 3px; }
+.sidebar-item:active { transform: scale(0.98); }
+
+/* ── Modal transition ── */
+.modal-enter { animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+.backdrop-enter { animation: fadeIn 0.2s ease-out forwards; }

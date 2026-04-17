@@ -605,7 +605,7 @@ export default function Dashboard() {
             <button
               key={t.id}
               onClick={() => setActiveTab(t.id)}
-              className={`flex items-center gap-2 pb-2 text-sm font-bold transition-all border-b-2 ${
+              className={`flex items-center gap-2 pb-2 text-sm font-bold tab-transition border-b-2 ${
                 activeTab === t.id ? 'border-blue-500 text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-300'
               }`}
             >
@@ -619,7 +619,7 @@ export default function Dashboard() {
       <div className="p-6">
         {/* ── TAB 1: OVERVIEW ── */}
         {activeTab === 'overview' && (
-          <div className="space-y-6 fade-in">
+          <div className="space-y-6 fade-in-up">
             {/* Quick Stats Row */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard icon={TrendingUp} label="CPA Hiện tại" value={myStats.cpa} valueClass={cpaColor(myStats.cpa)} sub="Hệ 4.0" color="green"/>
@@ -727,7 +727,7 @@ export default function Dashboard() {
 
         {/* ── TAB 2: ANALYTICS ── */}
         {activeTab === 'analytics' && (
-          <div className="space-y-6 fade-in">
+          <div className="space-y-6 fade-in-up">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <GroupGPACard myGrades={myGrades} allGrades={allGrades} members={members}/>
               <LearningProgressCard myGrades={myGrades} allGrades={allGrades} members={members}/>
@@ -741,7 +741,7 @@ export default function Dashboard() {
 
         {/* ── TAB 3: ACTIVITY ── */}
         {activeTab === 'activity' && (
-          <div className="fade-in max-w-4xl mx-auto">
+          <div className="fade-in-up max-w-4xl mx-auto">
             <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl overflow-hidden shadow-sm">
               <div className="px-5 py-4 border-b border-gray-800/60 flex items-center justify-between">
                 <div className="flex items-center gap-2">

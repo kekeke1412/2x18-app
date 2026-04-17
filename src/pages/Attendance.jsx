@@ -78,6 +78,16 @@ export default function Attendance() {
     );
   };
 
+  const handleJoinMeeting = (link) => {
+    if (!link) return;
+    // Tự động điểm danh nếu là hôm nay và chưa điểm danh
+    if (canCheckIn && !myRecord) {
+      checkAttendance({ sessionId: selected, userId: currentUser?.id, checked: true });
+      toast('Đã điểm danh tự động khi bạn tham gia họp! +10 điểm 🎉', 'success');
+    }
+    window.open(link, '_blank', 'noopener,noreferrer');
+  };
+
   const addSession = async () => {
     if (!newTitle.trim() || !newDate) return;
     
@@ -319,11 +329,12 @@ export default function Attendance() {
                       <span className="mx-1 text-gray-700">·</span>{s.present.length}/{s.total} có mặt
                     </div>
                     {s.meetLink && (
-                      <a href={s.meetLink} target="_blank" rel="noopener noreferrer"
-                        onClick={e => e.stopPropagation()}
-                        className="mt-1.5 flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300 hover:underline">
+                      <button 
+                        onClick={e => { e.stopPropagation(); handleJoinMeeting(s.meetLink); }}
+                        className="mt-1.5 flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300 hover:underline bg-transparent border-none p-0 cursor-pointer"
+                      >
                         <ExternalLink className="w-2.5 h-2.5"/> {linkInfo?.icon} {linkInfo?.label}
-                      </a>
+                      </button>
                     )}
                     <div className="mt-2 h-1.5 bg-gray-800 rounded-full overflow-hidden">
                       <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${attendRate(s)}%` }}/>
@@ -358,21 +369,41 @@ export default function Attendance() {
                         <span className="text-gray-600">({attendRate(session)}%)</span>
                       </p>
                       {session.meetLink && (
-                        <a href={session.meetLink} target="_blank" rel="noopener noreferrer"
-                          className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 bg-blue-500/10 border border-blue-500/20 px-3 py-1 rounded-lg transition-all">
+                        <button 
+                          onClick={() => handleJoinMeeting(session.meetLink)}
+                          className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-blue-400 hover:text-white bg-blue-500/10 hover:bg-blue-600 border border-blue-500/20 px-3 py-1.5 rounded-lg transition-all btn-active"
+                        >
                           <ExternalLink className="w-3 h-3"/>
-                          {detectLinkType(session.meetLink)?.icon} Tham gia cuộc họp
-                        </a>
+                          {detectLinkType(session.meetLink)?.icon} Tham gia cuộc họp để điểm danh
+                        </button>
                       )}
                     </div>
                     {canCheckIn ? (
-                      <button onClick={handleCheck}
-                        className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                          myRecord ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-blue-600 hover:bg-blue-500 text-white'
-                        }`}>
-                        <CheckCheck className="w-3.5 h-3.5"/>
-                        {myRecord ? '✓ Đã điểm danh' : 'Điểm danh ngay'}
-                      </button>
+                      <div className="flex flex-col items-end gap-2">
+                        {(!session.meetLink || isCore || isSuperAdmin) ? (
+                          <button onClick={handleCheck}
+                            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all btn-active ${
+                              myRecord ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-blue-600 hover:bg-blue-500 text-white'
+                            }`}>
+                            <CheckCheck className="w-3.5 h-3.5"/>
+                            {myRecord ? '✓ Đã điểm danh' : 'Điểm danh thủ công'}
+                          </button>
+                        ) : (
+                          !myRecord && (
+                            <div className="text-[10px] text-amber-500 font-bold bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/20">
+                              👆 Hãy nhấn link tham gia họp để điểm danh
+                            </div>
+                          )
+                        )}
+                        {myRecord && (isCore || isSuperAdmin) && !session.meetLink && (
+                           <span className="text-[10px] text-gray-500">Core/Admin có thể điều chỉnh</span>
+                        )}
+                        {myRecord && session.meetLink && (
+                           <div className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-green-600 text-white">
+                             <CheckCheck className="w-3.5 h-3.5"/> Đã điểm danh ✓
+                           </div>
+                        )}
+                      </div>
                     ) : (
                       <div className="text-right">
                         {myRecord ? (
@@ -381,7 +412,7 @@ export default function Attendance() {
                           </div>
                         ) : (
                           <div className="text-[11px] text-gray-600 max-w-[160px] text-right leading-relaxed">
-                            Chỉ điểm danh được vào ngày <strong className="text-gray-400">{formatDate(session.date)}</strong>
+                            {new Date(session.date) < new Date() ? 'Buổi họp đã kết thúc' : `Chỉ điểm danh được vào ngày ${formatDate(session.date)}`}
                           </div>
                         )}
                       </div>
