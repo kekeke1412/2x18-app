@@ -1,7 +1,7 @@
 // src/context/AppContext.jsx
 import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef } from 'react';
 import { auth, db, ref, set, onValue } from '../firebase';
-import { get } from 'firebase/database';
+import { get, update } from 'firebase/database';
 import {
   signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword,
   GoogleAuthProvider, signInWithPopup, onAuthStateChanged,
