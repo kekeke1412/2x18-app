@@ -3,8 +3,9 @@
 // Auto-syncs: tasks deadlines, attendance sessions, votes with deadlines
 // Real-time current-time indicator (Google Calendar style) in Week + Day views
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Plus, X, Clock, MapPin, Users, AlignLeft, ExternalLink } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, Clock, MapPin, Users, AlignLeft, ExternalLink, CalendarCheck } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { createCalendarEvent } from '../services/googleApi';
 
 const MONTHS_VI = ['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6',
                    'Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
@@ -33,7 +34,8 @@ const WEEK_ROW_H = 48;
 const DAY_ROW_H  = 52;
 
 export default function CalendarPage() {
-  const { calEvents, addEvent, editEvent, deleteEvent, myTasks, attendance, votes } = useApp();
+  const { calEvents, addEvent, editEvent, deleteEvent, myTasks, attendance, votes, requireGoogleAuth, toast } = useApp();
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const [curYear,  setCurYear]  = useState(todayObj.getFullYear());
   const [curMonth, setCurMonth] = useState(todayObj.getMonth());
@@ -162,11 +164,35 @@ export default function CalendarPage() {
     if (ev.readonly) return;
     setForm({...ev}); setModal({ mode:'edit', event:ev }); setPopup(null);
   };
-  const saveForm = () => {
+  const saveForm = async (syncToGoogle = false) => {
     if (!form.title?.trim() || !form.date) return;
     const ev = { ...form, title: form.title.trim() };
     if (modal.mode==='new') addEvent({ ...ev, id: ++nextId.current });
     else editEvent(ev);
+
+    if (syncToGoogle) {
+      setIsSyncing(true);
+      try {
+        const token = await requireGoogleAuth();
+        if (token) {
+          const res = await createCalendarEvent(token, {
+            title: ev.title,
+            description: ev.desc || '',
+            date: ev.date,
+            startTime: ev.startTime || '08:00',
+            endTime: ev.endTime || '',
+            createMeetLink: false,
+          });
+          toast(`Đã đồng bộ lên Google Calendar! ✅`, 'success');
+          // Nếu có link mở sự kiện, mở tab mới
+          if (res.htmlLink) window.open(res.htmlLink, '_blank');
+        }
+      } catch (err) {
+        toast(err.message || 'Lỗi đồng bộ Calendar', 'error');
+      }
+      setIsSyncing(false);
+    }
+
     setModal(null);
   };
   const delEv = id => { deleteEvent(id); setPopup(null); setModal(null); };
@@ -505,14 +531,20 @@ export default function CalendarPage() {
                   {ev.desc   && <div className="flex items-start gap-2"><AlignLeft className="w-3.5 h-3.5 shrink-0 mt-0.5"/><span className="line-clamp-3">{ev.desc}</span></div>}
                 </div>
                 {!ev.readonly && (
-                  <div className="flex gap-2">
-                    <button onClick={()=>openEdit(ev)} className="flex-1 py-1.5 text-xs font-bold border border-gray-700 rounded-xl hover:bg-[#252525] transition-all">Sửa</button>
-                    <button onClick={()=>delEv(ev.id)} className="flex-1 py-1.5 text-xs font-bold text-red-400 border border-red-500/20 rounded-xl hover:bg-red-500/10 transition-all">Xóa</button>
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <button onClick={()=>openEdit(ev)} className="flex-1 py-1.5 text-xs font-bold border border-gray-700 rounded-xl hover:bg-[#252525] transition-all">Sửa</button>
+                      <button onClick={()=>delEv(ev.id)} className="flex-1 py-1.5 text-xs font-bold text-red-400 border border-red-500/20 rounded-xl hover:bg-red-500/10 transition-all">Xóa</button>
+                    </div>
+                    <SyncGCalButton ev={ev} requireGoogleAuth={requireGoogleAuth} toast={toast}/>
                   </div>
                 )}
                 {ev.readonly && (
-                  <div className="text-[10px] text-center text-gray-600 border border-gray-800 rounded-xl py-1.5">
-                    Sự kiện được tạo tự động · Sửa trong module gốc
+                  <div className="space-y-2">
+                    <div className="text-[10px] text-center text-gray-600 border border-gray-800 rounded-xl py-1.5">
+                      Sự kiện được tạo tự động · Sửa trong module gốc
+                    </div>
+                    <SyncGCalButton ev={ev} requireGoogleAuth={requireGoogleAuth} toast={toast}/>
                   </div>
                 )}
               </>
@@ -574,18 +606,71 @@ export default function CalendarPage() {
                 <textarea rows={2} className="input-dark resize-none" value={form.desc||''} onChange={e=>setForm(f=>({...f,desc:e.target.value}))} placeholder="Mô tả thêm..."/>
               </div>
             </div>
-            <div className="flex gap-3 px-5 py-4 border-t border-gray-800">
+            <div className="flex gap-3 px-5 py-4 border-t border-gray-800 flex-wrap">
               {modal.mode==='edit' && (
                 <button onClick={()=>delEv(form.id)} className="px-4 py-2 text-red-400 border border-red-500/20 rounded-xl text-sm hover:bg-red-500/10">Xóa</button>
               )}
               <button onClick={()=>setModal(null)} className="flex-1 py-2 border border-gray-700 rounded-xl text-sm text-gray-400 hover:bg-[#252525]">Hủy</button>
-              <button onClick={saveForm} className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm rounded-xl">
-                {modal.mode==='new'?'Thêm':'Lưu'}
+              <button onClick={()=>saveForm(false)} disabled={isSyncing}
+                className="flex-1 py-2 bg-[#252525] hover:bg-[#303030] border border-gray-700 text-white font-bold text-sm rounded-xl transition-all">
+                {modal.mode==='new'?'Lưu':'Lưu'}
+              </button>
+              <button onClick={()=>saveForm(true)} disabled={isSyncing}
+                className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-1.5">
+                {isSyncing
+                  ? <><Clock className="w-3.5 h-3.5 animate-spin"/> Đang...</>
+                  : <><CalendarCheck className="w-3.5 h-3.5"/> + GG Cal</>
+                }
               </button>
             </div>
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+// ── Sync to Google Calendar Button ──────────────────────────────────────────
+function SyncGCalButton({ ev, requireGoogleAuth, toast }) {
+  const [syncing, setSyncing] = useState(false);
+  const [synced,  setSynced]  = useState(false);
+
+  const handleSync = async (e) => {
+    e.stopPropagation();
+    setSyncing(true);
+    try {
+      const token = await requireGoogleAuth();
+      if (!token) { setSyncing(false); return; }
+      const res = await createCalendarEvent(token, {
+        title: ev.title,
+        description: ev.desc || ev.location || '',
+        date: ev.date,
+        startTime: ev.startTime || '08:00',
+        endTime:   ev.endTime   || '',
+        createMeetLink: false,
+      });
+      toast('Đã đẩy lên Google Calendar! ✅', 'success');
+      setSynced(true);
+      if (res.htmlLink) window.open(res.htmlLink, '_blank');
+    } catch (err) {
+      toast(err.message || 'Lỗi đồng bộ', 'error');
+    }
+    setSyncing(false);
+  };
+
+  return (
+    <button onClick={handleSync} disabled={syncing || synced}
+      className={`w-full py-1.5 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all ${
+        synced
+          ? 'text-green-400 border border-green-500/30 bg-green-500/10 cursor-default'
+          : 'text-blue-400 border border-blue-500/20 hover:bg-blue-500/10'
+      }`}>
+      {syncing
+        ? <><Clock className="w-3.5 h-3.5 animate-spin"/> Đang đồng bộ...</>
+        : synced
+          ? <><CalendarCheck className="w-3.5 h-3.5"/> Đã lên Google Calendar</>
+          : <><CalendarCheck className="w-3.5 h-3.5"/> Đẩy lên Google Calendar</>
+      }
+    </button>
   );
 }

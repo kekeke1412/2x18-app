@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { subjectDatabase } from '../data';
 import { useApp } from '../context/AppContext';
+import { uploadToDrive } from '../services/googleApi';
 
 // Safe array coerce – Firebase may return object with numeric keys
 const toArr = v => {
@@ -304,6 +305,7 @@ export default function Tasks() {
               <button onClick={()=>setUploadSub(null)}><X className="w-5 h-5 text-gray-500 hover:text-white"/></button>
             </div>
             <AddDocForm
+              subjectCode={uploadSub.code}
               onSubmit={f=>{ ctxAddDoc(uploadSub.id,f); setUploadSub(null); }}
               onClose={()=>setUploadSub(null)}
             />
@@ -315,9 +317,30 @@ export default function Tasks() {
 }
 
 // ── Add Doc Form ───────────────────────────────────────────────────────────
-function AddDocForm({ onSubmit, onClose }) {
+function AddDocForm({ onSubmit, onClose, subjectCode = 'Tasks' }) {
+  const { requireGoogleAuth, toast } = useApp();
   const [form, setForm] = useState({ name:'', url:'', type:'Slide bài giảng', private:false });
-  const valid = form.name.trim() && form.url.trim();
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const valid = form.name.trim() && (form.url.trim() || selectedFile);
+
+  const handleAdd = async () => {
+    let finalUrl = form.url.trim();
+    if (selectedFile) {
+      setIsUploading(true);
+      try {
+        const token = await requireGoogleAuth();
+        if (!token) return setIsUploading(false);
+        finalUrl = await uploadToDrive(token, selectedFile, `2X18_${subjectCode}`);
+      } catch (err) {
+        setIsUploading(false);
+        return toast(err.message || 'Lỗi upload Drive', 'error');
+      }
+      setIsUploading(false);
+    }
+    onSubmit({ ...form, url: finalUrl });
+  };
+
   return (
     <div>
       <div className="px-5 py-4 space-y-3">
@@ -328,11 +351,24 @@ function AddDocForm({ onSubmit, onClose }) {
         </div>
         <div>
           <label className="text-xs text-gray-500 font-medium flex items-center gap-1 mb-1">
-            <Link className="w-3 h-3"/> Link Google Drive *
+            Tài liệu đính kèm *
           </label>
-          <input className="input-dark" placeholder="https://drive.google.com/..."
-            value={form.url} onChange={e=>setForm(f=>({...f,url:e.target.value}))}/>
-          <span className="text-[10px] text-gray-600">Paste link chia sẻ từ Google Drive / OneDrive</span>
+          <div className="relative">
+            <input type="file" onChange={e => { setSelectedFile(e.target.files[0]); setForm(f=>({...f,url:''})) }}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" disabled={isUploading}/>
+            <div className={`w-full h-11 px-4 flex items-center border rounded-xl text-sm transition-all ${selectedFile ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' : 'bg-[#121212] border-gray-700 text-gray-500'}`}>
+              <span className="truncate">{selectedFile ? selectedFile.name : 'Chọn file từ máy tính...'}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 my-2">
+            <div className="h-px bg-gray-800 flex-1"></div>
+            <span className="text-[10px] text-gray-500 font-bold uppercase">Hoặc dán link Drive</span>
+            <div className="h-px bg-gray-800 flex-1"></div>
+          </div>
+
+          <input className="input-dark" placeholder="https://drive.google.com/..." disabled={isUploading}
+            value={form.url} onChange={e=>{setForm(f=>({...f,url:e.target.value})); setSelectedFile(null);}}/>
         </div>
         <div>
           <label className="text-xs text-gray-500 font-medium block mb-1">Loại</label>

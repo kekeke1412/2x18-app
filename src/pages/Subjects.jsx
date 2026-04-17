@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { subjectDatabase } from '../data';
 import { useApp } from '../context/AppContext';
+import { uploadToDrive } from '../services/googleApi';
 
 const progressColor = p => p>=80?'#22c55e':p>=50?'#3b82f6':p>=25?'#f59e0b':'#ef4444';
 
@@ -103,9 +104,32 @@ function MemberProgressModal({ member, subjectId, subjectName, onClose }) {
 
 // ── Add Doc Modal ──────────────────────────────────────────────────────────
 function AddDocModal({ subject, onClose, onAdd }) {
+  const { requireGoogleAuth, toast } = useApp();
   const [form, setForm] = useState({ name:'', url:'', type:'Slide bài giảng', private:false });
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+
   const setF  = (k,v) => setForm(f=>({...f,[k]:v}));
-  const valid = form.name.trim() && form.url.trim();
+  const valid = form.name.trim() && (form.url.trim() || selectedFile);
+
+  const handleAdd = async () => {
+    let finalUrl = form.url.trim();
+    if (selectedFile) {
+      setIsUploading(true);
+      try {
+        const token = await requireGoogleAuth();
+        if (!token) return setIsUploading(false);
+        finalUrl = await uploadToDrive(token, selectedFile, `2X18_${subject.code}`);
+      } catch (err) {
+        setIsUploading(false);
+        return toast(err.message || 'Lỗi upload Drive', 'error');
+      }
+      setIsUploading(false);
+    }
+    onAdd(subject.id, { ...form, url: finalUrl });
+    onClose();
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-[#1e1e1e] border border-gray-700 rounded-2xl w-full max-w-sm shadow-2xl" onClick={e=>e.stopPropagation()}>
@@ -121,11 +145,24 @@ function AddDocModal({ subject, onClose, onAdd }) {
           </div>
           <div>
             <label className="text-xs text-gray-500 font-medium flex items-center gap-1 mb-1">
-              <Link className="w-3 h-3"/> Link Google Drive *
+              Tài liệu đính kèm *
             </label>
-            <input className="input-dark" placeholder="https://drive.google.com/..."
-              value={form.url} onChange={e=>setF('url',e.target.value)}/>
-            <span className="text-[10px] text-gray-600">Paste link chia sẻ từ Google Drive / OneDrive</span>
+            <div className="relative">
+              <input type="file" onChange={e => { setSelectedFile(e.target.files[0]); setF('url', '') }}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" disabled={isUploading}/>
+              <div className={`w-full h-11 px-4 flex items-center border rounded-xl text-sm transition-all ${selectedFile ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' : 'bg-[#121212] border-gray-700 text-gray-500'}`}>
+                <span className="truncate">{selectedFile ? selectedFile.name : 'Chọn file từ máy tính...'}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 my-2">
+              <div className="h-px bg-gray-800 flex-1"></div>
+              <span className="text-[10px] text-gray-500 font-bold uppercase">Hoặc dán link Drive</span>
+              <div className="h-px bg-gray-800 flex-1"></div>
+            </div>
+
+            <input className="input-dark" placeholder="https://drive.google.com/..." disabled={isUploading}
+              value={form.url} onChange={e=>{setF('url',e.target.value); setSelectedFile(null);}}/>
           </div>
           <div>
             <label className="text-xs text-gray-500 font-medium block mb-1">Loại</label>
@@ -140,10 +177,10 @@ function AddDocModal({ subject, onClose, onAdd }) {
           </label>
         </div>
         <div className="flex gap-3 px-5 py-4 border-t border-gray-800">
-          <button onClick={onClose} className="flex-1 py-2 border border-gray-700 rounded-xl text-sm text-gray-400 hover:bg-[#252525]">Hủy</button>
-          <button disabled={!valid} onClick={()=>{onAdd(subject.id,form);onClose();}}
-            className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-bold text-sm rounded-xl">
-            Thêm tài liệu
+          <button onClick={onClose} disabled={isUploading} className="flex-1 py-2 border border-gray-700 rounded-xl text-sm text-gray-400 hover:bg-[#252525]">Hủy</button>
+          <button disabled={!valid || isUploading} onClick={handleAdd}
+            className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2">
+            {isUploading ? <><Clock className="w-4 h-4 animate-spin"/> Đang tải...</> : 'Thêm tài liệu'}
           </button>
         </div>
       </div>

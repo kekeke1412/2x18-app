@@ -48,6 +48,7 @@ const A = {
   PERMANENT_DELETE_TRASH:'PERMANENT_DELETE_TRASH',
   EMPTY_TRASH:'EMPTY_TRASH',
   ADD_REPORT:'ADD_REPORT', APPROVE_REPORT:'APPROVE_REPORT', DELETE_REPORT:'DELETE_REPORT',
+  SET_GOOGLE_TOKEN:'SET_GOOGLE_TOKEN',
 };
 
 const init = {
@@ -56,7 +57,7 @@ const init = {
   calEvents:[], roadmap:[], votes:[], notifications:[],
   attendance:[], docs:{}, contributions:{},
   auditLogs:[], toasts:[], unreadCount:0, semesterLabels:{},
-  trash:[], reports:[],
+  trash:[], reports:[], googleToken:null,
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -74,6 +75,7 @@ function reducer(s, { type, payload }) {
   switch (type) {
     case A.SET_USER:    return { ...s, currentUser: payload };
     case A.SET_LOADING: return { ...s, isLoading: payload };
+    case A.SET_GOOGLE_TOKEN: return { ...s, googleToken: payload };
     case A.INIT_DATA:   return {
       ...s, ...payload,
       unreadCount: (payload.notifications||[]).filter(n=>!n.read).length,
@@ -341,6 +343,8 @@ export function AppProvider({ children }) {
     try {
       const stored = localStorage.getItem('2x18_current_user');
       if (stored) dispatch({ type:A.SET_USER, payload:JSON.parse(stored) });
+      const storedToken = localStorage.getItem('2x18_google_token');
+      if (storedToken) dispatch({ type:A.SET_GOOGLE_TOKEN, payload:storedToken });
     } catch {}
 
     const subscribeDB = () => {
@@ -550,6 +554,8 @@ export function AppProvider({ children }) {
 
   const loginWithGoogle = useCallback(async () => {
     const provider = new GoogleAuthProvider();
+    provider.addScope('https://www.googleapis.com/auth/calendar.events');
+    provider.addScope('https://www.googleapis.com/auth/drive.file');
     provider.setCustomParameters({ prompt: 'select_account' });
     const cred = await signInWithPopup(auth, provider);
     const fbUser = cred.user;
@@ -594,6 +600,13 @@ export function AppProvider({ children }) {
     const user = { ...member, uid: fbUser.uid };
     dispatch({ type: A.SET_USER, payload: user });
     localStorage.setItem('2x18_current_user', JSON.stringify(user));
+    
+    const credential = GoogleAuthProvider.credentialFromResult(cred);
+    if (credential?.accessToken) {
+      dispatch({ type: A.SET_GOOGLE_TOKEN, payload: credential.accessToken });
+      localStorage.setItem('2x18_google_token', credential.accessToken);
+    }
+    
     return { status: 'ok' };
   }, []);
 
@@ -622,7 +635,29 @@ export function AppProvider({ children }) {
   const logout = useCallback(async () => {
     await signOut(auth);
     localStorage.removeItem('2x18_current_user');
+    localStorage.removeItem('2x18_google_token');
+    dispatch({ type: A.SET_GOOGLE_TOKEN, payload: null });
   }, []);
+
+  const requireGoogleAuth = useCallback(async () => {
+    if (state.googleToken) return state.googleToken;
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.addScope('https://www.googleapis.com/auth/calendar.events');
+      provider.addScope('https://www.googleapis.com/auth/drive.file');
+      const cred = await signInWithPopup(auth, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(cred);
+      if (credential?.accessToken) {
+        dispatch({ type: A.SET_GOOGLE_TOKEN, payload: credential.accessToken });
+        localStorage.setItem('2x18_google_token', credential.accessToken);
+        return credential.accessToken;
+      }
+    } catch (e) {
+      console.error('[requireGoogleAuth]', e);
+      toast('Vui lòng cấp quyền Google để dùng tính năng này!', 'error');
+    }
+    return null;
+  }, [state.googleToken, toast]);
 
   // ── PROFILE & FEATURES ────────────────────────────────────────────────────
   const updateProfile = useCallback((profileData) => {
@@ -860,6 +895,7 @@ export function AppProvider({ children }) {
     restoreFromTrash, permanentDeleteTrash, emptyTrash,
     addReport, approveReport, deleteReport,
     getMemberById, getSmeMember, isProfileComplete, exportMembersCSV,
+    requireGoogleAuth,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

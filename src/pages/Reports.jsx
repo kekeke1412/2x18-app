@@ -4,11 +4,12 @@ import {
   FileText, ExternalLink, Plus, X, Trash2, CheckCircle, 
   Clock, ShieldCheck, AlertCircle, BookOpen, Search
 } from 'lucide-react';
+import { uploadToDrive } from '../services/googleApi';
 
 export default function Reports() {
   const { 
     reports = [], currentUser, isCore, isSuperAdmin, 
-    addReport, approveReport, deleteReport, getMemberById 
+    addReport, approveReport, deleteReport, getMemberById, requireGoogleAuth
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('event');
@@ -16,6 +17,8 @@ export default function Reports() {
   const [search, setSearch] = useState('');
   
   const [form, setForm] = useState({ title: '', link: '', type: 'event' });
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
   const [err, setErr] = useState('');
 
   // ── Lọc dữ liệu ───────────────────────────────────────────────────────────
@@ -43,14 +46,32 @@ export default function Reports() {
   }, [reports, activeTab, search, isCore, isSuperAdmin, currentUser?.id]);
 
   // ── Xử lý thêm ────────────────────────────────────────────────────────────
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!form.title.trim()) return setErr('Vui lòng nhập tên tài liệu');
-    if (!form.link.trim() || !form.link.startsWith('http')) return setErr('Link không hợp lệ (cần bắt đầu bằng http)');
+    if (!selectedFile && (!form.link.trim() || !form.link.startsWith('http'))) return setErr('Vui lòng chọn file hoặc nhập link hợp lệ');
     
     setErr('');
+    let finalLink = form.link.trim();
+
+    if (selectedFile) {
+      setIsUploading(true);
+      try {
+        const token = await requireGoogleAuth();
+        if (!token) {
+          setIsUploading(false);
+          return; // Hủy bỏ nếu không có quyền
+        }
+        finalLink = await uploadToDrive(token, selectedFile);
+      } catch (error) {
+        setIsUploading(false);
+        return setErr(error.message || 'Lỗi khi tải file lên Google Drive');
+      }
+      setIsUploading(false);
+    }
+
     addReport({
       title: form.title.trim(),
-      link: form.link.trim(),
+      link: finalLink,
       type: form.type,
       status: (isCore || isSuperAdmin) ? 'approved' : 'pending',
       authorId: currentUser?.id,
@@ -58,6 +79,7 @@ export default function Reports() {
     
     setShowModal(false);
     setForm({ title: '', link: '', type: activeTab });
+    setSelectedFile(null);
   };
 
   // ── Render 1 Card ─────────────────────────────────────────────────────────
@@ -127,7 +149,7 @@ export default function Reports() {
             </h1>
             <p className="text-sm text-gray-400 mt-1">Lưu trữ tài liệu báo cáo nghiên cứu và tổng kết các sự kiện</p>
           </div>
-          <button onClick={() => { setForm({ ...form, type: activeTab }); setShowModal(true); }}
+          <button onClick={() => { setForm({ ...form, type: activeTab }); setSelectedFile(null); setShowModal(true); }}
             className="h-10 px-4 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl flex items-center gap-2 transition-colors shrink-0">
             <Plus className="w-4 h-4" /> Thêm tài liệu
           </button>
@@ -230,9 +252,28 @@ export default function Reports() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Liên kết (Google Drive, Docs, v.v.) <span className="text-red-500">*</span></label>
-                <input type="url" value={form.link} onChange={e => setForm({...form, link: e.target.value})} placeholder="https://docs.google.com/..."
-                  className="w-full h-11 px-4 bg-[#121212] border border-gray-700 rounded-xl text-sm text-white placeholder:text-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Tài liệu đính kèm <span className="text-red-500">*</span></label>
+                
+                {/* Custom File Input */}
+                <div className="relative">
+                  <input type="file" onChange={e => { setSelectedFile(e.target.files[0]); setForm({...form, link: ''}) }}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    disabled={isUploading}
+                  />
+                  <div className={`w-full h-11 px-4 flex items-center border rounded-xl text-sm transition-all ${selectedFile ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' : 'bg-[#121212] border-gray-700 text-gray-500'}`}>
+                    <span className="truncate">{selectedFile ? selectedFile.name : 'Nhấn để chọn file từ máy tính...'}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 my-2">
+                  <div className="h-px bg-gray-800 flex-1"></div>
+                  <span className="text-[10px] text-gray-500 font-bold uppercase">Hoặc dán link</span>
+                  <div className="h-px bg-gray-800 flex-1"></div>
+                </div>
+
+                <input type="url" value={form.link} onChange={e => { setForm({...form, link: e.target.value}); setSelectedFile(null) }} 
+                  placeholder="https://docs.google.com/..." disabled={isUploading}
+                  className={`w-full h-11 px-4 bg-[#121212] border rounded-xl text-sm transition-all outline-none ${form.link ? 'border-blue-500 focus:ring-1 focus:ring-blue-500 text-white' : 'border-gray-700 text-white placeholder:text-gray-600'}`}
                 />
               </div>
 
@@ -268,9 +309,9 @@ export default function Reports() {
                 className="px-5 h-10 rounded-xl text-sm font-bold text-gray-400 hover:text-white hover:bg-gray-800 transition-colors">
                 Hủy
               </button>
-              <button onClick={handleAdd}
-                className="px-6 h-10 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-900/20 transition-all">
-                Đăng tài liệu
+              <button onClick={handleAdd} disabled={isUploading}
+                className="px-6 h-10 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-900/20 transition-all flex items-center gap-2">
+                {isUploading ? <><Clock className="w-4 h-4 animate-spin"/> Đang tải lên...</> : 'Đăng tài liệu'}
               </button>
             </div>
 

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, CheckCheck, Plus, X, Calendar, Clock, Link2, Trash2, ExternalLink, Pencil } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { createCalendarEvent } from '../services/googleApi';
 
 const isToday = (dateStr) => {
   if (!dateStr) return false;
@@ -33,6 +34,7 @@ export default function Attendance() {
     isCore,
     members,
     toast,
+    requireGoogleAuth
   } = useApp();
 
   const [selected,  setSelected]  = useState(null);
@@ -40,6 +42,9 @@ export default function Attendance() {
   const [newTitle,  setNewTitle]  = useState('');
   const [newDate,   setNewDate]   = useState('');
   const [newLink,   setNewLink]   = useState('');
+  
+  const [createMeet, setCreateMeet] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   const [confirmDel, setConfirmDel] = useState(null);
   const [editData, setEditData] = useState(null);
 
@@ -60,10 +65,37 @@ export default function Attendance() {
     );
   };
 
-  const addSession = () => {
+  const addSession = async () => {
     if (!newTitle.trim() || !newDate) return;
-    addAttendanceSession({ sessionTitle: newTitle.trim(), date: newDate, meetLink: newLink.trim() });
-    setNewTitle(''); setNewDate(''); setNewLink(''); setShowAdd(false);
+    
+    let finalLink = newLink.trim();
+    if (createMeet) {
+      setIsCreating(true);
+      try {
+        const token = await requireGoogleAuth();
+        if (!token) {
+          setIsCreating(false);
+          return;
+        }
+        const eventRes = await createCalendarEvent(token, {
+          title: newTitle.trim(),
+          description: 'Họp nhóm / Điểm danh 2X18',
+          date: newDate,
+          startTime: '20:00', // Giờ mặc định
+          createMeetLink: true
+        });
+        if (eventRes.meetLink) {
+          finalLink = eventRes.meetLink;
+          toast('Đã tạo link Google Meet thành công!', 'success');
+        }
+      } catch (err) {
+        toast(err.message || 'Lỗi khi tạo Google Meet', 'error');
+      }
+      setIsCreating(false);
+    }
+
+    addAttendanceSession({ sessionTitle: newTitle.trim(), date: newDate, meetLink: finalLink });
+    setNewTitle(''); setNewDate(''); setNewLink(''); setShowAdd(false); setCreateMeet(false);
   };
 
   const handleDelete = (sessionId) => {
@@ -142,15 +174,24 @@ export default function Attendance() {
                 <label className="text-[10px] text-gray-500 font-bold block mb-1">
                   LINK HỌP <span className="font-normal text-gray-600">(tùy chọn)</span>
                 </label>
-                <input className="input-dark" placeholder="https://meet.google.com/... hoặc Zoom link"
-                  value={newLink} onChange={e => setNewLink(e.target.value)}/>
+                <div className="relative">
+                  <input className={`input-dark ${createMeet ? 'opacity-50 cursor-not-allowed' : ''}`} 
+                    placeholder={createMeet ? "Sẽ tự động tạo link Google Meet..." : "https://meet.google.com/... hoặc Zoom link"}
+                    value={createMeet ? '' : newLink} onChange={e => setNewLink(e.target.value)} disabled={createMeet || isCreating}/>
+                  
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                    <input type="checkbox" id="createMeet" checked={createMeet} onChange={e => setCreateMeet(e.target.checked)} disabled={isCreating}
+                      className="w-3.5 h-3.5 rounded border-gray-700 bg-gray-800 text-blue-500 focus:ring-blue-500 cursor-pointer"/>
+                    <label htmlFor="createMeet" className="text-[10px] text-blue-400 font-bold cursor-pointer whitespace-nowrap">Tạo Meet</label>
+                  </div>
+                </div>
               </div>
               {/* FIX: thêm disabled + styles rõ ràng để user biết khi nào có thể nhấn */}
               <button
                 onClick={addSession}
-                disabled={!canSubmit}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl transition-all">
-                OK
+                disabled={!canSubmit || isCreating}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl transition-all min-w-[60px] flex justify-center">
+                {isCreating ? <Clock className="w-4 h-4 animate-spin"/> : 'OK'}
               </button>
               <button onClick={() => setShowAdd(false)} className="p-2 text-gray-500 hover:text-white"><X className="w-4 h-4"/></button>
             </div>
