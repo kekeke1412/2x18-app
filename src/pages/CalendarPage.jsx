@@ -62,38 +62,6 @@ export default function CalendarPage() {
   const scrollRef   = useRef(null); // ref for the hour-grid scroll container
   const nextId      = useRef(Date.now());
 
-  // ── Xin quyền thông báo + Sync reminders khi events thay đổi ─────
-  useEffect(() => {
-    requestNotificationPermission();
-  }, []);
-
-  useEffect(() => {
-    syncAllReminders(allEvents.filter(e => e.reminderMinutes > 0));
-  }, [allEvents]); // eslint-disable-line
-
-  // ── Real-time clock (updates every 30s) ──────────────────────────────────
-  useEffect(() => {
-    const t = setInterval(() => setNowTime(new Date()), 30000);
-    return () => clearInterval(t);
-  }, []);
-
-  // ── Auto-scroll to current time when entering week/day view ──────────────
-  useEffect(() => {
-    if (view === 'month') return;
-    const el = scrollRef.current;
-    if (!el) return;
-    const rowH = view === 'week' ? WEEK_ROW_H : DAY_ROW_H;
-    const scrollTop = (nowTime.getHours() - 1) * rowH;
-    setTimeout(() => el.scrollTo({ top: Math.max(0, scrollTop), behavior: 'smooth' }), 80);
-  }, [view]); // eslint-disable-line
-
-  // Close popup on outside click
-  useEffect(() => {
-    const h = e => { if (popup && popupRef.current && !popupRef.current.contains(e.target)) setPopup(null); };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, [popup]);
-
   // ── Auto-generated events from other modules ─────────────
   const autoEvents = useMemo(() => {
     const evs = [];
@@ -153,6 +121,39 @@ export default function CalendarPage() {
   }, [myTasks, attendance, votes]);
 
   const allEvents = useMemo(() => [...calEvents, ...autoEvents], [calEvents, autoEvents]);
+
+  // ── Xin quyền thông báo + Sync reminders khi events thay đổi ─────
+  useEffect(() => {
+    requestNotificationPermission();
+  }, []);
+
+  useEffect(() => {
+    syncAllReminders(allEvents.filter(e => e.reminderMinutes > 0));
+  }, [allEvents]); // eslint-disable-line
+
+  // ── Real-time clock (updates every 30s) ──────────────────────────────────
+  useEffect(() => {
+    const t = setInterval(() => setNowTime(new Date()), 30000);
+    return () => clearInterval(t);
+  }, []);
+
+  // ── Auto-scroll to current time when entering week/day view ──────────────
+  useEffect(() => {
+    if (view === 'month') return;
+    const el = scrollRef.current;
+    if (!el) return;
+    const rowH = view === 'week' ? WEEK_ROW_H : DAY_ROW_H;
+    const scrollTop = (nowTime.getHours() - 1) * rowH;
+    setTimeout(() => el.scrollTo({ top: Math.max(0, scrollTop), behavior: 'smooth' }), 80);
+  }, [view]); // eslint-disable-line
+
+  // Close popup on outside click
+  useEffect(() => {
+    const h = e => { if (popup && popupRef.current && !popupRef.current.contains(e.target)) setPopup(null); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [popup]);
+
   const eventsFor = (dateStr) => allEvents.filter(e => e.date === dateStr);
 
   // ── Navigation ────────────────────────────────────────────
@@ -166,16 +167,16 @@ export default function CalendarPage() {
   };
   const goToday = () => { setCurYear(todayObj.getFullYear());setCurMonth(todayObj.getMonth());setCurDay(todayObj.getDate()); };
 
+  const weekStart = () => {
+    const d=new Date(curYear,curMonth,curDay); const dow=d.getDay();
+    return new Date(d.getTime()-dow*86400000);
+  };
+
   const titleStr = () => {
     if (view==='month') return `${MONTHS_VI[curMonth]} ${curYear}`;
     if (view==='day')   return `${DOW_FULL[new Date(curYear,curMonth,curDay).getDay()]}, ${curDay} ${MONTHS_VI[curMonth]} ${curYear}`;
     const ws=weekStart(); const we=new Date(ws.getTime()+6*86400000);
     return `${ws.getDate()} – ${we.getDate()} ${MONTHS_VI[we.getMonth()]} ${curYear}`;
-  };
-
-  const weekStart = () => {
-    const d=new Date(curYear,curMonth,curDay); const dow=d.getDay();
-    return new Date(d.getTime()-dow*86400000);
   };
 
   // ── Form helpers ──────────────────────────────────────────
