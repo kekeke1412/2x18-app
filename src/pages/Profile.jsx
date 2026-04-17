@@ -4,7 +4,7 @@ import {
   User, CreditCard, Calendar, Phone, MapPin,
   Save, Edit3, ChevronDown, ChevronUp, AlertTriangle, CheckCircle2,
   Download, Users, ChevronLeft, Search, Check, X,
-  Clock, Eye, BookOpen, Lock, CheckCircle, GraduationCap, XCircle
+  Clock, Eye, BookOpen, Lock, CheckCircle, GraduationCap, XCircle, Trash2
 } from 'lucide-react';
 import { subjectDatabase, calculateHe10, getHe4, electiveLimits } from '../data';
 import { useApp } from '../context/AppContext';
@@ -772,7 +772,7 @@ function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfil
 function MemberDetail({ member, onBack, canEdit }) {
   // FIX: use updateMemberProfile (not updateProfile) so currentUser/localStorage
   // are never overwritten when an admin edits another member's profile.
-  const { grades, updateMemberProfile, syncGrades, isSuperAdmin } = useApp();
+  const { grades, updateMemberProfile, syncGrades, isSuperAdmin, kickMember } = useApp();
   const memberGrades = grades[member.id] || {};
 
   const [tab,       setTab]       = useState('profile');
@@ -812,6 +812,17 @@ function MemberDetail({ member, onBack, canEdit }) {
           <span className={`text-xs font-bold px-2.5 py-1 rounded-xl shrink-0 ${rl.cls}`}>{rl.text}</span>
         </div>
         <div className="flex items-center gap-2">
+          {isSuperAdmin && !isEditing && (
+            <button onClick={() => {
+              if (window.confirm(`Bạn có chắc chắn muốn XÓA TOÀN BỘ dữ liệu của ${member.fullName}? Hành động này KHÔNG THỂ hoàn tác!`)) {
+                kickMember(member.id);
+                onBack();
+              }
+            }}
+              className="flex items-center gap-1.5 text-xs text-red-400 border border-red-500/20 px-3 py-2 rounded-xl hover:bg-red-500/10 transition-all font-bold">
+              <Trash2 className="w-3.5 h-3.5"/> Kick
+            </button>
+          )}
           {canEdit && tab === 'profile' && !isEditing && (
             <button onClick={()=>setIsEditing(true)}
               className="flex items-center gap-1.5 text-xs text-blue-400 border border-blue-500/20 px-3 py-2 rounded-xl hover:bg-blue-500/10 transition-all font-bold">

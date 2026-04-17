@@ -744,6 +744,23 @@ export function AppProvider({ children }) {
     }
   }, [toast]);
 
+  const kickMember = useCallback(async (memberId) => {
+    try {
+      const updates = {};
+      updates[`2x18_members/${memberId}`] = null;
+      updates[`${memberId}_grades`] = null;
+      updates[`2x18_contributions/${memberId}`] = null;
+      
+      await update(ref(db), updates);
+      
+      toast('Đã xóa dữ liệu thành viên thành công!', 'success');
+      addAudit('kick_member', `ID: ${memberId}`);
+    } catch (err) {
+      console.error('[kickMember]', err);
+      toast('Lỗi khi kick thành viên: ' + err.message, 'error');
+    }
+  }, [toast, addAudit]);
+
   // ── GRADES & FEATURES ─────────────────────────────────────────────────────
   const syncGrades   = useCallback((userId, gradesData) => {
     dispatch({ type:A.SYNC_GRADES,    payload:{ userId, gradesData } });
@@ -968,7 +985,7 @@ export function AppProvider({ children }) {
     login, logout, loginWithGoogle, register,
     toast, rmToast, addAudit,
     updateProfile, updateMemberProfile, syncGrades, updateGrade, updateProgress,
-    approveUser, rejectUser,
+    approveUser, rejectUser, kickMember,
     addTask, editTask, deleteTask, toggleTask,
     addSubjectTask, editSubjectTask, deleteSubjectTask, tickSubjectTask,
     addSubjectComment,
