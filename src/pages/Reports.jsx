@@ -3,9 +3,10 @@ import { useApp } from '../context/AppContext';
 import { 
   FileText, ExternalLink, Plus, X, Trash2, CheckCircle, 
   Clock, ShieldCheck, AlertCircle, BookOpen, Search, User,
-  XCircle, Eye
+  XCircle, Eye, Sparkles, Loader2
 } from 'lucide-react';
 import { uploadToDrive } from '../services/googleApi';
+import { reviewReport } from '../services/aiService';
 
 // ── Huy hiệu trạng thái ──────────────────────────────────────────────────────
 function StatusBadge({ status, isOwn }) {
@@ -36,6 +37,22 @@ function ReportCard({ r, getMemberById, isCore, isSuperAdmin, currentUser, appro
   const isPending = r.status === 'pending';
   const isOwn = r.authorId === currentUser?.id;
   const canModerate = isCore || isSuperAdmin;
+
+  const [aiResult, setAiResult] = useState(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+
+  const handleAiReview = async () => {
+    if (isAiLoading) return;
+    setIsAiLoading(true);
+    try {
+      const res = await reviewReport(r.title, author?.fullName || 'Thành viên');
+      setAiResult(res);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
 
   return (
     <div className={`
@@ -71,7 +88,17 @@ function ReportCard({ r, getMemberById, isCore, isSuperAdmin, currentUser, appro
 
         {/* Action buttons — only Core/Admin */}
         {canModerate && (
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
+            {isPending && (
+              <button
+                onClick={handleAiReview}
+                disabled={isAiLoading}
+                className="flex items-center gap-1 px-2 py-1.5 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-lg transition-colors text-[11px] font-bold"
+              >
+                {isAiLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                AI Review
+              </button>
+            )}
             {isPending && (
               <button
                 onClick={() => approveReport(r.id)}
@@ -109,6 +136,37 @@ function ReportCard({ r, getMemberById, isCore, isSuperAdmin, currentUser, appro
           {r.createdAt ? new Date(r.createdAt).toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric' }) : ''}
         </span>
       </div>
+
+      {/* AI Review Result Overlay/Expansion */}
+      {aiResult && (
+        <div className="mt-2 p-3 bg-blue-600/5 border border-blue-500/20 rounded-xl space-y-2 fade-in">
+          <div className="flex items-center justify-between">
+            <div className="text-[10px] font-black text-blue-400 flex items-center gap-1 uppercase tracking-widest">
+              <Sparkles className="w-2.5 h-2.5" /> Kết quả AI
+            </div>
+            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${
+              aiResult.quality === 'excellent' ? 'bg-green-500/20 text-green-400' : 
+              aiResult.quality === 'good' ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-500/20 text-gray-400'
+            }`}>
+              {aiResult.qualityLabel}
+            </span>
+          </div>
+          <div className="space-y-1">
+            {aiResult.summary?.map((s, i) => (
+              <div key={i} className="text-[11px] text-gray-400 flex items-start gap-1.5">
+                <span className="text-blue-500 mt-1">•</span>
+                <span className="leading-snug">{s}</span>
+              </div>
+            ))}
+          </div>
+          {aiResult.feedback && (
+            <div className="text-[10px] text-gray-500 italic mt-1 pt-1 border-t border-gray-800/40">
+              Phản hồi: "{aiResult.feedback}"
+            </div>
+          )}
+          <button onClick={() => setAiResult(null)} className="text-[9px] text-gray-600 hover:text-gray-400 font-bold uppercase underline mt-1">Đóng review</button>
+        </div>
+      )}
     </div>
   );
 }

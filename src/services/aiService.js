@@ -2,10 +2,11 @@
 // ── Gemini AI Service for 2X18 ─────────────────────────────────────────────
 import { GoogleGenAI } from '@google/genai';
 
-const STORAGE_KEY = 'AIzaSyApiaUHXc3zz8x0yymJL5PyptCWAYV_mzg';
+const STORAGE_KEY = '2x18_gemini_api_key';
+const HARDCODED_KEY = 'AIzaSyApiaUHXc3zz8x0yymJL5PyptCWAYV_mzg';
 
 // ── API Key Management ─────────────────────────────────────────────────────
-export const getApiKey = () => localStorage.getItem(STORAGE_KEY) || '';
+export const getApiKey = () => localStorage.getItem(STORAGE_KEY) || HARDCODED_KEY;
 export const setApiKey = (key) => localStorage.setItem(STORAGE_KEY, key);
 export const removeApiKey = () => localStorage.removeItem(STORAGE_KEY);
 

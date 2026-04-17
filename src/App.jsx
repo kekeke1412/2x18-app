@@ -25,6 +25,7 @@ import Attendance    from './pages/Attendance';
 import Gamification  from './pages/Gamification';
 import Trash         from './pages/Trash';
 import Reports       from './pages/Reports';
+import AIChatbot     from './components/AIChatbot';
 
 // ── Toast ──────────────────────────────────────────────────────────────────
 function ToastContainer() {
@@ -259,6 +260,7 @@ function AppLayout() {
         </div>
       </main>
 
+      <AIChatbot/>
       <ToastContainer/>
     </div>
   );

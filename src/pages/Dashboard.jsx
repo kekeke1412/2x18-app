@@ -2,9 +2,10 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import {
   TrendingUp, BookOpen, AlertCircle, Clock, Award, Zap, Users,
-  CheckCircle2, Activity, Edit3, Check, X, GraduationCap, BarChart2, Hexagon
+  CheckCircle2, Activity, Edit3, Check, X, GraduationCap, BarChart2, Hexagon, Sparkles, Loader2
 } from 'lucide-react';import { subjectDatabase, getHe4, calculateHe10 } from '../data';
 import { useApp } from '../context/AppContext';
+import { analyzeEarlyWarning } from '../services/aiService';
 
 // ── Semester names — persisted via AppContext ──────────────────────────────
 const DEFAULT_SEM_NAMES = {
@@ -544,6 +545,21 @@ export default function Dashboard() {
 
   const [semesterNames, updateSemesterName] = useSemesterNames(semesterLabels, updateSemesterLabel);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'analytics', 'activity'
+  const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+
+  const handleAiAnalysis = async () => {
+    setIsAiAnalyzing(true);
+    setAiAnalysis(null);
+    try {
+      const res = await analyzeEarlyWarning(members, [], myTasks); // Fix: need global tasks
+      setAiAnalysis(res);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsAiAnalyzing(false);
+    }
+  };
 
   // My personal stats
   const myStats = useMemo(() => computeCPA(myGrades), [myGrades]);
@@ -728,6 +744,62 @@ export default function Dashboard() {
         {/* ── TAB 2: ANALYTICS ── */}
         {activeTab === 'analytics' && (
           <div className="space-y-6 fade-in-up">
+            {/* AI Analysis Header */}
+            <div className="flex items-center justify-between bg-blue-600/10 border border-blue-500/20 p-4 rounded-2xl">
+              <div>
+                <h3 className="text-sm font-black text-white flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-blue-400" />
+                  AI Phân tích sức khỏe nhóm
+                </h3>
+                <p className="text-[10px] text-gray-500 mt-0.5">Phân tích chuyên sâu dựa trên Task và Điểm danh</p>
+              </div>
+              <button 
+                onClick={handleAiAnalysis}
+                disabled={isAiAnalyzing}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-blue-600/30"
+              >
+                {isAiAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
+                CHẠY PHÂN TÍCH
+              </button>
+            </div>
+
+            {aiAnalysis && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 fade-in">
+                <div className="md:col-span-2 bg-[#1a1a1a] border border-gray-800 rounded-2xl p-4">
+                  <h4 className="text-[10px] font-bold text-gray-500 uppercase mb-3">Cảnh báo thành viên</h4>
+                  <div className="space-y-3">
+                    {aiAnalysis.warnings?.length > 0 ? aiAnalysis.warnings.map((w, i) => (
+                      <div key={i} className="flex items-start gap-3 p-3 bg-red-500/5 border border-red-500/10 rounded-xl">
+                        <AlertCircle className={`w-4 h-4 shrink-0 mt-0.5 ${w.level === 'high' ? 'text-red-500' : 'text-yellow-500'}`} />
+                        <div>
+                          <div className="text-xs font-bold text-gray-200">{w.memberName}</div>
+                          <div className="text-[10px] text-gray-500 mt-0.5">{w.reason}</div>
+                        </div>
+                      </div>
+                    )) : (
+                      <div className="text-xs text-gray-600 italic">Chưa phát hiện dấu hiệu bất thường nào.</div>
+                    )}
+                  </div>
+                </div>
+                <div className="bg-[#1a1a1a] border border-gray-800 rounded-2xl p-4">
+                  <h4 className="text-[10px] font-bold text-gray-500 uppercase mb-3">Gợi ý từ AI</h4>
+                  <div className="text-xs text-blue-400 font-medium leading-relaxed bg-blue-500/5 p-3 rounded-xl border border-blue-500/10">
+                    "{aiAnalysis.suggestion}"
+                  </div>
+                  <div className="mt-4">
+                    <div className="text-[10px] font-bold text-gray-600 mb-2 uppercase">Trạng thái chung</div>
+                    <div className={`text-xs font-black uppercase tracking-widest ${
+                      aiAnalysis.overallHealth === 'good' ? 'text-green-400' : 
+                      aiAnalysis.overallHealth === 'warning' ? 'text-yellow-400' : 'text-red-400'
+                    }`}>
+                      {aiAnalysis.overallHealth === 'good' ? 'ỔN ĐỊNH' : 
+                       aiAnalysis.overallHealth === 'warning' ? 'CẦN CHÚ Ý' : 'NGUY CẤP'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <GroupGPACard myGrades={myGrades} allGrades={allGrades} members={members}/>
               <LearningProgressCard myGrades={myGrades} allGrades={allGrades} members={members}/>

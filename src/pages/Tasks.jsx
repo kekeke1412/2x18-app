@@ -3,8 +3,9 @@ import React, { useState } from 'react';
 import {
   ClipboardList, Clock, FileText, Plus, CheckCircle2,
   AlertCircle, Folder, Trash2, X, Link,
-  ChevronDown, ChevronUp, BookOpen
+  ChevronDown, ChevronUp, BookOpen, Sparkles, Loader2, User as UserIcon
 } from 'lucide-react';
+import { suggestTaskAssignment } from '../services/aiService';
 import { subjectDatabase } from '../data';
 import { useApp } from '../context/AppContext';
 import { uploadToDrive } from '../services/googleApi';
@@ -42,10 +43,18 @@ export default function Tasks() {
   const myName  = profile.fullName || '';
 
   const [activeTab,  setActiveTab]  = useState('tasks');
-  const [isAdding,   setIsAdding]   = useState(false);
-  const [newTask,    setNewTask]     = useState({ code:'', title:'', date:'', type:'Bắt buộc' });
-  const [uploadSub,  setUploadSub]  = useState(null);
   const [expandProg, setExpandProg] = useState({});
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState(null);
+  
+  // State for adding task (extended for Admin/Core)
+  const [newTask,    setNewTask]     = useState({ 
+    code: '', 
+    title: '', 
+    date: '', 
+    type: 'Bắt buộc', 
+    assigneeId: currentUser?.id || '' 
+  });
 
   // Môn đang học của tôi
   const userSubjects = subjectDatabase.filter(s => grades[s.id]?.status === 'Đang học');
@@ -53,7 +62,7 @@ export default function Tasks() {
   const handleAddTask = () => {
     if (!newTask.code || !newTask.title || !newTask.date) return;
     ctxAddTask({
-      userId:    currentUser?.id,
+      userId:    newTask.assigneeId || currentUser?.id,
       code:      newTask.code,
       subjectId: newTask.code,
       task:      newTask.title,
@@ -62,7 +71,32 @@ export default function Tasks() {
       type:      newTask.type,
     });
     setIsAdding(false);
-    setNewTask({ code:'', title:'', date:'', type:'Bắt buộc' });
+    setAiSuggestion(null);
+    setNewTask({ code:'', title:'', date:'', type:'Bắt buộc', assigneeId: currentUser?.id });
+  };
+
+  const handleAiSuggest = async () => {
+    if (!newTask.title.trim()) return;
+    setIsAiLoading(true);
+    setAiSuggestion(null);
+    try {
+      const res = await suggestTaskAssignment(newTask.title, members, myTasks);
+      setAiSuggestion(res);
+      // Auto-fill some fields if possible
+      if (res.suggestedAssignee) {
+        const found = members.find(m => m.fullName === res.suggestedAssignee);
+        if (found) setNewTask(prev => ({ ...prev, assigneeId: found.id }));
+      }
+      if (res.estimatedDays) {
+        const d = new Date();
+        d.setDate(d.getDate() + res.estimatedDays);
+        setNewTask(prev => ({ ...prev, date: d.toISOString().split('T')[0] }));
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsAiLoading(false);
+    }
   };
 
   const activeMyTasks = myTasks
@@ -117,31 +151,89 @@ export default function Tasks() {
             </div>
 
             {isAdding && (
-              <div className="bg-[#1a1a1a] border border-blue-500/30 rounded-2xl p-4 fade-in">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                  <div>
-                    <label className="text-[10px] text-gray-500 font-bold block mb-1">MÔN HỌC</label>
-                    <select className="input-dark" value={newTask.code} onChange={e=>setNewTask(f=>({...f,code:e.target.value}))}>
-                      <option value="">-- Chọn --</option>
-                      {userSubjects.map(s=><option key={s.id} value={s.id}>{s.code} – {s.name.slice(0,25)}</option>)}
-                    </select>
-                  </div>
+              <div className="bg-[#1a1a1a] border border-blue-500/30 rounded-2xl p-5 shadow-2xl fade-in space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-black text-blue-400 uppercase tracking-widest">Thêm nhiệm vụ mới</h3>
+                  <button 
+                    onClick={handleAiSuggest}
+                    disabled={isAiLoading || !newTask.title.trim()}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-[10px] font-black rounded-lg transition-all disabled:opacity-40 shadow-lg shadow-blue-500/20"
+                  >
+                    {isAiLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                    AI GỢI Ý
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="md:col-span-2">
                     <label className="text-[10px] text-gray-500 font-bold block mb-1">CÔNG VIỆC</label>
-                    <input className="input-dark" placeholder="Mô tả công việc..."
+                    <input className="input-dark w-full" placeholder="Mô tả công việc (Ví dụ: Soạn slide tuần 5...)"
                       value={newTask.title}
                       onChange={e=>setNewTask(f=>({...f,title:e.target.value}))}
                       onKeyDown={e=>e.key==='Enter'&&handleAddTask()} />
                   </div>
                   <div>
+                    <label className="text-[10px] text-gray-500 font-bold block mb-1">MÔN HỌC</label>
+                    <select className="input-dark w-full" value={newTask.code} onChange={e=>setNewTask(f=>({...f,code:e.target.value}))}>
+                      <option value="">-- Chọn --</option>
+                      {subjectDatabase.map(s=><option key={s.id} value={s.id}>{s.code} – {s.name.slice(0,25)}</option>)}
+                    </select>
+                  </div>
+                  <div>
                     <label className="text-[10px] text-gray-500 font-bold block mb-1">HẠN NỘP</label>
-                    <input type="date" className="input-dark" value={newTask.date}
+                    <input type="date" className="input-dark w-full" value={newTask.date}
                       onChange={e=>setNewTask(f=>({...f,date:e.target.value}))} />
                   </div>
                 </div>
+
+                {(isCore || isSuperAdmin) && (
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2">
+                    <div className="md:col-span-2">
+                      <label className="text-[10px] text-gray-500 font-bold block mb-1 flex items-center gap-1">
+                        <UserIcon className="w-2.5 h-2.5" /> NGƯỜI THỰC HIỆN (CORE ONLY)
+                      </label>
+                      <select className="input-dark w-full" value={newTask.assigneeId} onChange={e=>setNewTask(f=>({...f,assigneeId:e.target.value}))}>
+                        <option value={currentUser?.id}>Bản thân ({myName})</option>
+                        {members.filter(m => m.id !== currentUser?.id).map(m => (
+                          <option key={m.id} value={m.id}>{m.fullName} ({m.role})</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-gray-500 font-bold block mb-1">LOẠI</label>
+                      <select className="input-dark w-full" value={newTask.type} onChange={e=>setNewTask(f=>({...f,type:e.target.value}))}>
+                        <option>Bắt buộc</option>
+                        <option>Tự nguyện</option>
+                        <option>Sự kiện</option>
+                        <option>Quan trọng</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {aiSuggestion && (
+                  <div className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-xl space-y-2 fade-in">
+                    <div className="flex items-center gap-2 text-blue-400 font-bold text-xs">
+                      <Sparkles className="w-3 h-3" /> AI ĐỀ XUẤT:
+                    </div>
+                    <div className="text-xs text-gray-300 leading-relaxed">
+                      {aiSuggestion.reason}
+                    </div>
+                    {aiSuggestion.subtasks?.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {aiSuggestion.subtasks.map((st, i) => (
+                          <span key={i} className="px-2 py-1 bg-gray-800 rounded-lg text-[10px] text-gray-400 border border-gray-700">
+                            + {st}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <button onClick={handleAddTask}
-                  className="mt-3 w-full py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm rounded-xl transition-all">
-                  Xác nhận thêm task
+                  className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-black text-sm rounded-xl transition-all shadow-lg shadow-blue-600/20 btn-active">
+                  XÁC NHẬN VÀ GIAO VIỆC
                 </button>
               </div>
             )}
