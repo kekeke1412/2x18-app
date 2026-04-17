@@ -462,23 +462,23 @@ export function AppProvider({ children }) {
     fbSet('2x18_roadmap',          state.roadmap);
     fbSet('2x18_votes',            state.votes);
     fbSet('2x18_notifs',           state.notifications);
-    fbSet('2x18_attendance',       state.attendance);
+    // fbSet('2x18_attendance',       state.attendance);
     fbSet('2x18_contributions',    state.contributions);
     fbSet('2x18_docs',             state.docs);
     fbSet('2x18_audit',            state.auditLogs);
     fbSet('2x18_subject_tasks',    state.subjectTasks);
     fbSet('2x18_subject_comments', state.subjectComments);
     fbSet('2x18_semester_labels',  state.semesterLabels);
-    fbSet('2x18_trash',            state.trash);
-    fbSet('2x18_reports',          state.reports);
+    // fbSet('2x18_trash',            state.trash);
+    // fbSet('2x18_reports',          state.reports);
     Object.entries(state.grades).forEach(([uid, g]) => {
       if (uid && g) fbSet(`${uid}_grades`, g);
     });
   }, [ // eslint-disable-line
     state.members, state.smeMap, state.tasks, state.calEvents, state.roadmap,
-    state.votes, state.notifications, state.attendance, state.contributions,
+    state.votes, state.notifications, state.contributions,
     state.docs, state.auditLogs, state.subjectTasks, state.subjectComments,
-    state.semesterLabels, state.grades, state.trash, state.reports
+    state.semesterLabels, state.grades
   ]);
 
   // ── Toast auto-dismiss ────────────────────────────────────────────────────
@@ -775,26 +775,45 @@ export function AppProvider({ children }) {
   const addNotif    = pushNotif; // alias — pushNotif handles both dispatch + browser push
 
   const addAttendanceSession = useCallback((data) => {
-    const s = {...data, sessionId:uid(), present:[], total:state.members.length};
-    dispatch({type:A.ADD_ATTENDANCE_SESSION,payload:s});
+    const sessionId = uid();
+    const s = { ...data, sessionId, present: [], total: state.members.length };
+    dispatch({ type: A.ADD_ATTENDANCE_SESSION, payload: s });
+    set(ref(db, `2x18_attendance/${sessionId}`), s); // Ghi trực tiếp
     pushNotif(`📅 Buổi họp mới: "${data.sessionTitle}" — ${data.date}`, 'calendar', '/attendance');
-    toast('Đã tạo buổi điểm danh!','success');
+    toast('Đã tạo buổi điểm danh!', 'success');
   }, [state.members.length, pushNotif, toast]);
 
-  const checkAttendance = useCallback(({sessionId,userId,checked}) => {
-    const sess = state.attendance.find(a=>a.sessionId===sessionId);
-    if (checked && !sess?.present?.includes(userId))
-      dispatch({type:A.ADD_CONTRIBUTION,payload:{userId,points:10}});
-    dispatch({type:A.CHECK_ATTENDANCE,payload:{sessionId,userId,checked}});
+  const checkAttendance = useCallback(({ sessionId, userId, checked }) => {
+    const sess = state.attendance.find(a => a.sessionId === sessionId);
+    if (!sess) return;
+    
+    if (checked && !sess.present?.includes(userId))
+      dispatch({ type: A.ADD_CONTRIBUTION, payload: { userId, points: 10 } });
+    
+    dispatch({ type: A.CHECK_ATTENDANCE, payload: { sessionId, userId, checked } });
+    
+    // Cập nhật danh sách present trực tiếp trong Firebase
+    const nextPresent = checked 
+      ? [...(sess.present || []), userId]
+      : (sess.present || []).filter(id => id !== userId);
+    set(ref(db, `2x18_attendance/${sessionId}/present`), nextPresent);
   }, [state.attendance]);
 
   const deleteAttendanceSession = useCallback((sessionId) => {
-    dispatch({ type: A.DELETE_ATTENDANCE_SESSION, payload: { sessionId, ...trashMeta() } });
+    const meta = trashMeta();
+    const sess = state.attendance.find(s => s.sessionId === sessionId);
+    dispatch({ type: A.DELETE_ATTENDANCE_SESSION, payload: { sessionId, ...meta } });
+    
+    set(ref(db, `2x18_attendance/${sessionId}`), null); // Xóa bản ghi
+    if (sess) {
+      set(ref(db, `2x18_trash/${meta.trashId}`), { id: meta.trashId, type: 'attendanceSession', data: sess, meta });
+    }
     toast('Đã chuyển vào thùng rác.', 'info');
-  }, [trashMeta, toast]);
+  }, [state.attendance, trashMeta, toast]);
 
   const editAttendanceSession = useCallback((data) => {
     dispatch({ type: A.EDIT_ATTENDANCE_SESSION, payload: data });
+    set(ref(db, `2x18_attendance/${data.sessionId}`), data); // Ghi trực tiếp
     toast('Đã cập nhật thông tin!', 'success');
   }, [toast]);
 

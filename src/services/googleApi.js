@@ -76,8 +76,10 @@ export async function uploadToDrive(token, file, folderName = '2X18_Reports') {
   // Drive API v3 yêu cầu multipart upload để gửi metadata (tên, folder) và nội dung file cùng lúc
   const metadata = {
     name: file.name,
-    parents: [folderId]
   };
+  if (folderId) {
+    metadata.parents = [folderId];
+  }
 
   const form = new FormData();
   form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
@@ -127,15 +129,19 @@ export async function uploadToDrive(token, file, folderName = '2X18_Reports') {
 async function getOrCreateFolder(token, folderName) {
   // Tìm thư mục
   const query = encodeURIComponent(`mimeType='application/vnd.google-apps.folder' and name='${folderName}' and trashed=false`);
-  const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name)`, {
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
+  try {
+    const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name)`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
 
-  if (searchRes.ok) {
-    const data = await searchRes.json();
-    if (data.files && data.files.length > 0) {
-      return data.files[0].id;
+    if (searchRes.ok) {
+      const data = await searchRes.json();
+      if (data.files && data.files.length > 0) {
+        return data.files[0].id;
+      }
     }
+  } catch (err) {
+    console.warn('Không thể tìm kiếm thư mục Drive:', err);
   }
 
   // Không có -> Tạo mới
@@ -154,12 +160,8 @@ async function getOrCreateFolder(token, folderName) {
   });
 
   if (!createRes.ok) {
-    const errData = await createRes.json().catch(() => ({}));
-    const status = createRes.status;
-    if (status === 403) {
-      throw new Error('Thiếu quyền truy cập Drive. Vui lòng đăng xuất và đăng nhập lại, lưu ý tích chọn tất cả các quyền Google Drive.');
-    }
-    throw new Error(`Lỗi Google Drive (${status}): ${errData.error?.message || 'Không thể tạo thư mục lưu trữ'}`);
+    console.warn('Không thể tạo thư mục Drive, sẽ lưu vào thư mục gốc.');
+    return null; // Trả về null để upload vào root
   }
 
   const createData = await createRes.json();
