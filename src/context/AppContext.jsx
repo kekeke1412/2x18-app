@@ -47,6 +47,7 @@ const A = {
   PERMANENT_DELETE_TRASH:'PERMANENT_DELETE_TRASH',
   EMPTY_TRASH:'EMPTY_TRASH',
   ADD_REPORT:'ADD_REPORT', APPROVE_REPORT:'APPROVE_REPORT', DELETE_REPORT:'DELETE_REPORT',
+  SET_REPORTS:'SET_REPORTS',
   SET_GOOGLE_TOKEN:'SET_GOOGLE_TOKEN',
 };
 
@@ -76,20 +77,23 @@ function reducer(s, { type, payload }) {
     case A.SET_LOADING: return { ...s, isLoading: payload };
     case A.SET_GOOGLE_TOKEN: return { ...s, googleToken: payload };
     case A.INIT_DATA: {
-      // Smart-merge reports and trash to avoid wiping optimistic updates
-      const mergeById = (existing, incoming, key = 'id') => {
-        const map = new Map();
-        (existing || []).forEach(x => x && x[key] && map.set(x[key], x));
-        (incoming || []).forEach(x => x && x[key] && map.set(x[key], x)); // Firebase wins for existing records
-        return Array.from(map.values());
-      };
       return {
         ...s, ...payload,
-        reports: mergeById(s.reports, payload.reports),
-        trash:   mergeById(s.trash,   payload.trash),
+        // reports is managed separately via SET_REPORTS to avoid race conditions
+        reports: s.reports,
         unreadCount: (payload.notifications||[]).filter(n=>!n.read).length,
         isLoading: false,
       };
+    }
+
+    case A.SET_REPORTS: {
+      // Local-wins merge: Firebase is authoritative for known records,
+      // but local-only records (newly added, not yet in Firebase) are preserved.
+      const fbMap = new Map();
+      (payload || []).forEach(r => r?.id && fbMap.set(r.id, r));
+      // Keep any local records that Firebase doesn't know about yet
+      const localOnly = (s.reports || []).filter(r => r?.id && !fbMap.has(r.id));
+      return { ...s, reports: [...(payload || []), ...localOnly] };
     }
 
     case A.UPDATE_PROFILE: {
@@ -408,8 +412,11 @@ export function AppProvider({ children }) {
           subjectComments:  val['2x18_subject_comments']  || {},
           semesterLabels:   val['2x18_semester_labels']   || {},
           trash:            toArr(val['2x18_trash']),
-          reports:          toArr(val['2x18_reports']),
+          // reports is intentionally excluded — dispatched separately via SET_REPORTS
         }});
+
+        // Dispatch reports separately so it can merge with local optimistic state
+        dispatch({ type: A.SET_REPORTS, payload: toArr(val['2x18_reports']) });
       }, (err) => {
         console.error('[Firebase DB] Access denied:', err.message);
         dispatch({ type:A.SET_LOADING, payload:false });
