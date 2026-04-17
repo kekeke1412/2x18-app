@@ -15,6 +15,7 @@ const fbSet = (path, data) => {
   try { set(ref(db, path), data); } catch (e) { console.warn('[fbSet]', path, e?.message); }
 };
 
+// Firebase Realtime DB có thể trả về object thay vì array → convert an toàn
 const toArr = (val) => {
   if (!val) return [];
   if (Array.isArray(val)) return val.filter(Boolean);
@@ -34,12 +35,10 @@ const A = {
   ADD_EVENT:'ADD_EVENT', EDIT_EVENT:'EDIT_EVENT', DELETE_EVENT:'DELETE_EVENT',
   UPDATE_ROADMAP:'UPDATE_ROADMAP', ADD_ROADMAP_EVENT:'ADD_ROADMAP_EVENT',
   DEL_ROADMAP_EVENT:'DEL_ROADMAP_EVENT', ADD_ROADMAP_YEAR:'ADD_ROADMAP_YEAR', DELETE_ROADMAP_YEAR:'DELETE_ROADMAP_YEAR',
-  ADD_VOTE:'ADD_VOTE', CAST_VOTE:'CAST_VOTE', CLOSE_VOTE:'CLOSE_VOTE',
-  ADD_VOTE_OPTION:'ADD_VOTE_OPTION', DELETE_VOTE:'DELETE_VOTE',
+  ADD_VOTE:'ADD_VOTE', CAST_VOTE:'CAST_VOTE', CLOSE_VOTE:'CLOSE_VOTE', ADD_VOTE_OPTION:'ADD_VOTE_OPTION', DELETE_VOTE:'DELETE_VOTE',
   MARK_NOTIF:'MARK_NOTIF', ADD_NOTIF:'ADD_NOTIF', MARK_ALL_READ:'MARK_ALL_READ',
   DELETE_ATTENDANCE_SESSION:'DELETE_ATTENDANCE_SESSION',
-  ADD_ATTENDANCE_SESSION:'ADD_ATTENDANCE_SESSION', CHECK_ATTENDANCE:'CHECK_ATTENDANCE',
-  EDIT_ATTENDANCE_SESSION:'EDIT_ATTENDANCE_SESSION',
+  ADD_ATTENDANCE_SESSION:'ADD_ATTENDANCE_SESSION', CHECK_ATTENDANCE:'CHECK_ATTENDANCE',EDIT_ATTENDANCE_SESSION:'EDIT_ATTENDANCE_SESSION',
   ADD_DOC:'ADD_DOC', DELETE_DOC:'DELETE_DOC', RATE_DOC:'RATE_DOC',
   UPDATE_MEMBER_ROLE:'UPDATE_MEMBER_ROLE', REMOVE_MEMBER:'REMOVE_MEMBER',
   ADD_CONTRIBUTION:'ADD_CONTRIBUTION',
@@ -59,6 +58,7 @@ const init = {
   trash:[],
 };
 
+// ── Helpers ────────────────────────────────────────────────────────────────
 function makeTrashItem(type, data, meta, payload) {
   return {
     id: payload.trashId, type, data, meta: meta || {},
@@ -68,6 +68,7 @@ function makeTrashItem(type, data, meta, payload) {
   };
 }
 
+// ── Reducer ────────────────────────────────────────────────────────────────
 function reducer(s, { type, payload }) {
   switch (type) {
     case A.SET_USER:    return { ...s, currentUser: payload };
@@ -77,6 +78,7 @@ function reducer(s, { type, payload }) {
       unreadCount: (payload.notifications||[]).filter(n=>!n.read).length,
       isLoading: false,
     };
+
     case A.UPDATE_PROFILE: {
       const members = s.members.map(m => m.id===payload.id ? {...m,...payload} : m);
       const user = s.currentUser?.id===payload.id ? {...s.currentUser,...payload} : s.currentUser;
@@ -93,15 +95,18 @@ function reducer(s, { type, payload }) {
       const prev = s.grades[userId]||{};
       return { ...s, grades:{ ...s.grades, [userId]:{ ...prev, [subjectId]:{ ...(prev[subjectId]||{}), myProgress:value } } } };
     }
+
     case A.ADD_TASK:    return { ...s, tasks:[payload,...s.tasks] };
     case A.EDIT_TASK:   return { ...s, tasks:s.tasks.map(x=>x.id===payload.id?{...x,...payload}:x) };
     case A.DELETE_TASK: {
       const { id, trashId, deletedAt, deletedBy, deletedByName } = payload;
       const item = s.tasks.find(t=>t.id===id);
       if (!item) return { ...s, tasks:s.tasks.filter(x=>x.id!==id) };
-      return { ...s, tasks:s.tasks.filter(x=>x.id!==id), trash:[...(s.trash||[]), makeTrashItem('task', item, {}, { trashId, deletedAt, deletedBy, deletedByName })] };
+      const trashItem = makeTrashItem('task', item, {}, { trashId, deletedAt, deletedBy, deletedByName });
+      return { ...s, tasks:s.tasks.filter(x=>x.id!==id), trash:[...(s.trash||[]), trashItem] };
     }
     case A.TOGGLE_TASK: return { ...s, tasks:s.tasks.map(x=>x.id===payload?{...x,done:!x.done}:x) };
+
     case A.ADD_SUBJECT_TASK: {
       const {subjectId,task}=payload;
       return { ...s, subjectTasks:{...s.subjectTasks,[subjectId]:[...(s.subjectTasks[subjectId]||[]),task]} };
@@ -114,7 +119,11 @@ function reducer(s, { type, payload }) {
       const { subjectId, taskId, trashId, deletedAt, deletedBy, deletedByName } = payload;
       const item = (s.subjectTasks[subjectId]||[]).find(t=>t.id===taskId);
       const trashItem = item ? makeTrashItem('subjectTask', item, { subjectId }, { trashId, deletedAt, deletedBy, deletedByName }) : null;
-      return { ...s, subjectTasks:{...s.subjectTasks,[subjectId]:(s.subjectTasks[subjectId]||[]).filter(t=>t.id!==taskId)}, trash: trashItem ? [...(s.trash||[]), trashItem] : (s.trash||[]) };
+      return {
+        ...s,
+        subjectTasks:{...s.subjectTasks,[subjectId]:(s.subjectTasks[subjectId]||[]).filter(t=>t.id!==taskId)},
+        trash: trashItem ? [...(s.trash||[]), trashItem] : (s.trash||[]),
+      };
     }
     case A.TICK_SUBJECT_TASK: {
       const {subjectId,taskId,userId,done}=payload;
@@ -124,37 +133,50 @@ function reducer(s, { type, payload }) {
       const { subjectId, comment } = payload;
       return { ...s, subjectComments:{...s.subjectComments,[subjectId]:[...(s.subjectComments[subjectId]||[]), comment]} };
     }
+
     case A.SET_SME: return { ...s, smeMap:{...s.smeMap,[payload.subjectId]:payload.userId} };
+
     case A.ADD_EVENT:  return { ...s, calEvents:[...s.calEvents,payload] };
     case A.EDIT_EVENT: return { ...s, calEvents:s.calEvents.map(e=>e.id===payload.id?payload:e) };
     case A.DELETE_EVENT: {
       const { id, trashId, deletedAt, deletedBy, deletedByName } = payload;
       const item = s.calEvents.find(e=>e.id===id);
       const trashItem = item ? makeTrashItem('event', item, {}, { trashId, deletedAt, deletedBy, deletedByName }) : null;
-      return { ...s, calEvents: s.calEvents.filter(e=>e.id!==id), trash: trashItem ? [...(s.trash||[]), trashItem] : (s.trash||[]) };
+      return {
+        ...s, calEvents: s.calEvents.filter(e=>e.id!==id),
+        trash: trashItem ? [...(s.trash||[]), trashItem] : (s.trash||[]),
+      };
     }
+
     case A.UPDATE_ROADMAP: {
       const {year,eventId,field,value}=payload;
       return { ...s, roadmap:s.roadmap.map(y=>y.year===year?{...y,events:y.events.map(e=>e.id===eventId?{...e,[field]:value}:e)}:y) };
     }
+    // FIX: dùng toArr để tránh crash khi y.events là object (do Firebase trả về)
     case A.ADD_ROADMAP_EVENT: return { ...s, roadmap:s.roadmap.map(y=>y.year===payload.year?{...y,events:[...toArr(y.events),payload.event]}:y) };
     case A.DEL_ROADMAP_EVENT: {
       const { year, eventId, trashId, deletedAt, deletedBy, deletedByName } = payload;
       const yearObj = s.roadmap.find(y=>y.year===year);
       const item = yearObj?.events?.find(e=>e.id===eventId);
       const trashItem = item ? makeTrashItem('roadmapEvent', item, { year }, { trashId, deletedAt, deletedBy, deletedByName }) : null;
-      return { ...s, roadmap: s.roadmap.map(y=>y.year===year?{...y,events:y.events.filter(e=>e.id!==eventId)}:y), trash: trashItem ? [...(s.trash||[]), trashItem] : (s.trash||[]) };
+      return {
+        ...s,
+        roadmap: s.roadmap.map(y=>y.year===year?{...y,events:y.events.filter(e=>e.id!==eventId)}:y),
+        trash: trashItem ? [...(s.trash||[]), trashItem] : (s.trash||[]),
+      };
     }
     case A.ADD_ROADMAP_YEAR: {
       if(s.roadmap.find(y=>y.year===payload))return s;
       return { ...s, roadmap:[...s.roadmap,{year:payload,events:[]}].sort((a,b)=>a.year-b.year) };
     }
     case A.DELETE_ROADMAP_YEAR: return { ...s, roadmap:s.roadmap.filter(y=>y.year!==payload) };
+
     case A.ADD_VOTE: return { ...s, votes:[payload,...s.votes] };
     case A.CAST_VOTE: {
       const {voteId,optionId,userId,multiSelect}=payload;
       return { ...s, votes:s.votes.map(v=>{
         if(v.id!==voteId)return v;
+        // FIX: dùng toArr để tránh crash khi options/votes là object từ Firebase
         const opts=toArr(v.options).map(o=>{
           const oVotes = toArr(o.votes);
           if(!multiSelect){const f=oVotes.filter(u=>u!==userId);return o.id===optionId?{...o,votes:[...f,userId]}:{...o,votes:f};}
@@ -166,13 +188,8 @@ function reducer(s, { type, payload }) {
       })};
     }
     case A.CLOSE_VOTE:      return { ...s, votes:s.votes.map(x=>x.id===payload?{...x,closed:true}:x) };
+    case A.DELETE_VOTE:     return { ...s, votes:s.votes.filter(x=>x.id!==payload) };
     case A.ADD_VOTE_OPTION: return { ...s, votes:s.votes.map(x=>x.id===payload.voteId?{...x,options:[...(x.options||[]),{id:uid(),text:payload.text,votes:[]}]}:x) };
-    case A.DELETE_VOTE: {
-      const { id, trashId, deletedAt, deletedBy, deletedByName } = payload;
-      const item = s.votes.find(v => v.id === id);
-      const trashItem = item ? makeTrashItem('vote', item, {}, { trashId, deletedAt, deletedBy, deletedByName }) : null;
-      return { ...s, votes: s.votes.filter(v => v.id !== id), trash: trashItem ? [...(s.trash||[]), trashItem] : (s.trash||[]) };
-    }
 
     case A.MARK_NOTIF: {
       const n=s.notifications.map(x=>x.id===payload?{...x,read:true}:x);
@@ -180,13 +197,29 @@ function reducer(s, { type, payload }) {
     }
     case A.MARK_ALL_READ: return { ...s, notifications:s.notifications.map(x=>({...x,read:true})), unreadCount:0 };
     case A.ADD_NOTIF:       return { ...s, notifications:[payload,...s.notifications], unreadCount:s.unreadCount+1 };
+
     case A.ADD_ATTENDANCE_SESSION: return { ...s, attendance:[payload,...s.attendance] };
     case A.CHECK_ATTENDANCE: {
       const {sessionId,userId,checked}=payload;
+      // FIX: dùng toArr để tránh crash khi present là object từ Firebase
       return { ...s, attendance:s.attendance.map(sess=>sess.sessionId===sessionId?{...sess,present:checked?[...new Set([...toArr(sess.present),userId])]:toArr(sess.present).filter(u=>u!==userId)}:sess) };
     }
-    case A.DELETE_ATTENDANCE_SESSION: return { ...s, attendance: s.attendance.filter(a => a.sessionId !== payload) };
-    case A.EDIT_ATTENDANCE_SESSION:   return { ...s, attendance: s.attendance.map(a => a.sessionId === payload.sessionId ? { ...a, ...payload } : a) };
+
+    // <--- BLOCK DELTE NÀY VÀO --->
+    case A.DELETE_ATTENDANCE_SESSION:
+      return { ...s, attendance: s.attendance.filter(a => a.sessionId !== payload) };
+    // <-------------------------->
+
+    // <--- THÊM BLOCK EDIT NÀY VÀO --->
+    case A.EDIT_ATTENDANCE_SESSION:
+      return { 
+        ...s, 
+        attendance: s.attendance.map(a => 
+          a.sessionId === payload.sessionId ? { ...a, ...payload } : a
+        ) 
+      };
+    // <-------------------------->
+
     case A.ADD_DOC: {
       const {subjectId,doc}=payload;
       return { ...s, docs:{...s.docs,[subjectId]:[...(s.docs[subjectId]||[]),doc]} };
@@ -195,7 +228,10 @@ function reducer(s, { type, payload }) {
       const { subjectId, docId, trashId, deletedAt, deletedBy, deletedByName } = payload;
       const item = (s.docs[subjectId]||[]).find(d=>d.id===docId);
       const trashItem = item ? makeTrashItem('doc', item, { subjectId }, { trashId, deletedAt, deletedBy, deletedByName }) : null;
-      return { ...s, docs:{...s.docs,[subjectId]:(s.docs[subjectId]||[]).filter(x=>x.id!==docId)}, trash: trashItem ? [...(s.trash||[]), trashItem] : (s.trash||[]) };
+      return {
+        ...s, docs:{...s.docs,[subjectId]:(s.docs[subjectId]||[]).filter(x=>x.id!==docId)},
+        trash: trashItem ? [...(s.trash||[]), trashItem] : (s.trash||[]),
+      };
     }
     case A.RATE_DOC: {
       const {subjectId,docId,userId,stars}=payload;
@@ -206,12 +242,14 @@ function reducer(s, { type, payload }) {
         return {...doc,ratings,avgRating:Math.round(avg*10)/10};
       })}};
     }
+
     case A.UPDATE_MEMBER_ROLE: {
       const {memberId,role}=payload;
       if(s.members.find(m=>m.id===memberId)?.role==='super_admin')return s;
       return { ...s, members:s.members.map(m=>m.id===memberId?{...m,role}:m) };
     }
-    case A.REMOVE_MEMBER: return { ...s, members: s.members.filter(m => m.id !== payload) };
+    case A.REMOVE_MEMBER:
+      return { ...s, members: s.members.filter(m => m.id !== payload) };
     case A.ADD_CONTRIBUTION: {
       const {userId,points}=payload;
       if(!userId||!points||points<=0)return s;
@@ -221,22 +259,34 @@ function reducer(s, { type, payload }) {
     case A.ADD_TOAST:    return { ...s, toasts:[...s.toasts,payload] };
     case A.REMOVE_TOAST: return { ...s, toasts:s.toasts.filter(t=>t.id!==payload) };
     case A.UPDATE_SEMESTER_LABEL: return { ...s, semesterLabels:{...s.semesterLabels,[payload.key]:payload.label} };
+
     case A.RESTORE_FROM_TRASH: {
       const item = (s.trash||[]).find(t=>t.id===payload);
       if (!item) return s;
       const newTrash = (s.trash||[]).filter(t=>t.id!==payload);
       switch (item.type) {
-        case 'task':        return { ...s, trash:newTrash, tasks:[item.data,...s.tasks] };
-        case 'doc':         return { ...s, trash:newTrash, docs:{...s.docs,[item.meta.subjectId]:[item.data,...(s.docs[item.meta.subjectId]||[])]} };
-        case 'event':       return { ...s, trash:newTrash, calEvents:[...s.calEvents,item.data] };
-        case 'vote':        return { ...s, trash:newTrash, votes:[item.data,...s.votes] };
-        case 'subjectTask': return { ...s, trash:newTrash, subjectTasks:{...s.subjectTasks,[item.meta.subjectId]:[...(s.subjectTasks[item.meta.subjectId]||[]),item.data]} };
-        case 'roadmapEvent':return { ...s, trash:newTrash, roadmap:s.roadmap.map(y=>y.year===item.meta.year?{...y,events:[...y.events,item.data]}:y) };
-        default:            return { ...s, trash:newTrash };
+        case 'task':         return { ...s, trash:newTrash, tasks:[item.data,...s.tasks] };
+        case 'doc': {
+          const sid = item.meta.subjectId;
+          return { ...s, trash:newTrash, docs:{...s.docs,[sid]:[item.data,...(s.docs[sid]||[])]} };
+        }
+        case 'event':        return { ...s, trash:newTrash, calEvents:[...s.calEvents,item.data] };
+        case 'subjectTask': {
+          const sid = item.meta.subjectId;
+          return { ...s, trash:newTrash, subjectTasks:{...s.subjectTasks,[sid]:[...(s.subjectTasks[sid]||[]),item.data]} };
+        }
+        case 'roadmapEvent': {
+          const year = item.meta.year;
+          return { ...s, trash:newTrash, roadmap:s.roadmap.map(y=>y.year===year?{...y,events:[...y.events,item.data]}:y) };
+        }
+        default: return { ...s, trash:newTrash };
       }
     }
-    case A.PERMANENT_DELETE_TRASH: return { ...s, trash:(s.trash||[]).filter(t=>t.id!==payload) };
-    case A.EMPTY_TRASH:            return { ...s, trash:[] };
+    case A.PERMANENT_DELETE_TRASH:
+      return { ...s, trash:(s.trash||[]).filter(t=>t.id!==payload) };
+    case A.EMPTY_TRASH:
+      return { ...s, trash:[] };
+
     default: return s;
   }
 }
@@ -244,75 +294,36 @@ function reducer(s, { type, payload }) {
 const AppContext = createContext(null);
 const timerMap  = {};
 
-// ── Push Notification helpers ─────────────────────────────────────────────
-/**
- * Cross-platform push notification support:
- *  • Windows / Linux / macOS Chrome & Edge  → ServiceWorker showNotification
- *  • macOS Safari 16+                       → ServiceWorker showNotification
- *  • Android Chrome / Samsung Browser       → ServiceWorker showNotification
- *  • iOS Safari 16.4+ (PWA only)            → ServiceWorker showNotification
- *  • Desktop Firefox                        → new Notification() fallback
- *  • iOS Safari (non-PWA)                   → API not available, guide shown in UI
- *
- * iOS requires the user to "Add to Home Screen" first (PWA install).
- * Once installed, iOS 16.4+ supports Web Push natively.
- */
-
-async function requestPushPermission() {
-  if (!('Notification' in window)) return false;
-  if (Notification.permission === 'granted') return true;
-  if (Notification.permission === 'denied')  return false;
-  try {
-    const result = await Notification.requestPermission();
-    return result === 'granted';
-  } catch {
-    return false;
-  }
-}
-
-function firePushNotif({ title, body, url = '/notifications', tag = 'default' }) {
-  // Guard: API must exist and be granted
-  if (!('Notification' in window) || Notification.permission !== 'granted') return;
-
-  const opts = {
-    body:      body || '',
-    icon:      '/icon-192.png',
-    badge:     '/icon-192.png',
-    tag,
-    renotify:  true,
-    data:      { url },
-    vibrate:   [200, 100, 200],
-    // Required for iOS PWA push to work
-    silent:    false,
-  };
-
-  if ('serviceWorker' in navigator) {
-    // Race serviceWorker.ready against a 3-second timeout so we always fire
-    const swReady = navigator.serviceWorker.ready;
-    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('SW timeout')), 3000));
-
-    Promise.race([swReady, timeout])
-      .then(reg => reg.showNotification(title, opts))
-      .catch(() => {
-        // Fallback: direct Notification constructor (works on desktop Firefox,
-        // older Safari, etc. — will throw on iOS non-PWA, so we wrap in try/catch)
-        try { new Notification(title, { body: opts.body, icon: opts.icon, tag }); } catch {}
-      });
-  } else {
-    try { new Notification(title, { body: opts.body, icon: opts.icon, tag }); } catch {}
-  }
-}
-
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, init);
   const skipSyncRef     = useRef(false);
   const fromFirebaseRef = useRef(false);
-  const lastNotifIdRef  = useRef(null);
-  const bootedRef       = useRef(false); // prevents push on initial load
+
+  // ── Global font-size scaling (tăng cỡ chữ toàn app) ──────────────────────
+  useEffect(() => {
+    const el = document.createElement('style');
+    el.id = '2x18-font-scale';
+    el.textContent = `
+      html { font-size: 15.5px !important; }
+      .text-xs   { font-size: 0.82rem !important; }
+      .text-sm   { font-size: 0.92rem !important; }
+      .text-base { font-size: 1rem   !important; }
+    `;
+    document.head.appendChild(el);
+    return () => { document.getElementById('2x18-font-scale')?.remove(); };
+  }, []);
+
+  // ── Request browser notification permission ────────────────────────────────
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
 
   // ── Boot ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     let unsubDB = null;
+
     try {
       const stored = localStorage.getItem('2x18_current_user');
       if (stored) dispatch({ type:A.SET_USER, payload:JSON.parse(stored) });
@@ -321,22 +332,38 @@ export function AppProvider({ children }) {
     const subscribeDB = () => {
       if (unsubDB) { unsubDB(); unsubDB = null; }
       dispatch({ type:A.SET_LOADING, payload:true });
+
       unsubDB = onValue(ref(db, '/'), (snapshot) => {
         const val = snapshot.val() || {};
         const members = toArr(val['2x18_members']);
         const grades  = {};
         members.forEach(m => { if (m?.id) grades[m.id] = val[`${m.id}_grades`] || {}; });
+
         fromFirebaseRef.current = true;
+
         dispatch({ type:A.INIT_DATA, payload: {
           members,
           grades,
           smeMap:           val['2x18_sme']              || {},
           tasks:            toArr(val['2x18_tasks']),
           calEvents:        toArr(val['2x18_events']),
-          roadmap:          toArr(val['2x18_roadmap']).map(y => ({ ...y, events: toArr(y.events) })),
-          votes:            toArr(val['2x18_votes']).map(v => ({ ...v, options: toArr(v.options).map(o => ({ ...o, votes: toArr(o.votes) })) })),
+          // FIX: Firebase trả object thay vì array cho nested arrays → cần normalize
+          roadmap:          toArr(val['2x18_roadmap']).map(y => ({
+            ...y,
+            events: toArr(y.events),
+          })),
+          votes:            toArr(val['2x18_votes']).map(v => ({
+            ...v,
+            options: toArr(v.options).map(o => ({
+              ...o,
+              votes: toArr(o.votes),
+            })),
+          })),
           notifications:    toArr(val['2x18_notifs']),
-          attendance:       toArr(val['2x18_attendance']).map(sess => ({ ...sess, present: toArr(sess.present) })),
+          attendance:       toArr(val['2x18_attendance']).map(sess => ({
+            ...sess,
+            present: toArr(sess.present),
+          })),
           contributions:    val['2x18_contributions']     || {},
           docs:             val['2x18_docs']              || {},
           auditLogs:        toArr(val['2x18_audit']),
@@ -345,8 +372,6 @@ export function AppProvider({ children }) {
           semesterLabels:   val['2x18_semester_labels']   || {},
           trash:            toArr(val['2x18_trash']),
         }});
-        // Mark as booted after first load so future notifs fire push
-        setTimeout(() => { bootedRef.current = true; }, 1500);
       }, (err) => {
         console.error('[Firebase DB] Access denied:', err.message);
         dispatch({ type:A.SET_LOADING, payload:false });
@@ -360,48 +385,19 @@ export function AppProvider({ children }) {
         localStorage.removeItem('2x18_current_user');
         if (unsubDB) { unsubDB(); unsubDB = null; }
         fromFirebaseRef.current = false;
-        bootedRef.current       = false;
         dispatch({ type:A.SET_USER, payload:null });
-        dispatch({ type:A.INIT_DATA, payload: { members:[], grades:{}, smeMap:{}, tasks:[], calEvents:[], roadmap:[], votes:[], notifications:[], attendance:[], contributions:{}, docs:{}, auditLogs:[], subjectTasks:{}, subjectComments:{}, semesterLabels:{}, trash:[] }});
+        dispatch({ type:A.INIT_DATA, payload: {
+          members:[], grades:{}, smeMap:{}, tasks:[],
+          calEvents:[], roadmap:[], votes:[],
+          notifications:[], attendance:[], contributions:{},
+          docs:{}, auditLogs:[], subjectTasks:{}, subjectComments:{},
+          semesterLabels:{}, trash:[],
+        }});
       }
     });
 
     return () => { if (unsubDB) unsubDB(); unsubAuth(); };
   }, []);
-
-  // ── Request push permission on login ─────────────────────────────────────
-  useEffect(() => {
-    if (state.currentUser && state.currentUser.status !== 'pending') {
-      requestPushPermission();
-    }
-  }, [state.currentUser?.id]); // eslint-disable-line
-
-  // ── Listen for SW navigation messages (notification tap → navigate) ───────
-  useEffect(() => {
-    const handler = (e) => {
-      window.dispatchEvent(new CustomEvent('app-navigate', { detail: e.detail }));
-    };
-    window.addEventListener('sw-navigate', handler);
-    return () => window.removeEventListener('sw-navigate', handler);
-  }, []);
-
-  // ── Fire OS push when new in-app notification arrives ────────────────────
-  useEffect(() => {
-    if (!bootedRef.current) return;
-    const notifs = state.notifications;
-    if (!notifs.length) return;
-    const newest = notifs[0];
-    if (!newest || newest.id === lastNotifIdRef.current) return;
-    lastNotifIdRef.current = newest.id;
-    if (!newest.read) {
-      firePushNotif({
-        title: '2X18 – Thông báo mới',
-        body:  newest.msg || 'Có hoạt động mới trong nhóm',
-        url:   newest.link || '/notifications',
-        tag:   newest.type || 'default',
-      });
-    }
-  }, [state.notifications]); // eslint-disable-line
 
   // ── Sync currentUser from members ─────────────────────────────────────────
   useEffect(() => {
@@ -410,7 +406,9 @@ export function AppProvider({ children }) {
     if (!cu || state.isLoading) return;
     const fresh = state.members.find(m => m.id === cu.id);
     if (!fresh) return;
-    const hasChange = ['role','status','fullName','phone','gender','mssv','mailSchool'].some(f => fresh[f] !== cu[f]);
+    const hasChange = ['role','status','fullName','phone','gender','mssv','mailSchool'].some(
+      f => fresh[f] !== cu[f]
+    );
     if (hasChange) {
       const merged = { ...cu, ...fresh };
       dispatch({ type:A.SET_USER, payload:merged });
@@ -420,12 +418,24 @@ export function AppProvider({ children }) {
 
   // ── Auto-sync to Firebase ─────────────────────────────────────────────────
   useEffect(() => {
-    if (fromFirebaseRef.current) { fromFirebaseRef.current = false; return; }
+    // Bỏ qua nếu data vừa đến từ Firebase (tránh vòng lặp ghi → onValue → ghi → ...)
+    if (fromFirebaseRef.current) {
+      fromFirebaseRef.current = false;
+      return;
+    }
+    // QUAN TRỌNG: Chỉ sync khi có user đang đăng nhập và đã được duyệt.
+    // Nếu không có guard này, khi tài khoản mới login (pending/new),
+    // onAuthStateChanged → subscribeDB → load data → fromFirebaseRef reset về false
+    // → auto-sync có thể ghi state chưa đầy đủ lên Firebase → reset DB.
     if (!state.currentUser || state.currentUser.status === 'pending') return;
     if (state.isLoading || !state.members.length) return;
+    
+    // FIX QUAN TRỌNG: Ép mảng thành Object (Map) trước khi gửi lên DB
+    // Điều này sẽ trị dứt điểm lỗi "scalar field"
     const membersMap = {};
     state.members.forEach(m => { if (m.id) membersMap[m.id] = m; });
-    fbSet('2x18_members',          membersMap);
+    fbSet('2x18_members', membersMap);
+
     fbSet('2x18_sme',              state.smeMap);
     fbSet('2x18_tasks',            state.tasks);
     fbSet('2x18_events',           state.calEvents);
@@ -440,7 +450,9 @@ export function AppProvider({ children }) {
     fbSet('2x18_subject_comments', state.subjectComments);
     fbSet('2x18_semester_labels',  state.semesterLabels);
     fbSet('2x18_trash',            state.trash);
-    Object.entries(state.grades).forEach(([uid, g]) => { if (uid && g) fbSet(`${uid}_grades`, g); });
+    Object.entries(state.grades).forEach(([uid, g]) => {
+      if (uid && g) fbSet(`${uid}_grades`, g);
+    });
   }, [ // eslint-disable-line
     state.members, state.smeMap, state.tasks, state.calEvents, state.roadmap,
     state.votes, state.notifications, state.attendance, state.contributions,
@@ -461,33 +473,72 @@ export function AppProvider({ children }) {
   }, [state.toasts]);
 
   // ── Core helpers ──────────────────────────────────────────────────────────
-  const toast     = useCallback((msg, type='info', duration=3500) => dispatch({ type:A.ADD_TOAST, payload:{id:uid(),msg,type,duration} }), []);
-  const rmToast   = useCallback(id => dispatch({ type:A.REMOVE_TOAST, payload:id }), []);
-  const addAudit  = useCallback((action,target='',detail='') => dispatch({ type:A.ADD_AUDIT, payload:{id:uid(),action,target,detail,time:new Date().toISOString()} }), []);
-  const trashMeta = useCallback(() => ({ trashId:uid(), deletedAt:new Date().toISOString(), deletedBy:state.currentUser?.id||'', deletedByName:state.currentUser?.fullName||'Unknown' }), [state.currentUser]);
-  // In-app + push notification
-  const addNotif  = useCallback(n => dispatch({ type:A.ADD_NOTIF, payload:{...n, id:uid(), read:false, time:new Date().toISOString()} }), []);
+  const toast    = useCallback((msg, type='info', duration=3500) =>
+    dispatch({ type:A.ADD_TOAST, payload:{id:uid(),msg,type,duration} }), []);
+  const rmToast  = useCallback(id => dispatch({ type:A.REMOVE_TOAST, payload:id }), []);
+  const addAudit = useCallback((action,target='',detail='') =>
+    dispatch({ type:A.ADD_AUDIT, payload:{id:uid(),action,target,detail,time:new Date().toISOString()} }), []);
+  const trashMeta = useCallback(() => ({
+    trashId:     uid(),
+    deletedAt:   new Date().toISOString(),
+    deletedBy:   state.currentUser?.id    || '',
+    deletedByName: state.currentUser?.fullName || 'Unknown',
+  }), [state.currentUser]);
+
+  // ── Notification helper — dispatch in-app + browser push ──────────────────
+  const pushNotif = useCallback((msg, type = 'system', link = '') => {
+    const n = { id: uid(), msg, type, link, read: false, time: new Date().toISOString() };
+    dispatch({ type: A.ADD_NOTIF, payload: n });
+    // Browser push (chỉ khi được cấp quyền và không đang focus trang)
+    if ('Notification' in window && Notification.permission === 'granted' && document.visibilityState !== 'visible') {
+      try {
+        new Notification('2X18 — ' + (type === 'task' ? '📋' : type === 'vote' ? '🗳️' : type === 'calendar' ? '📅' : type === 'member' ? '👥' : type === 'sme' ? '📄' : '🔔') + ' Thông báo mới', {
+          body: msg,
+          icon: '/icon-192.png',
+          badge: '/icon-192.png',
+          tag: n.id,
+        });
+      } catch (e) { /* ignore */ }
+    }
+  }, []);
 
   // ── AUTH ──────────────────────────────────────────────────────────────────
   const login = useCallback(async (email, password) => {
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
       const fbUser = cred.user;
+
+      // Thử đọc trực tiếp theo UID (tài khoản mới, id === fbUser.uid)
       let member = null;
       const snap1 = await get(ref(db, `2x18_members/${fbUser.uid}`));
-      if (snap1.val()) { member = snap1.val(); }
-      else {
+      if (snap1.val()) {
+        member = snap1.val();
+      } else {
+        // Fallback: tìm theo email (tài khoản cũ có id là random string ≠ fbUser.uid)
         const snapAll = await get(ref(db, '2x18_members'));
         member = toArr(snapAll.val()).find(m => m.email === email || m.mailSchool === email);
       }
-      if (!member) { await signOut(auth).catch(()=>{}); throw new Error('NOT_FOUND'); }
-      if (member.status === 'pending') { await signOut(auth).catch(()=>{}); throw new Error('PENDING'); }
+
+      if (!member) {
+        await signOut(auth).catch(() => {});
+        throw new Error('NOT_FOUND');
+      }
+      if (member.status === 'pending') {
+        await signOut(auth).catch(() => {});
+        throw new Error('PENDING');
+      }
       const user = { ...member, uid: fbUser.uid };
       dispatch({ type: A.SET_USER, payload: user });
       localStorage.setItem('2x18_current_user', JSON.stringify(user));
     } catch (err) {
       if (err.message === 'PENDING' || err.message === 'NOT_FOUND') throw err;
-      const msg = { 'auth/user-not-found':'Tài khoản không tồn tại.','auth/wrong-password':'Mật khẩu không đúng.','auth/invalid-email':'Email không hợp lệ.','auth/invalid-credential':'Email hoặc mật khẩu không đúng.','auth/too-many-requests':'Quá nhiều lần thử. Thử lại sau.' }[err.code] || 'Đăng nhập thất bại.';
+      const msg = {
+        'auth/user-not-found':     'Tài khoản không tồn tại.',
+        'auth/wrong-password':     'Mật khẩu không đúng.',
+        'auth/invalid-email':      'Email không hợp lệ.',
+        'auth/invalid-credential': 'Email hoặc mật khẩu không đúng.',
+        'auth/too-many-requests':  'Quá nhiều lần thử. Thử lại sau.',
+      }[err.code] || 'Đăng nhập thất bại.';
       throw new Error(msg);
     }
   }, []);
@@ -498,16 +549,34 @@ export function AppProvider({ children }) {
     const cred = await signInWithPopup(auth, provider);
     const fbUser = cred.user;
     const isSA = fbUser.email === SUPER_ADMIN_EMAIL;
+
+    // FIX: Chỉ tải dữ liệu của chính mình thay vì tải cả array
     const snap = await get(ref(db, `2x18_members/${fbUser.uid}`));
     let member = snap.val();
+
     if (!member) {
-      member = { id:fbUser.uid, uid:fbUser.uid, email:fbUser.email, mailSchool:fbUser.email, fullName:fbUser.displayName||'Thành viên', avatarUrl:fbUser.photoURL||'', avatar:(fbUser.displayName||'NT').split(' ').map(w=>w[0]).slice(-2).join('').toUpperCase(), role:isSA?'super_admin':'member', status:isSA?'active':'pending', mssv:'', phone:'', gender:'', registeredAt:new Date().toISOString() };
+      member = {
+        id: fbUser.uid, uid: fbUser.uid,
+        email: fbUser.email, mailSchool: fbUser.email,
+        fullName: fbUser.displayName || 'Thành viên',
+        avatarUrl: fbUser.photoURL || '',
+        avatar: (fbUser.displayName || 'NT').split(' ').map(w => w[0]).slice(-2).join('').toUpperCase(),
+        role: isSA ? 'super_admin' : 'member',
+        status: isSA ? 'active' : 'pending',
+        mssv: '', phone: '', gender: '',
+        registeredAt: new Date().toISOString(),
+      };
       await set(ref(db, `2x18_members/${fbUser.uid}`), member);
     } else if (isSA && (member.role !== 'super_admin' || member.status !== 'active')) {
-      member = { ...member, role:'super_admin', status:'active' };
+      member = { ...member, role: 'super_admin', status: 'active' };
       await set(ref(db, `2x18_members/${member.id}`), member);
     }
-    if (member.status === 'pending') { await signOut(auth).catch(()=>{}); return { status:'pending', name:member.fullName, email:member.email }; }
+
+    if (member.status === 'pending') {
+      await signOut(auth).catch(() => {});
+      return { status: 'pending', name: member.fullName, email: member.email };
+    }
+
     const user = { ...member, uid: fbUser.uid };
     dispatch({ type: A.SET_USER, payload: user });
     localStorage.setItem('2x18_current_user', JSON.stringify(user));
@@ -519,9 +588,21 @@ export function AppProvider({ children }) {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     const fbUser = cred.user;
     const fullName = `${ho.trim()} ${ten.trim()}`.trim() || userData.fullName || 'Thành viên';
-    const newMember = { id:fbUser.uid, uid:fbUser.uid, email, mailSchool:email, fullName, mssv:mssv.trim(), phone:phone.trim(), gender:'', avatar:(fullName.split(' ').filter(Boolean).map(w=>w[0]).slice(-2).join('')||'TV').toUpperCase(), role:'member', status:'pending', reason, registeredAt:new Date().toISOString() };
+    
+    const newMember = {
+      id: fbUser.uid, uid: fbUser.uid,
+      email, mailSchool: email,
+      fullName, mssv: mssv.trim(), phone: phone.trim(),
+      gender: '',
+      avatar: (fullName.split(' ').filter(Boolean).map(w => w[0]).slice(-2).join('') || 'TV').toUpperCase(),
+      role: 'member', status: 'pending',
+      reason,
+      registeredAt: new Date().toISOString(),
+    };
+    
+    // FIX: Ghi trực tiếp vào Object riêng, không đọc và đè mảng nữa
     await set(ref(db, `2x18_members/${fbUser.uid}`), newMember);
-    await signOut(auth).catch(()=>{});
+    await signOut(auth).catch(() => {});
     return newMember;
   }, []);
 
@@ -536,6 +617,8 @@ export function AppProvider({ children }) {
     const merged = { ...state.currentUser, ...profileData };
     dispatch({ type:A.UPDATE_PROFILE, payload:merged });
     localStorage.setItem('2x18_current_user', JSON.stringify(merged));
+    
+    // FIX: Ghi trực tiếp để tránh lỗi phân quyền từ auto-sync
     set(ref(db, `2x18_members/${merged.id}`), merged).catch(e => console.warn(e));
     toast('Đã lưu hồ sơ!', 'success');
   }, [state.currentUser, toast]);
@@ -548,146 +631,149 @@ export function AppProvider({ children }) {
 
   const approveUser = useCallback(async (memberId) => {
     try {
+      // FIX: Cập nhật status trực tiếp của 1 người
       await set(ref(db, `2x18_members/${memberId}/status`), 'active');
       dispatch({ type: A.UPDATE_PROFILE, payload: { id: memberId, status: 'active' } });
+      pushNotif(`Đã duyệt thành viên mới vào nhóm!`, 'member', '/profile');
       toast('Đã duyệt thành viên! ✓', 'success');
-    } catch (e) { console.error('[approveUser]', e); toast('Lỗi khi duyệt. Thử lại.', 'error'); }
+    } catch (e) {
+      console.error('[approveUser]', e);
+      toast('Lỗi khi duyệt. Thử lại.', 'error');
+    }
   }, [toast]);
 
   const rejectUser = useCallback(async (memberId) => {
     try {
+      // FIX: Xóa thẳng nhánh của người đó
       await set(ref(db, `2x18_members/${memberId}`), null);
       dispatch({ type: A.REMOVE_MEMBER, payload: memberId });
       toast('Đã từ chối đơn đăng ký.', 'info');
-    } catch (e) { console.error('[rejectUser]', e); toast('Lỗi khi từ chối. Thử lại.', 'error'); }
+    } catch (e) {
+      console.error('[rejectUser]', e);
+      toast('Lỗi khi từ chối. Thử lại.', 'error');
+    }
   }, [toast]);
 
-  // ── GRADES ────────────────────────────────────────────────────────────────
-  const syncGrades    = useCallback((userId, gradesData) => { dispatch({ type:A.SYNC_GRADES, payload:{ userId, gradesData } }); toast('Đã lưu bảng điểm!', 'success'); }, [toast]);
-  const updateGrade   = useCallback((userId, subjectId, field, value) => dispatch({ type:A.UPDATE_GRADE, payload:{ userId, subjectId, field, value } }), []);
-  const updateProgress= useCallback((userId, subjectId, value) => dispatch({ type:A.UPDATE_PROGRESS, payload:{ userId, subjectId, value } }), []);
+  // ── GRADES & FEATURES ─────────────────────────────────────────────────────
+  const syncGrades   = useCallback((userId, gradesData) => {
+    dispatch({ type:A.SYNC_GRADES,    payload:{ userId, gradesData } });
+    toast('Đã lưu bảng điểm!', 'success');
+  }, [toast]);
+  const updateGrade   = useCallback((userId, subjectId, field, value) =>
+    dispatch({ type:A.UPDATE_GRADE,   payload:{ userId, subjectId, field, value } }), []);
+  const updateProgress = useCallback((userId, subjectId, value) =>
+    dispatch({ type:A.UPDATE_PROGRESS, payload:{ userId, subjectId, value } }), []);
 
-  // ── TASKS ─────────────────────────────────────────────────────────────────
-  const addTask = useCallback(t => {
-    dispatch({ type:A.ADD_TASK, payload:{...t, id:uid(), done:false} });
-    addAudit('Thêm task', t.subjectId, t.task);
-    toast('Thêm task!', 'success');
-    addNotif({ type:'task', msg:`📋 Task mới: "${t.task}"`, link:'/tasks' });
-  }, [addAudit, toast, addNotif]);
+  const addTask    = useCallback(t  => {
+    dispatch({type:A.ADD_TASK,payload:{...t,id:uid(),done:false}});
+    addAudit('Thêm task',t.subjectId,t.task);
+    pushNotif(`📋 Task mới: "${t.task}"${t.subjectId ? ` — ${t.subjectId}` : ''}`, 'task', '/tasks');
+    toast('Thêm task!','success');
+  }, [addAudit, pushNotif, toast]);
   const editTask   = useCallback(t  => dispatch({type:A.EDIT_TASK,  payload:t}), []);
   const deleteTask = useCallback(id => { dispatch({ type:A.DELETE_TASK, payload:{ id, ...trashMeta() } }); toast('Đã chuyển vào thùng rác.', 'info'); }, [trashMeta, toast]);
-  const toggleTask = useCallback(id => dispatch({type:A.TOGGLE_TASK, payload:id}), []);
+  const toggleTask = useCallback(id => dispatch({type:A.TOGGLE_TASK,payload:id}), []);
 
   const addSubjectTask    = useCallback((sid,t) => { dispatch({type:A.ADD_SUBJECT_TASK,payload:{subjectId:sid,task:{...t,id:uid(),doneBy:{}}}}); toast('Thêm mục!','success'); }, [toast]);
   const editSubjectTask   = useCallback((sid,t) => dispatch({type:A.EDIT_SUBJECT_TASK,payload:{subjectId:sid,task:t}}), []);
   const deleteSubjectTask = useCallback((sid,id) => { dispatch({ type:A.DELETE_SUBJECT_TASK, payload:{ subjectId:sid, taskId:id, ...trashMeta() } }); toast('Đã chuyển vào thùng rác.', 'info'); }, [trashMeta, toast]);
   const tickSubjectTask   = useCallback((sid,tid,userId,done) => dispatch({type:A.TICK_SUBJECT_TASK,payload:{subjectId:sid,taskId:tid,userId,done}}), []);
+
   const addSubjectComment = useCallback((subjectId, text) => {
-    const comment = { id:uid(), user:state.currentUser?.fullName||'Ẩn danh', text, time:new Date().toLocaleTimeString('vi'), date:new Date().toLocaleDateString('vi-VN') };
+    const comment = {
+      id: uid(),
+      user: state.currentUser?.fullName || 'Ẩn danh',
+      text,
+      time: new Date().toLocaleTimeString('vi'),
+      date: new Date().toLocaleDateString('vi-VN'),
+    };
     dispatch({ type:A.ADD_SUBJECT_COMMENT, payload:{ subjectId, comment } });
   }, [state.currentUser]);
 
-  // ── SME / CALENDAR / ROADMAP ──────────────────────────────────────────────
-  const setSme = useCallback(p => {
-    dispatch({ type:A.SET_SME, payload:p });
-    addAudit('Đổi SME', p.subjectId);
-    toast('Cập nhật SME!', 'success');
-    addNotif({ type:'sme', msg:`👤 SME môn đã được cập nhật`, link:'/subjects' });
-  }, [addAudit, toast, addNotif]);
-
-  const addEvent = useCallback(e => {
-    dispatch({ type:A.ADD_EVENT, payload:{...e, id:uid()} });
-    addNotif({ type:'calendar', msg:`📅 Sự kiện mới: "${e.title}"`, link:'/calendar' });
-  }, [addNotif]);
+  const setSme   = useCallback(p  => { dispatch({type:A.SET_SME,payload:p}); addAudit('Đổi SME',p.subjectId); toast('Cập nhật SME!','success'); }, [addAudit,toast]);
+  const addEvent    = useCallback(e  => dispatch({type:A.ADD_EVENT,  payload:{...e,id:uid()}}), []);
   const editEvent   = useCallback(e  => dispatch({type:A.EDIT_EVENT, payload:e}), []);
   const deleteEvent = useCallback(id => { dispatch({ type:A.DELETE_EVENT, payload:{ id, ...trashMeta() } }); toast('Đã chuyển vào thùng rác.', 'info'); }, [trashMeta, toast]);
 
-  const updateRoadmap   = useCallback(p => dispatch({type:A.UPDATE_ROADMAP, payload:p}), []);
-  const addRoadmapEvent = useCallback(p => {
-    dispatch({ type:A.ADD_ROADMAP_EVENT, payload:{...p, event:{...p.event, id:uid()}} });
-    addNotif({ type:'system', msg:`🗺️ Lộ trình: sự kiện mới "${p.event?.title||''}"`, link:'/roadmap' });
-  }, [addNotif]);
-  const delRoadmapEvent   = useCallback(p    => { dispatch({ type:A.DEL_ROADMAP_EVENT,  payload:{ ...p, ...trashMeta() } }); toast('Đã chuyển vào thùng rác.', 'info'); }, [trashMeta, toast]);
-  const addRoadmapYear    = useCallback(year => dispatch({type:A.ADD_ROADMAP_YEAR,  payload:year}), []);
-  const deleteRoadmapYear = useCallback(year => dispatch({type:A.DELETE_ROADMAP_YEAR, payload:year}), []);
+  const updateRoadmap     = useCallback(p    => dispatch({type:A.UPDATE_ROADMAP,   payload:p}), []);
+  const addRoadmapEvent   = useCallback(p    => dispatch({type:A.ADD_ROADMAP_EVENT,payload:{...p,event:{...p.event,id:uid()}}}), []);
+  const delRoadmapEvent   = useCallback(p    => { dispatch({ type:A.DEL_ROADMAP_EVENT, payload:{ ...p, ...trashMeta() } }); toast('Đã chuyển vào thùng rác.', 'info'); }, [trashMeta, toast]);
+  const addRoadmapYear    = useCallback(year => dispatch({type:A.ADD_ROADMAP_YEAR, payload:year}), []);
+  const deleteRoadmapYear = useCallback(year => dispatch({type:A.DELETE_ROADMAP_YEAR,payload:year}), []);
 
-  // ── VOTES ─────────────────────────────────────────────────────────────────
-  const addVote = useCallback(v => {
-    dispatch({ type:A.ADD_VOTE, payload:{...v, id:uid()} });
-    toast('Đã tạo bình chọn!', 'success');
-    addNotif({ type:'vote', msg:`🗳️ Bình chọn mới: "${v.title}"`, link:'/voting' });
-  }, [toast, addNotif]);
-  const castVote      = useCallback(p  => dispatch({type:A.CAST_VOTE,      payload:p}), []);
+  const addVote       = useCallback(v  => {
+    dispatch({type:A.ADD_VOTE, payload:{...v,id:uid()}});
+    pushNotif(`🗳️ Bình chọn mới: "${v.title}"`, 'vote', '/voting');
+  }, [pushNotif]);
+  const castVote      = useCallback(p  => dispatch({type:A.CAST_VOTE,     payload:p}), []);
   const closeVote     = useCallback(id => {
-    dispatch({ type:A.CLOSE_VOTE, payload:id });
-    const title = state.votes.find(v=>v.id===id)?.title || '';
-    addNotif({ type:'vote', msg:`🔒 Bình chọn "${title}" đã đóng`, link:'/voting' });
-  }, [state.votes, addNotif]);
-  const addVoteOption = useCallback(p => dispatch({type:A.ADD_VOTE_OPTION, payload:p}), []);
-  // ── FIX: deleteVote chuyển vào thùng rác (có trashMeta) ────────────────
-  const deleteVote = useCallback(id => {
-    dispatch({ type:A.DELETE_VOTE, payload:{ id, ...trashMeta() } });
-    toast('Đã chuyển vào thùng rác.', 'info');
-  }, [trashMeta, toast]);
+    dispatch({type:A.CLOSE_VOTE, payload:id});
+    pushNotif('🔒 Một bình chọn vừa được đóng lại.', 'vote', '/voting');
+  }, [pushNotif]);
+  const addVoteOption = useCallback(p  => dispatch({type:A.ADD_VOTE_OPTION,payload:p}), []);
+  const deleteVote    = useCallback(id => { dispatch({type:A.DELETE_VOTE, payload:id}); toast('Đã xóa bình chọn.','info'); }, [toast]);
 
-  // ── NOTIFICATIONS ─────────────────────────────────────────────────────────
-  const markNotif   = useCallback(id => dispatch({type:A.MARK_NOTIF,   payload:id}), []);
+  const markNotif   = useCallback(id => dispatch({type:A.MARK_NOTIF,  payload:id}), []);
   const markAllRead = useCallback(()  => dispatch({type:A.MARK_ALL_READ}), []);
+  const addNotif    = pushNotif; // alias — pushNotif handles both dispatch + browser push
 
-  // ── ATTENDANCE ────────────────────────────────────────────────────────────
   const addAttendanceSession = useCallback((data) => {
     const s = {...data, sessionId:uid(), present:[], total:state.members.length};
-    dispatch({ type:A.ADD_ATTENDANCE_SESSION, payload:s });
-    toast('Đã tạo buổi điểm danh!', 'success');
-    addNotif({ type:'member', msg:`📋 Điểm danh: "${data.sessionTitle||'Buổi mới'}"`, link:'/attendance' });
-  }, [state.members.length, toast, addNotif]);
+    dispatch({type:A.ADD_ATTENDANCE_SESSION,payload:s});
+    pushNotif(`📅 Buổi họp mới: "${data.sessionTitle}" — ${data.date}`, 'calendar', '/attendance');
+    toast('Đã tạo buổi điểm danh!','success');
+  }, [state.members.length, pushNotif, toast]);
 
   const checkAttendance = useCallback(({sessionId,userId,checked}) => {
     const sess = state.attendance.find(a=>a.sessionId===sessionId);
     if (checked && !sess?.present?.includes(userId))
-      dispatch({ type:A.ADD_CONTRIBUTION, payload:{userId, points:10} });
-    dispatch({ type:A.CHECK_ATTENDANCE, payload:{sessionId, userId, checked} });
+      dispatch({type:A.ADD_CONTRIBUTION,payload:{userId,points:10}});
+    dispatch({type:A.CHECK_ATTENDANCE,payload:{sessionId,userId,checked}});
   }, [state.attendance]);
 
+  // <--- THÊM HÀM delete NÀY VÀO --->
   const deleteAttendanceSession = useCallback((sessionId) => {
     dispatch({ type: A.DELETE_ATTENDANCE_SESSION, payload: sessionId });
     toast('Đã xóa buổi họp!', 'info');
   }, [toast]);
+  // <-------------------------->
 
+  // <--- THÊM HÀM edit NÀY VÀO --->
   const editAttendanceSession = useCallback((data) => {
     dispatch({ type: A.EDIT_ATTENDANCE_SESSION, payload: data });
     toast('Đã cập nhật thông tin!', 'success');
   }, [toast]);
+  // <-------------------------->
 
-  // ── DOCS ──────────────────────────────────────────────────────────────────
-  const addDoc = useCallback((subjectId, doc) => {
-    const full = {...doc, id:uid(), uploadedBy:state.currentUser?.id, uploadedByName:state.currentUser?.fullName, uploadedAt:new Date().toLocaleDateString('vi-VN'), ratings:{}, avgRating:0};
-    dispatch({ type:A.ADD_DOC, payload:{subjectId, doc:full} });
-    addAudit('Upload tài liệu', subjectId, doc.name);
-    dispatch({ type:A.ADD_CONTRIBUTION, payload:{userId:state.currentUser?.id, points:20} });
-    toast(`Thêm "${doc.name}"! +20 điểm`, 'success');
-    addNotif({ type:'sme', msg:`📄 Tài liệu mới: "${doc.name}"`, link:'/subjects' });
-  }, [addAudit, toast, addNotif, state.currentUser]);
+  const addDoc = useCallback((subjectId,doc) => {
+    const full = {...doc,id:uid(),uploadedBy:state.currentUser?.id,uploadedByName:state.currentUser?.fullName,uploadedAt:new Date().toLocaleDateString('vi-VN'),ratings:{},avgRating:0};
+    dispatch({type:A.ADD_DOC,payload:{subjectId,doc:full}});
+    addAudit('Upload tài liệu',subjectId,doc.name);
+    dispatch({type:A.ADD_CONTRIBUTION,payload:{userId:state.currentUser?.id,points:20}});
+    pushNotif(`📄 Tài liệu mới: "${doc.name}" — môn ${subjectId}`, 'sme', '/subjects');
+    toast(`Thêm "${doc.name}"! +20 điểm`,'success');
+  }, [addAudit, pushNotif, toast, state.currentUser]);
 
   const deleteDoc = useCallback((sid,did) => { dispatch({ type:A.DELETE_DOC, payload:{ subjectId:sid, docId:did, ...trashMeta() } }); toast('Đã chuyển vào thùng rác.', 'info'); }, [trashMeta, toast]);
 
   const rateDoc = useCallback((sid,did,stars) => {
-    dispatch({ type:A.RATE_DOC, payload:{subjectId:sid, docId:did, userId:state.currentUser?.id, stars} });
+    dispatch({type:A.RATE_DOC,payload:{subjectId:sid,docId:did,userId:state.currentUser?.id,stars}});
     if (stars===5) {
       const doc=(state.docs[sid]||[]).find(d=>d.id===did);
       if (doc?.uploadedBy && doc.uploadedBy!==state.currentUser?.id)
-        dispatch({ type:A.ADD_CONTRIBUTION, payload:{userId:doc.uploadedBy, points:30} });
+        dispatch({type:A.ADD_CONTRIBUTION,payload:{userId:doc.uploadedBy,points:30}});
     }
-    toast(`Đánh giá ${stars} sao!`, 'success');
-  }, [state.currentUser?.id, state.docs, toast]);
+    toast(`Đánh giá ${stars} sao!`,'success');
+  }, [state.currentUser?.id,state.docs,toast]);
 
-  // ── MISC ──────────────────────────────────────────────────────────────────
   const updateRole = useCallback(p => {
-    dispatch({ type:A.UPDATE_MEMBER_ROLE, payload:p });
+    dispatch({type:A.UPDATE_MEMBER_ROLE,payload:p});
     set(ref(db, `2x18_members/${p.memberId}/role`), p.role).catch(e => console.warn(e));
   }, []);
-  const addContribution     = useCallback(p => dispatch({type:A.ADD_CONTRIBUTION,    payload:p}), []);
-  const updateSemesterLabel = useCallback((key,label) => dispatch({type:A.UPDATE_SEMESTER_LABEL, payload:{key,label}}), []);
+  
+  const addContribution     = useCallback(p => dispatch({type:A.ADD_CONTRIBUTION,  payload:p}), []);
+  const updateSemesterLabel = useCallback((key,label) => dispatch({type:A.UPDATE_SEMESTER_LABEL,payload:{key,label}}), []);
+
   const restoreFromTrash     = useCallback(id => { dispatch({type:A.RESTORE_FROM_TRASH,     payload:id}); toast('Đã khôi phục!','success'); }, [toast]);
   const permanentDeleteTrash = useCallback(id => { dispatch({type:A.PERMANENT_DELETE_TRASH, payload:id}); toast('Đã xóa vĩnh viễn.','info'); }, [toast]);
   const emptyTrash           = useCallback(()  => { dispatch({type:A.EMPTY_TRASH});                        toast('Đã dọn sạch thùng rác.','success'); }, [toast]);
@@ -701,15 +787,23 @@ export function AppProvider({ children }) {
     const a=Object.assign(document.createElement('a'),{href:url,download:'2X18_Members.csv'});
     document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
     toast('Đã xuất danh sách!','success');
-  }, [state.members, toast]);
+  }, [state.members,toast]);
 
   const isProfileComplete = useCallback((m) => {
     if (!m) return false;
     const has = f => m[f] && String(m[f]).trim() !== '';
-    return (has('mssv')||has('msv')) && has('fullName') && has('gender') && has('dob') && has('ethnicity') && has('bloodType') && has('pob') && has('phone') && has('mailVnu') && has('mailSchool') && has('facebook');
+    return (
+      (has('mssv') || has('msv')) &&
+      has('fullName') && has('gender') && has('dob') && has('ethnicity') &&
+      has('bloodType') && has('pob') && has('phone') && has('mailVnu') &&
+      has('mailSchool') && has('facebook')
+    );
   }, []);
 
-  const isSuperAdmin = state.currentUser?.role === 'super_admin' || state.currentUser?.email === SUPER_ADMIN_EMAIL || state.currentUser?.mailSchool === SUPER_ADMIN_EMAIL;
+  const isSuperAdmin = state.currentUser?.role === 'super_admin'
+    || state.currentUser?.email === SUPER_ADMIN_EMAIL
+    || state.currentUser?.mailSchool === SUPER_ADMIN_EMAIL;
+
   const isCore       = isSuperAdmin || state.currentUser?.role === 'core';
   const myGrades     = state.grades[state.currentUser?.id] || {};
   const myTasks      = state.tasks.filter(t => t.userId === state.currentUser?.id);

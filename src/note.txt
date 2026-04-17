@@ -54,3 +54,7 @@ PHÚC:09/04/2026
 * AppContext: Tôi muốn tăng cỡ chữ của app vì chữ này hơi bé
 * Notification: Các hoạt động trong app chưa được thông báo hay nằm trong hòm thông báo. Tôi muốn web chấp nhận và thông báo lên thiết bị
 * Voting: Bình chọn chưa xóa được sau khi đóng
+
+
+* Subject and Task: Tôi muốn khi super_admin hay core bấm vào đang học của thành viên thì có thể xem được những phần mà các bạn đã học (đã tick) thay vì chỉ nhìn thấy %. Và tài liệu hiện tại chỉ hiện được 4 file trong khi chúng tôi tải lên nhiều hơn thế. Fix nó
+* Voting: Tôi muốn xem những ai chưa vote nữa. thêm cho tôi

@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
+import { registerServiceWorker } from './registerSW'; registerServiceWorker();
 
 // AppProvider đã được bọc trong App.jsx → KHÔNG bọc lại ở đây
 ReactDOM.createRoot(document.getElementById('root')).render(

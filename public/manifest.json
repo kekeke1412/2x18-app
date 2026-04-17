@@ -1,13 +1,14 @@
 {
-  "name": "2X18 – HUS K2024",
+  "name": "2X18 — Nhóm Học Bán Dẫn",
   "short_name": "2X18",
-  "description": "Ứng dụng quản lý nhóm 2X18 – HUS K2024",
+  "description": "Ứng dụng quản lý nhóm học tập K70 Công nghệ Bán dẫn — HUS",
   "start_url": "/",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#121212",
+  "background_color": "#09090b",
   "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
   "lang": "vi",
+  "scope": "/",
   "icons": [
     {
       "src": "/icon-192.png",
@@ -22,29 +23,22 @@
       "purpose": "any maskable"
     }
   ],
-  "screenshots": [
-    {
-      "src": "/screenshot-mobile.png",
-      "sizes": "390x844",
-      "type": "image/png",
-      "form_factor": "narrow"
-    }
-  ],
-  "categories": ["education", "productivity"],
   "shortcuts": [
     {
-      "name": "Dashboard",
-      "short_name": "Dash",
-      "description": "Xem tổng quan",
+      "name": "Bảng điều khiển",
+      "short_name": "Dashboard",
+      "description": "Xem tổng quan GPA và task",
       "url": "/dashboard",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "Bình chọn",
-      "short_name": "Vote",
-      "description": "Xem bình chọn đang mở",
-      "url": "/voting",
+      "name": "Thông báo",
+      "short_name": "Thông báo",
+      "description": "Xem thông báo nhóm",
+      "url": "/notifications",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
-  ]
+  ],
+  "categories": ["education", "productivity"],
+  "screenshots": []
 }
