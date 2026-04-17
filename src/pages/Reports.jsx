@@ -59,7 +59,7 @@ export default function Reports() {
         const token = await requireGoogleAuth();
         if (!token) {
           setIsUploading(false);
-          return; // Hủy bỏ nếu không có quyền
+          return;
         }
         finalLink = await uploadToDrive(token, selectedFile);
       } catch (error) {
@@ -69,10 +69,11 @@ export default function Reports() {
       setIsUploading(false);
     }
 
+    // Đảm bảo type luôn khớp với tab đang đứng nếu người dùng không chọn khác
     addReport({
       title: form.title.trim(),
       link: finalLink,
-      type: form.type,
+      type: form.type || activeTab,
       status: (isCore || isSuperAdmin) ? 'approved' : 'pending',
       authorId: currentUser?.id,
     });

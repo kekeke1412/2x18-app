@@ -543,7 +543,7 @@ export default function Dashboard() {
   } = useApp();
 
   const [semesterNames, updateSemesterName] = useSemesterNames(semesterLabels, updateSemesterLabel);
-  const [showTaskPanel, setShowTaskPanel] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'analytics', 'activity'
 
   // My personal stats
   const myStats = useMemo(() => computeCPA(myGrades), [myGrades]);
@@ -574,234 +574,215 @@ export default function Dashboard() {
   const daysDiff = d => Math.ceil((new Date(d) - new Date()) / 86400000);
 
   return (
-    <div className="h-full bg-[#121212] text-gray-200 overflow-y-auto custom-scrollbar p-6">
-      {/* ── Hero Banner ── */}
-      <div className="mb-6 bg-gradient-to-br from-blue-900/30 via-[#1a1a1a] to-[#1a1a1a] border border-blue-500/15 rounded-2xl p-6">
-        <div className="flex items-start justify-between flex-wrap gap-4">
+    <div className="h-full bg-[#121212] text-gray-200 overflow-y-auto custom-scrollbar">
+      {/* ── Top Header ── */}
+      <div className="sticky top-0 z-30 bg-[#121212]/80 backdrop-blur-md border-b border-gray-800/60 px-6 py-4">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <div className="text-xs font-bold text-blue-400 uppercase tracking-widest mb-2">{currentUser?.role}</div>
-            <h1 className="text-2xl font-black text-white mb-1">
-              Chào, {(currentUser?.fullName || 'Thành viên').split(' ').pop()}! 👋
-            </h1>
-            <p className="text-gray-500 text-sm">Dữ liệu tổng hợp từ hồ sơ và bảng điểm của bạn.</p>
+            <h1 className="text-xl font-black text-white">Dashboard</h1>
+            <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Chào buổi tối, {currentUser?.fullName?.split(' ').pop()}!</p>
           </div>
-          <div className="text-right">
-            <div className="text-3xl font-black text-blue-400">{myStats.credits}</div>
-            <div className="text-xs text-gray-500">/ 133 tín chỉ</div>
-          </div>
-        </div>
-        <div className="mt-4">
-          <div className="flex justify-between text-xs text-gray-500 mb-1">
-            <span>Tiến độ tích lũy tín chỉ</span>
-            <span>{Math.round(myStats.credits / 133 * 100)}%</span>
-          </div>
-          <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded-full"
-              style={{ width: `${Math.min(100, Math.round(myStats.credits / 133 * 100))}%` }}/>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Stat Cards ── */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-        <StatCard icon={TrendingUp} label="CPA Tích lũy" value={myStats.cpa} valueClass={cpaColor(myStats.cpa)} sub="Hệ 4 điểm" color="green"/>
-        <StatCard icon={Award}      label="Tín chỉ đạt"  value={`${myStats.credits}`} sub="trên 133 TC" color="blue"/>
-        <StatCard icon={BookOpen}   label="Đang học"      value={myStats.learning}    sub="môn học kỳ này" color="purple"/>
-        <div onClick={() => setShowTaskPanel(v => !v)} className="cursor-pointer">
-          <StatCard icon={AlertCircle} label="Task chờ" value={myTasks.filter(t=>!t.done).length} sub={showTaskPanel ? 'Nhấn để thu gọn ↑' : 'Nhấn để xem chi tiết ↓'} color="red"/>
-        </div>
-      </div>
-
-      {/* ── Task panel (expandable) ── */}
-      {showTaskPanel && (
-        <div className="mb-6 bg-[#1a1a1a] border border-red-500/20 rounded-2xl overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-red-500/15 flex items-center justify-between bg-red-500/5">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-red-400"/>
-              <h3 className="font-bold text-white text-sm">Danh sách Task cần làm</h3>
-              <span className="text-[10px] bg-red-500/20 text-red-400 border border-red-500/20 px-2 py-0.5 rounded-full font-bold">
-                {myTasks.filter(t=>!t.done).length} việc
-              </span>
+          <div className="flex items-center gap-2">
+            <div className="text-right hidden sm:block pr-3 border-r border-gray-800">
+              <div className="text-xs font-black text-blue-400">{myStats.credits} <span className="text-gray-600 font-normal">TC đạt</span></div>
+              <div className="text-[10px] text-gray-500">Tiến độ: {Math.round(myStats.credits / 133 * 100)}%</div>
             </div>
-            <button onClick={() => setShowTaskPanel(false)} className="text-gray-600 hover:text-gray-300 transition-colors">
-              <X className="w-4 h-4"/>
+            {isCore && (
+              <button onClick={exportMembersCSV} className="p-2 text-gray-400 hover:text-blue-400 transition-colors" title="Xuất danh sách thành viên">
+                <Activity className="w-5 h-5"/>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Tab Switcher */}
+        <div className="flex items-center gap-6">
+          {[
+            { id: 'overview', label: 'Tổng quan', icon: Activity },
+            { id: 'analytics', label: 'Phân tích & Nhóm', icon: BarChart2 },
+            { id: 'activity', label: 'Hoạt động', icon: Clock },
+          ].map(t => (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              className={`flex items-center gap-2 pb-2 text-sm font-bold transition-all border-b-2 ${
+                activeTab === t.id ? 'border-blue-500 text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              <t.icon className="w-4 h-4"/>
+              {t.label}
             </button>
-          </div>
-          {myTasks.filter(t=>!t.done).length === 0 ? (
-            <div className="px-5 py-8 text-center text-gray-600 text-sm">
-              <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-gray-700"/>
-              Không có task nào đang chờ 🎉
+          ))}
+        </div>
+      </div>
+
+      <div className="p-6">
+        {/* ── TAB 1: OVERVIEW ── */}
+        {activeTab === 'overview' && (
+          <div className="space-y-6 fade-in">
+            {/* Quick Stats Row */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <StatCard icon={TrendingUp} label="CPA Hiện tại" value={myStats.cpa} valueClass={cpaColor(myStats.cpa)} sub="Hệ 4.0" color="green"/>
+              <StatCard icon={CheckCircle2} label="Tín chỉ" value={myStats.credits} sub="/ 133 TC" color="blue"/>
+              <StatCard icon={BookOpen} label="Đang học" value={myStats.learning} sub="Môn học" color="purple"/>
+              <StatCard icon={AlertCircle} label="Task chờ" value={myTasks.filter(t=>!t.done).length} sub="Cần xử lý" color="red"/>
             </div>
-          ) : (
-            <div className="divide-y divide-gray-800/60">
-              {[...myTasks]
-                .filter(t => !t.done)
-                .sort((a, b) => new Date(a.deadline) - new Date(b.deadline))
-                .map(t => {
-                  const d = daysDiff(t.deadline);
-                  const isLate = d <= 0;
-                  const isSoon = d > 0 && d <= 3;
-                  return (
-                    <div key={t.id} className={`flex items-start gap-4 px-5 py-3.5 hover:bg-[#1e1e1e] transition-colors ${isLate ? 'bg-red-500/5' : ''}`}>
-                      <div className={`mt-0.5 w-2.5 h-2.5 rounded-full shrink-0 ${isLate ? 'bg-red-400 animate-pulse' : isSoon ? 'bg-yellow-400' : 'bg-gray-600'}`}/>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold text-gray-200 leading-snug">{t.task}</div>
-                        <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-2 flex-wrap">
-                          {t.subjectId && <span className="text-blue-400 font-medium">{t.subjectId}</span>}
-                          {t.subjectId && <span>·</span>}
-                          <span className="flex items-center gap-1"><Clock className="w-3 h-3"/> {t.deadline}</span>
-                          {t.assignedTo && <span>· {t.assignedTo}</span>}
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Main Column: Tasks & GPA */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* Upcoming Deadlines */}
+                <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl overflow-hidden shadow-sm">
+                  <div className="px-5 py-4 border-b border-gray-800/60 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-red-400"/>
+                      <h3 className="font-bold text-white text-sm">Việc cần làm ngay</h3>
+                    </div>
+                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Sắp đến hạn</span>
+                  </div>
+                  <div className="divide-y divide-gray-800/40">
+                    {upcomingTasks.length > 0 ? upcomingTasks.map(t => {
+                      const d = daysDiff(t.deadline);
+                      return (
+                        <div key={t.id} className="flex items-center justify-between px-5 py-3.5 hover:bg-[#222] transition-colors group">
+                          <div className="min-w-0 flex-1">
+                            <div className="font-bold text-sm text-gray-200 truncate group-hover:text-blue-400 transition-colors">{t.task}</div>
+                            <div className="text-[11px] text-gray-500 mt-0.5 flex items-center gap-2">
+                              <span className="px-1.5 py-0.5 bg-gray-800 rounded text-blue-400 font-bold">{t.subjectId}</span>
+                              <span>· {t.deadline}</span>
+                            </div>
+                          </div>
+                          <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg ${d<=0?'bg-red-500/10 text-red-400 border border-red-500/20':d<=3?'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20':'bg-gray-800 text-gray-500'}`}>
+                            {d<=0?'TRỄ HẠN':d===0?'HÔM NAY':`CÒN ${d} NGÀY`}
+                          </span>
                         </div>
-                        {t.desc && <div className="text-xs text-gray-600 mt-1 leading-relaxed line-clamp-2">{t.desc}</div>}
+                      );
+                    }) : (
+                      <div className="px-5 py-10 text-center text-gray-600">
+                        <CheckCircle2 className="w-8 h-8 mx-auto mb-2 opacity-20"/>
+                        <p className="text-sm">Tuyệt vời! Bạn không có task nào đang chờ.</p>
                       </div>
-                      <span className={`shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-lg border ${
-                        isLate
-                          ? 'bg-red-500/15 border-red-500/30 text-red-400'
-                          : isSoon
-                            ? 'bg-yellow-500/15 border-yellow-500/30 text-yellow-400'
-                            : 'bg-gray-800/60 border-gray-700 text-gray-500'
-                      }`}>
-                        {isLate ? `Trễ ${Math.abs(d)} ngày` : d === 0 ? 'Hôm nay!' : `Còn ${d} ngày`}
-                      </span>
-                    </div>
-                  );
-                })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Semester GPA Selector ── */}
-      <SemesterSelector semGPA={myStats.semGPA} semesterNames={semesterNames} updateSemesterName={updateSemesterName}/>
-
-      {/* ── Group tracking ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <div className="flex flex-col gap-6">
-          <GroupGPACard myGrades={myGrades} allGrades={allGrades} members={members}/>
-          {/* Deadline sắp tới — nằm dưới GroupGPACard */}
-          <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-800/60 flex items-center gap-2">
-              <Clock className="w-4 h-4 text-red-400"/>
-              <h3 className="font-bold text-white text-sm">Deadline sắp tới</h3>
-            </div>
-            <div className="divide-y divide-gray-800/60">
-              {upcomingTasks.length > 0 ? upcomingTasks.map(t => {
-                const d = daysDiff(t.deadline);
-                return (
-                  <div key={t.id} className="flex items-center justify-between px-5 py-3.5 hover:bg-[#1e1e1e] transition-colors">
-                    <div className="min-w-0 flex-1">
-                      <div className="font-medium text-sm text-gray-200 truncate">{t.task}</div>
-                      <div className="text-xs text-gray-500 mt-0.5">{t.subjectId} · {t.deadline}</div>
-                    </div>
-                    <span className={`badge ml-3 shrink-0 ${d<=0?'badge-red':d<=7?'badge-yellow':'badge-gray'}`}>
-                      {d<=0?'Trễ hạn':d===1?'Còn 1 ngày':`Còn ${d} ngày`}
-                    </span>
+                    )}
                   </div>
-                );
-              }) : (
-                <div className="px-5 py-8 text-center text-gray-600 text-sm">
-                  <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-gray-700"/>
-                  Không có deadline nào 🎉
                 </div>
-              )}
+
+                {/* Semester Summary */}
+                <SemesterSelector semGPA={myStats.semGPA} semesterNames={semesterNames} updateSemesterName={updateSemesterName}/>
+              </div>
+
+              {/* Sidebar Column */}
+              <div className="space-y-6">
+                {/* SME subjects */}
+                {mySmeSubjects.length > 0 && (
+                  <div className="bg-gradient-to-br from-blue-600/10 to-transparent border border-blue-500/20 rounded-2xl p-5">
+                    <h3 className="text-xs font-black text-blue-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                      <Zap className="w-4 h-4"/> Môn phụ trách (SME)
+                    </h3>
+                    <div className="space-y-3">
+                      {mySmeSubjects.map(s => (
+                        <div key={s.id} className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-blue-500/20 rounded-xl flex items-center justify-center shrink-0">
+                            <BookOpen className="w-4 h-4 text-blue-400"/>
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-sm font-bold text-white truncate">{s.name}</div>
+                            <div className="text-[10px] text-gray-500 font-bold uppercase">{s.code}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Group At A Glance */}
+                <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl p-5">
+                  <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Nhóm 2X18</h3>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">Thành viên</span>
+                      <span className="text-xs font-black text-white">{members.length}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">Phân hệ Core</span>
+                      <span className="text-xs font-black text-white">{members.filter(m=>m.role==='core'||m.role==='super_admin').length}</span>
+                    </div>
+                    <div className="pt-4 border-t border-gray-800/60">
+                      <div className="text-[10px] font-bold text-gray-600 uppercase mb-3">Top cống hiến</div>
+                      <div className="space-y-3">
+                        {topMembers.slice(0, 3).map((m, i) => (
+                          <div key={m.id} className="flex items-center gap-2">
+                            <div className="w-5 h-5 rounded-full bg-gray-800 flex items-center justify-center text-[10px] font-bold text-gray-500">{i+1}</div>
+                            <span className="text-xs text-gray-400 flex-1 truncate">{m.fullName.split(' ').pop()}</span>
+                            <span className="text-xs font-black text-blue-400">{m.points}đ</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-        <LearningProgressCard myGrades={myGrades} allGrades={allGrades} members={members}/>
-      </div>
+        )}
 
-      {/* ── Radar + Group Velocity ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <RadarChartCard myGrades={myGrades}/>
-        <GroupVelocityCard allGrades={allGrades} members={members}/>
-      </div>
-
-      {/* ── Right col: SME / Top cống hiến / Nhóm info ── */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* SME subjects */}
-          {mySmeSubjects.length > 0 && (
-            <div className="bg-[#1a1a1a] border border-blue-500/20 rounded-2xl overflow-hidden">
-              <div className="px-4 py-3 border-b border-blue-500/10 bg-blue-600/5">
-                <h3 className="text-sm font-bold text-blue-400 flex items-center gap-2"><Zap className="w-4 h-4"/>Môn bạn phụ trách (SME)</h3>
-              </div>
-              <div className="p-3 space-y-2">
-                {mySmeSubjects.map(s => (
-                  <div key={s.id} className="flex items-center gap-3 p-2.5 bg-[#111] rounded-xl border border-gray-800">
-                    <div className="w-8 h-8 bg-blue-600/15 rounded-lg flex items-center justify-center"><BookOpen className="w-4 h-4 text-blue-400"/></div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs font-bold text-gray-200 truncate">{s.name}</div>
-                      <div className="text-[10px] text-gray-500">{s.code} · {s.credits} TC</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+        {/* ── TAB 2: ANALYTICS ── */}
+        {activeTab === 'analytics' && (
+          <div className="space-y-6 fade-in">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <GroupGPACard myGrades={myGrades} allGrades={allGrades} members={members}/>
+              <LearningProgressCard myGrades={myGrades} allGrades={allGrades} members={members}/>
             </div>
-          )}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <RadarChartCard myGrades={myGrades}/>
+              <GroupVelocityCard allGrades={allGrades} members={members}/>
+            </div>
+          </div>
+        )}
 
-          {/* Core: top members */}
-          {isCore && (
-            <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-800/60 flex items-center justify-between">
-                <h3 className="text-sm font-bold text-gray-300 flex items-center gap-2"><Users className="w-4 h-4 text-gray-500"/>Top cống hiến</h3>
-                <button onClick={exportMembersCSV} className="text-[10px] text-blue-400 border border-blue-500/20 px-2 py-1 rounded-lg hover:bg-blue-500/10">↓ CSV</button>
+        {/* ── TAB 3: ACTIVITY ── */}
+        {activeTab === 'activity' && (
+          <div className="fade-in max-w-4xl mx-auto">
+            <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl overflow-hidden shadow-sm">
+              <div className="px-5 py-4 border-b border-gray-800/60 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-blue-400"/>
+                  <h3 className="font-bold text-white text-sm">Nhật ký hoạt động</h3>
+                </div>
+                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{auditLogs.length} sự kiện</span>
               </div>
               <div className="divide-y divide-gray-800/40">
-                {topMembers.map((m, i) => (
-                  <div key={m.id} className="flex items-center gap-3 px-4 py-2.5">
-                    <div className="text-xs font-black text-gray-600 w-5 text-center">{i<3?['🥇','🥈','🥉'][i]:`#${i+1}`}</div>
-                    {m.avatarUrl ? <img src={m.avatarUrl} className="w-6 h-6 rounded-full object-cover border border-gray-700 shrink-0"/> : <div className="w-6 h-6 rounded-full bg-[#252525] flex items-center justify-center text-[9px] font-bold text-gray-400 shrink-0">{m.avatar}</div>}
-                    <div className="flex-1 min-w-0 text-xs text-gray-300 truncate">{m.fullName.split(' ').slice(-2).join(' ')}</div>
-                    <div className="text-xs font-black text-blue-400">{m.points}đ</div>
+                {auditLogs.length > 0 ? auditLogs.slice(0, 30).map(log => (
+                  <div key={log.id} className="flex items-start gap-4 px-6 py-4 hover:bg-[#1e1e1e] transition-colors">
+                    <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 mt-0.5">
+                      <Zap className="w-4 h-4 text-blue-500"/>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-4 mb-1">
+                        <span className="text-sm font-bold text-gray-200">{log.action}</span>
+                        <span className="text-[10px] text-gray-600 whitespace-nowrap">
+                          {new Date(log.time).toLocaleTimeString('vi', { hour:'2-digit', minute:'2-digit' })} · {new Date(log.time).toLocaleDateString('vi')}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {log.target && <span className="text-blue-400 font-semibold">{log.target}</span>}
+                        {log.detail && <span> — {log.detail}</span>}
+                      </div>
+                    </div>
                   </div>
-                ))}
+                )) : (
+                  <div className="px-5 py-20 text-center text-gray-600">
+                    Chưa có hoạt động nào được ghi lại.
+                  </div>
+                )}
               </div>
             </div>
-          )}
-
-          {/* Group info */}
-          <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl p-4">
-            <h3 className="text-sm font-bold text-gray-300 mb-3 flex items-center gap-2"><Users className="w-4 h-4 text-gray-500"/>Nhóm 2X18</h3>
-            {[
-              { label:'Tổng thành viên', value:`${members.length} người` },
-              { label:'Core Team',       value:`${members.filter(m=>m.role==='core'||m.role==='super_admin').length} người` },
-            ].map(item => (
-              <div key={item.label} className="flex justify-between items-center py-2 border-b border-gray-800/40 last:border-0">
-                <span className="text-xs text-gray-500">{item.label}</span>
-                <span className="text-xs font-bold text-gray-300">{item.value}</span>
-              </div>
-            ))}
           </div>
-        </div>
+        )}
       </div>
-
-      {/* ── Audit Log ── */}
-      {auditLogs.length > 0 && (
-        <div className="mt-6 bg-[#1a1a1a] border border-gray-800/60 rounded-2xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-800/60 flex items-center gap-2">
-            <Activity className="w-4 h-4 text-gray-500"/>
-            <h3 className="font-bold text-white text-sm">Hoạt động gần đây</h3>
-          </div>
-          <div className="divide-y divide-gray-800/40">
-            {auditLogs.slice(0, 8).map(log => (
-              <div key={log.id} className="flex items-start gap-3 px-5 py-3">
-                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-1.5 shrink-0"/>
-                <div className="flex-1 min-w-0 text-xs text-gray-300">
-                  <span className="font-medium">{log.action}</span>
-                  {log.target && <span className="text-gray-500"> · {log.target}</span>}
-                  {log.detail && <span className="text-gray-600"> — {log.detail}</span>}
-                </div>
-                <span className="text-[10px] text-gray-700 shrink-0">
-                  {new Date(log.time).toLocaleTimeString('vi', { hour:'2-digit', minute:'2-digit' })}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
+
 
 // ── Stat Card ──────────────────────────────────────────────────────────────
 function StatCard({ icon: Icon, label, value, sub, color, valueClass }) {

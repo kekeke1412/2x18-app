@@ -788,19 +788,53 @@ export function AppProvider({ children }) {
     dispatch({type:A.CHECK_ATTENDANCE,payload:{sessionId,userId,checked}});
   }, [state.attendance]);
 
-  // <--- THÊM HÀM delete NÀY VÀO --->
   const deleteAttendanceSession = useCallback((sessionId) => {
     dispatch({ type: A.DELETE_ATTENDANCE_SESSION, payload: { sessionId, ...trashMeta() } });
     toast('Đã chuyển vào thùng rác.', 'info');
   }, [trashMeta, toast]);
-  // <-------------------------->
 
-  // <--- THÊM HÀM edit NÀY VÀO --->
   const editAttendanceSession = useCallback((data) => {
     dispatch({ type: A.EDIT_ATTENDANCE_SESSION, payload: data });
     toast('Đã cập nhật thông tin!', 'success');
   }, [toast]);
-  // <-------------------------->
+
+  const addReport = useCallback((r) => {
+    const newReport = { ...r, id: uid(), createdAt: new Date().toISOString() };
+    const nextReports = [newReport, ...(state.reports || [])];
+    
+    dispatch({ type: A.ADD_REPORT, payload: newReport });
+    fbSet('2x18_reports', nextReports); // Ghi trực tiếp
+    
+    addAudit('Đăng báo cáo', r.title, `Trạng thái: ${r.status}`);
+    toast(r.status === 'approved' ? 'Đã đăng và tự động duyệt!' : 'Đã gửi báo cáo, chờ phê duyệt.', 'success');
+  }, [state.reports, addAudit, toast]);
+
+  const approveReport = useCallback((id) => {
+    const report = (state.reports || []).find(r => r.id === id);
+    const nextReports = (state.reports || []).map(r => r.id === id ? { ...r, status: 'approved' } : r);
+    
+    dispatch({ type: A.APPROVE_REPORT, payload: id });
+    fbSet('2x18_reports', nextReports); // Ghi trực tiếp
+    
+    addAudit('Duyệt báo cáo', report?.title || id);
+    toast('Đã phê duyệt tài liệu!', 'success');
+  }, [state.reports, addAudit, toast]);
+
+  const deleteReport = useCallback((id) => {
+    const meta = trashMeta();
+    const nextReports = (state.reports || []).filter(r => r.id !== id);
+    
+    dispatch({ type: A.DELETE_REPORT, payload: { id, ...meta } });
+    fbSet('2x18_reports', nextReports); // Ghi trực tiếp
+    fbSet('2x18_trash', [...(state.trash || []), { 
+      id: meta.trashId, type: 'report', 
+      data: (state.reports || []).find(r => r.id === id), 
+      meta 
+    }]);
+    
+    addAudit('Xóa báo cáo', id);
+    toast('Đã chuyển tài liệu vào thùng rác', 'info');
+  }, [state.reports, state.trash, trashMeta, addAudit, toast]);
 
   const addDoc = useCallback((subjectId,doc) => {
     const full = {...doc,id:uid(),uploadedBy:state.currentUser?.id,uploadedByName:state.currentUser?.fullName,uploadedAt:new Date().toLocaleDateString('vi-VN'),ratings:{},avgRating:0};
@@ -831,20 +865,7 @@ export function AppProvider({ children }) {
   const addContribution     = useCallback(p => dispatch({type:A.ADD_CONTRIBUTION,  payload:p}), []);
   const updateSemesterLabel = useCallback((key,label) => dispatch({type:A.UPDATE_SEMESTER_LABEL,payload:{key,label}}), []);
 
-  const addReport = useCallback((r) => {
-    dispatch({ type: A.ADD_REPORT, payload: { ...r, id: uid(), createdAt: new Date().toISOString() } });
-    toast('Đã lưu tài liệu!', 'success');
-  }, [toast]);
 
-  const approveReport = useCallback((id) => {
-    dispatch({ type: A.APPROVE_REPORT, payload: id });
-    toast('Đã duyệt tài liệu!', 'success');
-  }, [toast]);
-
-  const deleteReport = useCallback((id) => {
-    dispatch({ type: A.DELETE_REPORT, payload: { id, ...trashMeta() } });
-    toast('Đã chuyển tài liệu vào thùng rác', 'info');
-  }, [trashMeta, toast]);
 
   const restoreFromTrash     = useCallback(id => { dispatch({type:A.RESTORE_FROM_TRASH,     payload:id}); toast('Đã khôi phục!','success'); }, [toast]);
   const permanentDeleteTrash = useCallback(id => { dispatch({type:A.PERMANENT_DELETE_TRASH, payload:id}); toast('Đã xóa vĩnh viễn.','info'); }, [toast]);
