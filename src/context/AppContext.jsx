@@ -362,6 +362,7 @@ export function AppProvider({ children }) {
   // ── Boot ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     let unsubDB = null;
+    let unsubReports = null;
 
     try {
       const stored = localStorage.getItem('2x18_current_user');
@@ -372,6 +373,7 @@ export function AppProvider({ children }) {
 
     const subscribeDB = () => {
       if (unsubDB) { unsubDB(); unsubDB = null; }
+      if (unsubReports) { unsubReports(); unsubReports = null; }
       dispatch({ type:A.SET_LOADING, payload:true });
 
       unsubDB = onValue(ref(db, '/'), (snapshot) => {
@@ -412,14 +414,18 @@ export function AppProvider({ children }) {
           subjectComments:  val['2x18_subject_comments']  || {},
           semesterLabels:   val['2x18_semester_labels']   || {},
           trash:            toArr(val['2x18_trash']),
-          // reports is intentionally excluded — dispatched separately via SET_REPORTS
+          // reports: managed by dedicated listener below
         }});
-
-        // Dispatch reports separately so it can merge with local optimistic state
-        dispatch({ type: A.SET_REPORTS, payload: toArr(val['2x18_reports']) });
       }, (err) => {
         console.error('[Firebase DB] Access denied:', err.message);
         dispatch({ type:A.SET_LOADING, payload:false });
+      });
+
+      // Dedicated listener for 2x18_reports — completely isolated from root snapshot.
+      // This is the ONLY source of truth for reports. SET_REPORTS reducer
+      // applies local-wins merge so optimistic updates survive Firebase reverts.
+      unsubReports = onValue(ref(db, '2x18_reports'), (snap) => {
+        dispatch({ type: A.SET_REPORTS, payload: toArr(snap.val()) });
       });
     };
 
@@ -429,6 +435,7 @@ export function AppProvider({ children }) {
       } else {
         localStorage.removeItem('2x18_current_user');
         if (unsubDB) { unsubDB(); unsubDB = null; }
+        if (unsubReports) { unsubReports(); unsubReports = null; }
         fromFirebaseRef.current = false;
         dispatch({ type:A.SET_USER, payload:null });
         dispatch({ type:A.INIT_DATA, payload: {
@@ -441,8 +448,9 @@ export function AppProvider({ children }) {
       }
     });
 
-    return () => { if (unsubDB) unsubDB(); unsubAuth(); };
+    return () => { if (unsubDB) unsubDB(); if (unsubReports) unsubReports(); unsubAuth(); };
   }, []);
+
 
   // ── Sync currentUser from members ─────────────────────────────────────────
   useEffect(() => {
