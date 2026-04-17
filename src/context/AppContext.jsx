@@ -387,7 +387,8 @@ export function AppProvider({ children }) {
           notifications:    toArr(val['2x18_notifs']),
           attendance:       toArr(val['2x18_attendance']).map(sess => ({
             ...sess,
-            present: toArr(sess.present),
+            present: Array.isArray(sess.present) ? sess.present.filter(Boolean) : toArr(sess.present),
+            total: sess.total || 0,
           })),
           contributions:    val['2x18_contributions']     || {},
           docs:             val['2x18_docs']              || {},
@@ -819,9 +820,12 @@ export function AppProvider({ children }) {
 
   const editAttendanceSession = useCallback((data) => {
     dispatch({ type: A.EDIT_ATTENDANCE_SESSION, payload: data });
-    set(ref(db, `2x18_attendance/${data.sessionId}`), data); // Ghi trực tiếp
+    // Merge với session hiện tại để không mất present/total
+    const existing = state.attendance.find(s => s.sessionId === data.sessionId);
+    const merged = { ...(existing || {}), ...data, present: existing?.present || [], total: existing?.total || 0 };
+    set(ref(db, `2x18_attendance/${data.sessionId}`), merged);
     toast('Đã cập nhật thông tin!', 'success');
-  }, [toast]);
+  }, [state.attendance, toast]);
 
   const addReport = useCallback((r) => {
     const id = uid();

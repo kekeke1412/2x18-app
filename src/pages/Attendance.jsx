@@ -42,6 +42,7 @@ export default function Attendance() {
     deleteAttendanceSession,
     editAttendanceSession,
     isCore,
+    isSuperAdmin,
     members,
     toast,
     requireGoogleAuth
@@ -66,7 +67,7 @@ export default function Attendance() {
   }, [attendance, selected]);
 
   const session  = attendance.find(s => s.sessionId === selected);
-  const myRecord = session?.present?.includes(currentUser?.id) || false;
+  const myRecord = (session?.present || []).includes(currentUser?.id) || false;
 
   const handleCheck = () => {
     if (!session) return;
@@ -166,7 +167,10 @@ export default function Attendance() {
     }
   }, [attendance.length]); // eslint-disable-line
 
-  const attendRate = s => s.total > 0 ? Math.round(s.present.length / s.total * 100) : 0;
+  const attendRate = s => {
+    const presentCount = (s.present || []).length;
+    return s.total > 0 ? Math.round(presentCount / s.total * 100) : 0;
+  };
   const canCheckIn = session && isToday(session.date);
 
   // FIX: nút OK chỉ active khi đã điền đủ tiêu đề + ngày
@@ -326,7 +330,7 @@ export default function Attendance() {
                     <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
                       <Calendar className="w-3 h-3"/> {formatDate(s.date)}
                       {s.startTime && <><span className="mx-1 text-gray-700">·</span><Clock className="w-3 h-3"/>{s.startTime}{s.endTime && `–${s.endTime}`}</> }
-                      <span className="mx-1 text-gray-700">·</span>{s.present.length}/{s.total} có mặt
+                      <span className="mx-1 text-gray-700">·</span>{(s.present||[]).length}/{s.total} có mặt
                     </div>
                     {s.meetLink && (
                       <button 
@@ -341,7 +345,7 @@ export default function Attendance() {
                     </div>
                     <div className="flex items-center justify-between mt-1">
                       <span className="text-[10px] text-gray-600">{attendRate(s)}%</span>
-                      {s.present.includes(currentUser?.id) && (
+                      {(s.present||[]).includes(currentUser?.id) && (
                         <span className="text-[10px] text-green-400 font-bold">✓ Bạn có mặt</span>
                       )}
                     </div>
@@ -365,7 +369,7 @@ export default function Attendance() {
                             {session.startTime}{session.endTime ? `–${session.endTime}` : ''}
                           </span>
                         )}
-                        <span>· <strong className="text-green-400">{session.present.length}</strong>/{session.total} thành viên có mặt</span>
+                        <span>· <strong className="text-green-400">{(session.present||[]).length}</strong>/{session.total} thành viên có mặt</span>
                         <span className="text-gray-600">({attendRate(session)}%)</span>
                       </p>
                       {session.meetLink && (
@@ -433,7 +437,7 @@ export default function Attendance() {
 
                   <div className="p-4 grid grid-cols-2 md:grid-cols-3 gap-2">
                     {members.map(m => {
-                      const present = session.present.includes(m.id);
+                      const present = (session.present||[]).includes(m.id);
                       const isMe    = m.id === currentUser?.id;
                       return (
                         <div key={m.id} className={`flex items-center gap-2.5 p-2.5 rounded-xl border transition-all ${
