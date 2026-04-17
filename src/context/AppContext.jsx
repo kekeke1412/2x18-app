@@ -799,42 +799,44 @@ export function AppProvider({ children }) {
   }, [toast]);
 
   const addReport = useCallback((r) => {
-    const newReport = { ...r, id: uid(), createdAt: new Date().toISOString() };
-    const nextReports = [newReport, ...(state.reports || [])];
+    const id = uid();
+    const newReport = { ...r, id, createdAt: new Date().toISOString() };
     
     dispatch({ type: A.ADD_REPORT, payload: newReport });
-    fbSet('2x18_reports', nextReports); // Ghi trực tiếp
+    // Ghi vào bản ghi cụ thể, tránh ghi đè toàn bộ mảng
+    set(ref(db, `2x18_reports/${id}`), newReport); 
     
     addAudit('Đăng báo cáo', r.title, `Trạng thái: ${r.status}`);
     toast(r.status === 'approved' ? 'Đã đăng và tự động duyệt!' : 'Đã gửi báo cáo, chờ phê duyệt.', 'success');
-  }, [state.reports, addAudit, toast]);
+  }, [addAudit, toast]);
 
   const approveReport = useCallback((id) => {
     const report = (state.reports || []).find(r => r.id === id);
-    const nextReports = (state.reports || []).map(r => r.id === id ? { ...r, status: 'approved' } : r);
-    
+    if (!report) return;
+
     dispatch({ type: A.APPROVE_REPORT, payload: id });
-    fbSet('2x18_reports', nextReports); // Ghi trực tiếp
+    // Cập nhật chỉ trường status của bản ghi đó
+    set(ref(db, `2x18_reports/${id}/status`), 'approved');
     
-    addAudit('Duyệt báo cáo', report?.title || id);
+    addAudit('Duyệt báo cáo', report.title);
     toast('Đã phê duyệt tài liệu!', 'success');
   }, [state.reports, addAudit, toast]);
 
   const deleteReport = useCallback((id) => {
+    const report = (state.reports || []).find(r => r.id === id);
+    if (!report) return;
+
     const meta = trashMeta();
-    const nextReports = (state.reports || []).filter(r => r.id !== id);
-    
     dispatch({ type: A.DELETE_REPORT, payload: { id, ...meta } });
-    fbSet('2x18_reports', nextReports); // Ghi trực tiếp
-    fbSet('2x18_trash', [...(state.trash || []), { 
-      id: meta.trashId, type: 'report', 
-      data: (state.reports || []).find(r => r.id === id), 
-      meta 
-    }]);
     
-    addAudit('Xóa báo cáo', id);
+    // Xóa bản ghi cụ thể và đẩy vào trash
+    set(ref(db, `2x18_reports/${id}`), null);
+    const trashItem = { id: meta.trashId, type: 'report', data: report, meta };
+    set(ref(db, `2x18_trash/${meta.trashId}`), trashItem);
+    
+    addAudit('Xóa báo cáo', report.title);
     toast('Đã chuyển tài liệu vào thùng rác', 'info');
-  }, [state.reports, state.trash, trashMeta, addAudit, toast]);
+  }, [state.reports, trashMeta, addAudit, toast]);
 
   const addDoc = useCallback((subjectId,doc) => {
     const full = {...doc,id:uid(),uploadedBy:state.currentUser?.id,uploadedByName:state.currentUser?.fullName,uploadedAt:new Date().toLocaleDateString('vi-VN'),ratings:{},avgRating:0};
@@ -893,11 +895,11 @@ export function AppProvider({ children }) {
     );
   }, []);
 
-  const isSuperAdmin = state.currentUser?.role === 'super_admin'
+  const isSuperAdmin = state.currentUser?.role?.toLowerCase() === 'super_admin'
     || state.currentUser?.email === SUPER_ADMIN_EMAIL
     || state.currentUser?.mailSchool === SUPER_ADMIN_EMAIL;
 
-  const isCore       = isSuperAdmin || state.currentUser?.role === 'core';
+  const isCore       = isSuperAdmin || state.currentUser?.role?.toLowerCase() === 'core';
   const myGrades     = state.grades[state.currentUser?.id] || {};
   const myTasks      = state.tasks.filter(t => t.userId === state.currentUser?.id);
   const getMemberById  = id  => state.members.find(m => m.id === id);
