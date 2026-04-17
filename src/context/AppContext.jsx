@@ -18,7 +18,6 @@ const fbSet = (path, data) => {
 // Firebase Realtime DB có thể trả về object thay vì array → convert an toàn
 const toArr = (val) => {
   if (!val) return [];
-  if (Array.isArray(val)) return val.filter(Boolean);
   if (typeof val === 'object') return Object.values(val).filter(Boolean);
   return [];
 };

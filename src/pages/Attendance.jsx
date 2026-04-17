@@ -389,20 +389,20 @@ export default function Attendance() {
                             {myRecord ? '✓ Đã điểm danh' : 'Điểm danh thủ công'}
                           </button>
                         ) : (
-                          !myRecord && (
+                          !myRecord ? (
                             <div className="text-[10px] text-amber-500 font-bold bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/20">
                               👆 Hãy nhấn link tham gia họp để điểm danh
                             </div>
-                          )
+                          ) : null
                         )}
-                        {myRecord && (isCore || isSuperAdmin) && !session.meetLink && (
+                        {myRecord && (isCore || isSuperAdmin) && !session.meetLink ? (
                            <span className="text-[10px] text-gray-500">Core/Admin có thể điều chỉnh</span>
-                        )}
-                        {myRecord && session.meetLink && (
+                        ) : null}
+                        {myRecord && session.meetLink ? (
                            <div className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-green-600 text-white">
                              <CheckCheck className="w-3.5 h-3.5"/> Đã điểm danh ✓
                            </div>
-                        )}
+                        ) : null}
                       </div>
                     ) : (
                       <div className="text-right">
