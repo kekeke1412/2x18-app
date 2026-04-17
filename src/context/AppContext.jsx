@@ -567,9 +567,20 @@ export function AppProvider({ children }) {
         registeredAt: new Date().toISOString(),
       };
       await set(ref(db, `2x18_members/${fbUser.uid}`), member);
-    } else if (isSA && (member.role !== 'super_admin' || member.status !== 'active')) {
-      member = { ...member, role: 'super_admin', status: 'active' };
-      await set(ref(db, `2x18_members/${member.id}`), member);
+    } else {
+      // Sync avatarUrl from Google every login (keep profile picture up-to-date)
+      const googlePhoto = fbUser.photoURL || '';
+      const needsAvatarSync = googlePhoto && member.avatarUrl !== googlePhoto;
+      const needsAdminFix = isSA && (member.role !== 'super_admin' || member.status !== 'active');
+
+      if (needsAvatarSync || needsAdminFix) {
+        member = {
+          ...member,
+          avatarUrl: googlePhoto || member.avatarUrl || '',
+          ...(needsAdminFix ? { role: 'super_admin', status: 'active' } : {}),
+        };
+        await set(ref(db, `2x18_members/${member.id}`), member);
+      }
     }
 
     if (member.status === 'pending') {

@@ -296,7 +296,11 @@ function VoteCard({ vote, onDeleteRequest }) {
                 <div className="relative px-4 pb-2 flex items-center gap-1">
                   {optVotes.slice(0,8).map(uid => {
                     const m = getMemberById(uid);
-                    return (
+                    return m?.avatarUrl ? (
+                      <img key={uid} src={m.avatarUrl} alt={m?.fullName} title={m?.fullName}
+                        className="w-5 h-5 rounded-full object-cover border border-blue-500/30"
+                        onError={e=>{e.target.style.display='none'}}/>
+                    ) : (
                       <div key={uid} title={m?.fullName}
                         className="w-5 h-5 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-[8px] font-bold text-blue-400">
                         {m?.avatar || '?'}

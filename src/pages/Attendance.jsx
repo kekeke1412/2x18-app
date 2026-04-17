@@ -303,7 +303,14 @@ export default function Attendance() {
                         } ${isMe ? 'ring-1 ring-blue-500/30' : ''}`}>
                           <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
                             present ? 'bg-green-600/25 text-green-400' : 'bg-gray-800 text-gray-500'
-                          }`}>{m.avatar}</div>
+                          }`}>
+                            {m.avatarUrl
+                              ? <img src={m.avatarUrl} alt="" className="w-full h-full rounded-full object-cover"
+                                  onError={e=>{e.target.style.display='none'; e.target.nextSibling.style.display='flex';}}/>
+                              : null
+                            }
+                            <span style={{display: m.avatarUrl ? 'none' : 'flex'}} className="w-full h-full items-center justify-center">{m.avatar}</span>
+                          </div>
                           <div className="min-w-0">
                             <div className={`text-xs font-medium truncate ${present ? 'text-gray-200' : 'text-gray-500'}`}>
                               {m.fullName.split(' ').slice(-2).join(' ')}
