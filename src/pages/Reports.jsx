@@ -56,12 +56,27 @@ export default function Reports() {
     if (selectedFile) {
       setIsUploading(true);
       try {
-        const token = await requireGoogleAuth();
+        let token = await requireGoogleAuth();
         if (!token) {
           setIsUploading(false);
           return;
         }
-        finalLink = await uploadToDrive(token, selectedFile);
+
+        try {
+          finalLink = await uploadToDrive(token, selectedFile);
+        } catch (uploadErr) {
+          if (uploadErr.message === 'EXPIRED_TOKEN') {
+            // Thử lấy lại token mới (bật popup login)
+            const newToken = await requireGoogleAuth(true);
+            if (newToken) {
+              finalLink = await uploadToDrive(newToken, selectedFile);
+            } else {
+              throw new Error('Phiên làm việc Google hết hạn. Vui lòng đăng nhập lại.');
+            }
+          } else {
+            throw uploadErr;
+          }
+        }
       } catch (error) {
         setIsUploading(false);
         return setErr(error.message || 'Lỗi khi tải file lên Google Drive');

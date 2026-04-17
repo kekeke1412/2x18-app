@@ -648,12 +648,19 @@ export function AppProvider({ children }) {
     dispatch({ type: A.SET_GOOGLE_TOKEN, payload: null });
   }, []);
 
-  const requireGoogleAuth = useCallback(async () => {
-    if (state.googleToken) return state.googleToken;
+  const requireGoogleAuth = useCallback(async (force = false) => {
+    if (state.googleToken && !force) return state.googleToken;
     try {
       const provider = new GoogleAuthProvider();
       provider.addScope('https://www.googleapis.com/auth/calendar.events');
       provider.addScope('https://www.googleapis.com/auth/drive.file');
+      
+      // Nếu force, xóa token cũ trước
+      if (force) {
+        dispatch({ type: A.SET_GOOGLE_TOKEN, payload: null });
+        localStorage.removeItem('2x18_google_token');
+      }
+
       const cred = await signInWithPopup(auth, provider);
       const credential = GoogleAuthProvider.credentialFromResult(cred);
       if (credential?.accessToken) {

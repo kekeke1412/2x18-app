@@ -160,8 +160,11 @@ async function getOrCreateFolder(token, folderName) {
   });
 
   if (!createRes.ok) {
+    if (createRes.status === 401) {
+      throw new Error('EXPIRED_TOKEN');
+    }
     console.warn('Không thể tạo thư mục Drive, sẽ lưu vào thư mục gốc.');
-    return null; // Trả về null để upload vào root
+    return null;
   }
 
   const createData = await createRes.json();
