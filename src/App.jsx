@@ -8,7 +8,7 @@ import {
   LayoutDashboard, User, BookOpen, ClipboardList, Map, Calendar,
   LogOut, ShieldCheck, ChevronRight, AlertTriangle, Bell,
   Vote, Users, Trophy, Menu, X, CheckCircle, Info, AlertCircle as AlertCircleIcon,
-  Trash2, FileArchive
+  Trash2, FileText
 } from 'lucide-react';
 
 import { AppProvider, useApp } from './context/AppContext';
@@ -135,7 +135,7 @@ function Sidebar({ onClose }) {
         {/* Nhóm */}
         <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest px-4 mb-1.5 mt-4">Nhóm</div>
         <ul className="space-y-0.5">
-          <NavItem to="/reports"       icon={FileArchive} label="Báo cáo & Sự kiện"            disabled={!complete} onClick={onClose}/>
+          <NavItem to="/reports"       icon={FileText} label="Báo cáo & Sự kiện"            disabled={!complete} onClick={onClose}/>
           <NavItem to="/voting"        icon={Vote}   label="Bình chọn" badge={0}           disabled={!complete} onClick={onClose}/>
           <NavItem to="/attendance"    icon={Users}  label="Điểm danh"                     disabled={!complete} onClick={onClose}/>
           <NavItem to="/gamification"  icon={Trophy} label="Vinh danh"                     disabled={!complete} onClick={onClose}/>

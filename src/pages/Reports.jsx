@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   FileText, ExternalLink, Plus, X, Trash2, CheckCircle, 
-  Clock, ShieldCheck, AlertCircle, FileArchive, Search
+  Clock, ShieldCheck, AlertCircle, BookOpen, Search
 } from 'lucide-react';
 
 export default function Reports() {
@@ -22,7 +22,7 @@ export default function Reports() {
   const { pending, approved } = useMemo(() => {
     const list = reports
       .filter(r => r.type === activeTab)
-      .filter(r => r.title?.toLowerCase().includes(search.toLowerCase()) || r.link?.toLowerCase().includes(search.toLowerCase()))
+      .filter(r => (r.title || '').toLowerCase().includes(search.toLowerCase()) || (r.link || '').toLowerCase().includes(search.toLowerCase()))
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
     const pendingList = [];
@@ -122,7 +122,7 @@ export default function Reports() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-black text-white flex items-center gap-2">
-              <FileArchive className="w-6 h-6 text-blue-500" />
+              <BookOpen className="w-6 h-6 text-blue-500" />
               Báo cáo & Sự kiện
             </h1>
             <p className="text-sm text-gray-400 mt-1">Lưu trữ tài liệu báo cáo nghiên cứu và tổng kết các sự kiện</p>
