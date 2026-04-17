@@ -1,7 +1,15 @@
 // src/pages/Voting.jsx
-import React, { useState } from 'react';
-import { Vote, Plus, X, Clock, Lock, Users, Trash2 } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Vote, Plus, X, Clock, Users, Trash2, ChevronDown, ChevronUp, UserX } from 'lucide-react';
 import { useApp, uid } from '../context/AppContext';
+
+// Safe array coerce
+const toArr = v => {
+  if (!v) return [];
+  if (Array.isArray(v)) return v.filter(Boolean);
+  if (typeof v === 'object') return Object.values(v).filter(Boolean);
+  return [];
+};
 
 function timeLeft(deadline) {
   if (!deadline) return null;
@@ -15,7 +23,7 @@ function timeLeft(deadline) {
   return `Còn ${m} phút`;
 }
 
-// ── Create Vote Modal ──────────────────────────────────────
+// ── Create Vote Modal ──────────────────────────────────────────────────────
 function CreateVoteModal({ onClose }) {
   const { addVote, currentUser } = useApp();
   const [title,       setTitle]       = useState('');
@@ -97,7 +105,7 @@ function CreateVoteModal({ onClose }) {
   );
 }
 
-// ── Confirm Delete Modal ───────────────────────────────────
+// ── Confirm Delete Modal ───────────────────────────────────────────────────
 function ConfirmDeleteModal({ title, onConfirm, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
@@ -121,16 +129,85 @@ function ConfirmDeleteModal({ title, onConfirm, onClose }) {
   );
 }
 
-// ── Vote Card ──────────────────────────────────────────────
+// ── Non-voters panel ────────────────────────────────────────────────────────
+function NonVotersPanel({ vote, activeMembers }) {
+  const [open, setOpen] = useState(false);
+
+  // All voter IDs across all options
+  const voterIds = useMemo(() => {
+    const set = new Set();
+    toArr(vote.options).forEach(o => toArr(o.votes).forEach(id => set.add(id)));
+    return set;
+  }, [vote.options]);
+
+  const nonVoters = useMemo(
+    () => activeMembers.filter(m => !voterIds.has(m.id)),
+    [activeMembers, voterIds]
+  );
+
+  if (nonVoters.length === 0) return (
+    <div className="flex items-center gap-2 px-4 py-2.5 bg-green-500/5 border-t border-green-500/10">
+      <div className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0"/>
+      <span className="text-[11px] text-green-400 font-medium">Tất cả thành viên đã bình chọn 🎉</span>
+    </div>
+  );
+
+  return (
+    <div className="border-t border-gray-800/60">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-[#1e1e1e] transition-colors group">
+        <div className="flex items-center gap-2">
+          <UserX className="w-3.5 h-3.5 text-amber-400 shrink-0"/>
+          <span className="text-[11px] font-bold text-amber-400">
+            Chưa bình chọn ({nonVoters.length})
+          </span>
+        </div>
+        {open
+          ? <ChevronUp className="w-3.5 h-3.5 text-gray-600"/>
+          : <ChevronDown className="w-3.5 h-3.5 text-gray-600"/>
+        }
+      </button>
+
+      {open && (
+        <div className="px-4 pb-3">
+          <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto custom-scrollbar pr-1">
+            {nonVoters.map(m => {
+              const initials = (m.avatar || m.fullName?.[0] || '?');
+              return (
+                <div key={m.id}
+                  title={m.fullName}
+                  className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-full">
+                  {m.avatarUrl
+                    ? <img src={m.avatarUrl} alt="" className="w-4 h-4 rounded-full object-cover shrink-0"/>
+                    : <div className="w-4 h-4 rounded-full bg-amber-600/30 flex items-center justify-center text-[8px] font-bold text-amber-300 shrink-0">
+                        {initials}
+                      </div>
+                  }
+                  <span className="text-[10px] text-amber-300 font-medium max-w-[80px] truncate">
+                    {m.fullName.split(' ').slice(-1)[0]}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Vote Card ──────────────────────────────────────────────────────────────
 function VoteCard({ vote, onDeleteRequest }) {
-  const { castVote, closeVote, addVoteOption, currentUser, isCore, getMemberById } = useApp();
+  const { castVote, closeVote, addVoteOption, currentUser, isCore, getMemberById, activeMembers } = useApp();
   const [newOption, setNewOption] = useState('');
   const [showAdd,   setShowAdd]   = useState(false);
 
   const userId    = currentUser?.id;
   const isClosed  = vote.closed || (vote.deadline && new Date(vote.deadline) < new Date());
-  const totalVotes= vote.options.reduce((s,o) => s + o.votes.length, 0);
-  const myVotes   = vote.options.filter(o => o.votes.includes(userId)).map(o=>o.id);
+  const options   = toArr(vote.options);
+  const totalVotes= options.reduce((s,o) => s + toArr(o.votes).length, 0);
+  const myVotes   = options.filter(o => toArr(o.votes).includes(userId)).map(o=>o.id);
 
   const handleVote = (optId) => {
     if (isClosed) return;
@@ -160,11 +237,13 @@ function VoteCard({ vote, onDeleteRequest }) {
               <span className="text-[10px] text-gray-500">
                 <Users className="w-3 h-3 inline mr-1"/>{totalVotes} lượt vote
               </span>
-              {vote.multiSelect && <span className="badge badge-purple">Chọn nhiều</span>}
-              {isClosed && <span className="badge badge-gray flex items-center gap-1"><Lock className="w-2.5 h-2.5"/>Đã đóng</span>}
+              {isClosed && (
+                <span className="flex items-center gap-1 text-[10px] font-bold text-gray-600 border border-gray-700 px-1.5 py-0.5 rounded-lg">
+                  🔒 Đã đóng
+                </span>
+              )}
             </div>
           </div>
-          {/* Core actions: close + delete */}
           {isCore && (
             <div className="flex items-center gap-1.5 shrink-0">
               {!isClosed && (
@@ -185,10 +264,11 @@ function VoteCard({ vote, onDeleteRequest }) {
 
       {/* Options */}
       <div className="p-4 space-y-2.5">
-        {vote.options.map(opt => {
-          const pct     = totalVotes > 0 ? Math.round(opt.votes.length / totalVotes * 100) : 0;
-          const isVoted = myVotes.includes(opt.id);
-          const isTop   = opt.votes.length === Math.max(...vote.options.map(o=>o.votes.length)) && opt.votes.length > 0;
+        {options.map(opt => {
+          const optVotes = toArr(opt.votes);
+          const pct      = totalVotes > 0 ? Math.round(optVotes.length / totalVotes * 100) : 0;
+          const isVoted  = myVotes.includes(opt.id);
+          const isTop    = optVotes.length === Math.max(...options.map(o=>toArr(o.votes).length)) && optVotes.length > 0;
 
           return (
             <div key={opt.id} onClick={()=>handleVote(opt.id)}
@@ -209,12 +289,12 @@ function VoteCard({ vote, onDeleteRequest }) {
                 </div>
                 <div className="flex items-center gap-2 shrink-0 ml-2">
                   <span className={`text-xs font-bold ${isVoted?'text-blue-400':'text-gray-500'}`}>{pct}%</span>
-                  <span className="text-[10px] text-gray-600">({opt.votes.length})</span>
+                  <span className="text-[10px] text-gray-600">({optVotes.length})</span>
                 </div>
               </div>
-              {opt.votes.length > 0 && (
+              {optVotes.length > 0 && (
                 <div className="relative px-4 pb-2 flex items-center gap-1">
-                  {opt.votes.slice(0,8).map(uid => {
+                  {optVotes.slice(0,8).map(uid => {
                     const m = getMemberById(uid);
                     return (
                       <div key={uid} title={m?.fullName}
@@ -223,7 +303,7 @@ function VoteCard({ vote, onDeleteRequest }) {
                       </div>
                     );
                   })}
-                  {opt.votes.length > 8 && <span className="text-[10px] text-gray-600">+{opt.votes.length-8}</span>}
+                  {optVotes.length > 8 && <span className="text-[10px] text-gray-600">+{optVotes.length-8}</span>}
                 </div>
               )}
             </div>
@@ -249,11 +329,14 @@ function VoteCard({ vote, onDeleteRequest }) {
           )
         )}
       </div>
+
+      {/* ── Non-voters section ─────────────────────────────────────────── */}
+      <NonVotersPanel vote={vote} activeMembers={activeMembers}/>
     </div>
   );
 }
 
-// ── Main ───────────────────────────────────────────────────
+// ── Main ───────────────────────────────────────────────────────────────────
 export default function Voting() {
   const { votes, isCore, deleteVote, toast } = useApp();
   const [showCreate, setShowCreate] = useState(false);
@@ -270,7 +353,6 @@ export default function Voting() {
   const handleDeleteConfirm = () => {
     if (deleteVote && delTarget) {
       deleteVote(delTarget.id);
-      toast('Đã xóa bình chọn', 'info');
     }
     setDelTarget(null);
   };

@@ -8,6 +8,14 @@ import {
 import { subjectDatabase } from '../data';
 import { useApp } from '../context/AppContext';
 
+// Safe array coerce – Firebase may return object with numeric keys
+const toArr = v => {
+  if (!v) return [];
+  if (Array.isArray(v)) return v.filter(Boolean);
+  if (typeof v === 'object') return Object.values(v).filter(Boolean);
+  return [];
+};
+
 const progressColor = p => p>=80?'#22c55e':p>=50?'#3b82f6':p>=25?'#f59e0b':'#ef4444';
 
 const ProgressBar = ({ value, height=5 }) => (
@@ -23,10 +31,10 @@ export default function Tasks() {
   const {
     currentUser, myGrades: grades, myTasks, subjectTasks,
     docs, smeMap,
-    addTask:         ctxAddTask,
-    deleteTask:      ctxDeleteTask,
-    addDoc:          ctxAddDoc,
-    deleteDoc:       ctxDeleteDoc,
+    addTask:    ctxAddTask,
+    deleteTask: ctxDeleteTask,
+    addDoc:     ctxAddDoc,
+    deleteDoc:  ctxDeleteDoc,
   } = useApp();
 
   const profile = currentUser || {};
@@ -232,7 +240,8 @@ export default function Tasks() {
             {userSubjects.length === 0
               ? <EmptyState icon={BookOpen} msg="Đăng ký môn học trong Hồ sơ & GPA trước"/>
               : userSubjects.map(sub => {
-                const subDocs = docs[sub.id] || [];
+                // FIX: safe array coerce for docs to handle Firebase object-as-array
+                const subDocs = toArr(docs[sub.id]);
                 const isMySme = smeMap[sub.id] === myName;
                 return (
                   <div key={sub.id} className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl overflow-hidden">
@@ -251,11 +260,12 @@ export default function Tasks() {
                         )}
                       </div>
                     </div>
-                    <div className="p-3">
+                    {/* FIX: scrollable container – show ALL docs */}
+                    <div className="p-3 max-h-72 overflow-y-auto custom-scrollbar">
                       {subDocs.length === 0
                         ? <div className="text-xs text-gray-600 italic py-2 text-center">Chưa có tài liệu nào</div>
                         : subDocs.map(d=>(
-                          <div key={d.id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#222] transition-colors group">
+                          <div key={d.id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#222] transition-colors group mb-1">
                             <div className="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center shrink-0">
                               <FileText className="w-4 h-4 text-blue-400"/>
                             </div>
