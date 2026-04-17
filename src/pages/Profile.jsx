@@ -4,10 +4,11 @@ import {
   User, CreditCard, Calendar, Phone, MapPin,
   Save, Edit3, ChevronDown, ChevronUp, AlertTriangle, CheckCircle2,
   Download, Users, ChevronLeft, Search, Check, X,
-  Clock, Eye, BookOpen, Lock, CheckCircle, GraduationCap, XCircle, Trash2
+  Clock, Eye, BookOpen, Lock, CheckCircle, GraduationCap, XCircle, Trash2, Key
 } from 'lucide-react';
 import { subjectDatabase, calculateHe10, getHe4, electiveLimits } from '../data';
 import { useApp } from '../context/AppContext';
+import { getApiKey, setApiKey } from '../services/aiService';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 const BLOOD_TYPES = ['A+','A−','B+','B−','AB+','AB−','O+','O−'];
@@ -656,6 +657,13 @@ function GradesTable({ profile, grades, onSave, canEdit }) {
 function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfile, onStartEdit }) {
   const rl = roleLabel(profile.role);
   const loginEmail = profile.email || '';
+  const { toast } = useApp();
+  const [apiKeyInput, setApiKeyInput] = useState(() => getApiKey() || '');
+
+  const handleSaveApiKey = () => {
+    setApiKey(apiKeyInput.trim());
+    if (toast) toast('Đã lưu Gemini API Key!', 'success');
+  };
 
   return (
     <>
@@ -764,6 +772,37 @@ function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfil
           <Field label="Nơi ở hiện tại" value={profile.currentAddress}   onChange={v=>setProfile(p=>({...p,currentAddress:v}))}   disabled={!isEditing}/>
         </div>
       </Section>
+
+      {isOwnProfile && (profile.role === 'core' || profile.role === 'super_admin' || isSuperAdmin) && (
+        <Section icon={Key} title="Cấu hình AI (Gemini API)">
+          <div className="flex flex-col gap-3">
+            <div className="bg-[#1a1a1a] border border-gray-800 rounded-xl p-4">
+              <p className="text-[11px] text-gray-400 mb-3 leading-relaxed">
+                Các tính năng AI (Phân công Smart Task, Duyệt Báo cáo, Radar Cảnh báo) yêu cầu API Key của Google Gemini.<br/>
+                Bạn có thể lấy miễn phí tại: <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline font-bold">Google AI Studio</a>.
+              </p>
+              <div className="flex items-center gap-3">
+                <input 
+                  type="password" 
+                  value={apiKeyInput} 
+                  onChange={e => setApiKeyInput(e.target.value)}
+                  placeholder="Nhập API Key bắt đầu bằng AIzaSy..."
+                  className="flex-1 text-sm bg-[#252525] border border-gray-700 rounded-xl px-3 py-2 text-white outline-none focus:border-blue-500"
+                />
+                <button 
+                  onClick={handleSaveApiKey}
+                  className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors"
+                >
+                  Lưu Key
+                </button>
+              </div>
+              <p className="text-[10px] text-gray-500 mt-2">
+                *Key được lưu an toàn cục bộ trên trình duyệt của bạn (localStorage), không lưu lên server nhóm.
+              </p>
+            </div>
+          </div>
+        </Section>
+      )}
     </>
   );
 }
