@@ -6,7 +6,7 @@ import {
   Volume2, CheckCircle2, Circle, ArrowLeft, ArrowRight,
   Maximize2, RotateCcw, Save, Trash, X, Loader2, Book, Layers
 } from 'lucide-react';
-import { useApp } from '../context/AppContext';
+import { useApp, toArr } from '../context/AppContext';
 import { suggestDefinitions } from '../services/vocabService';
 
 export default function FlashcardSet() {
@@ -28,7 +28,7 @@ export default function FlashcardSet() {
 
   useEffect(() => {
     if (set) {
-      setCards(set.terms || []);
+      setCards(toArr(set.terms));
     }
   }, [set]);
 

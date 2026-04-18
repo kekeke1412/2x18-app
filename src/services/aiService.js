@@ -19,7 +19,7 @@ export function setApiKey(key) {
 }
 
 // ── Core AI Call (Gemini) ───────────────────────────────────────────────────
-async function callGemini(systemPrompt, userPrompt, { temperature = 0.7, history = [] } = {}) {
+export async function callGemini(systemPrompt, userPrompt, { temperature = 0.7, history = [] } = {}) {
   const apiKey = getApiKey();
   if (!apiKey) {
     throw new Error("MISSING_API_KEY");
@@ -56,7 +56,7 @@ async function callGemini(systemPrompt, userPrompt, { temperature = 0.7, history
 }
 
 // ── Safe JSON parse helper ─────────────────────────────────────────────────
-function safeJson(text, fallback) {
+export function safeJson(text, fallback) {
   if (!text) return fallback;
   try {
     // Strip possible markdown code fences

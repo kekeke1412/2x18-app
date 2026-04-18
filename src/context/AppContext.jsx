@@ -16,7 +16,7 @@ const fbSet = (path, data) => {
 };
 
 // Firebase Realtime DB có thể trả về object thay vì array → convert an toàn
-const toArr = (val) => {
+export const toArr = (val) => {
   if (!val) return [];
   if (typeof val === 'object') return Object.values(val).filter(Boolean);
   return [];
@@ -225,7 +225,6 @@ function reducer(s, { type, payload }) {
       return { ...s, attendance:s.attendance.map(sess=>sess.sessionId===sessionId?{...sess,present:checked?[...new Set([...toArr(sess.present),userId])]:toArr(sess.present).filter(u=>u!==userId)}:sess) };
     }
 
-    // <--- BLOCK DELTE NÀY VÀO --->
     case A.DELETE_ATTENDANCE_SESSION: {
       const { sessionId, trashId, deletedAt, deletedBy, deletedByName } = payload;
       const item = s.attendance.find(a => a.sessionId === sessionId);
@@ -236,9 +235,7 @@ function reducer(s, { type, payload }) {
         trash: trashItem ? [...(s.trash||[]), trashItem] : (s.trash||[]),
       };
     }
-    // <-------------------------->
 
-    // <--- THÊM BLOCK EDIT NÀY VÀO --->
     case A.EDIT_ATTENDANCE_SESSION:
       return { 
         ...s, 
@@ -246,7 +243,6 @@ function reducer(s, { type, payload }) {
           a.sessionId === payload.sessionId ? { ...a, ...payload } : a
         ) 
       };
-    // <-------------------------->
 
     case A.ADD_DOC: {
       const {subjectId,doc}=payload;
