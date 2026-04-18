@@ -297,6 +297,7 @@ export default function Reports() {
           {[
             { id: 'event',    label: 'Tóm tắt sự kiện' },
             { id: 'research', label: 'Báo cáo nghiên cứu' },
+            { id: 'book',     label: 'Sách' },
           ].map(t => (
             <button key={t.id} onClick={() => setActiveTab(t.id)}
               className={`px-4 py-2 rounded-lg text-sm font-semibold tab-transition ${
@@ -502,10 +503,11 @@ export default function Reports() {
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Phân loại</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {[
                     { id: 'event',    label: 'Sự kiện' },
                     { id: 'research', label: 'Nghiên cứu' },
+                    { id: 'book',     label: 'Sách' },
                   ].map(t => (
                     <button key={t.id} onClick={() => setForm({...form, type: t.id})}
                       className={`h-10 rounded-xl text-sm font-semibold transition-all border btn-active ${
