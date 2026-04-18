@@ -547,7 +547,7 @@ export function AppProvider({ children }) {
     state.members, state.smeMap, state.tasks, state.calEvents, state.roadmap,
     state.votes, state.notifications, state.contributions,
     state.docs, state.auditLogs, state.subjectTasks, state.subjectComments,
-    state.semesterLabels, state.grades, state.attendance, state.trash, state.reports
+    state.semesterLabels, state.grades, state.attendance, state.trash
   ]);
 
   // ── Toast auto-dismiss ────────────────────────────────────────────────────
@@ -984,9 +984,39 @@ export function AppProvider({ children }) {
 
 
 
-  const restoreFromTrash     = useCallback(id => { dispatch({type:A.RESTORE_FROM_TRASH,     payload:id}); toast('Đã khôi phục!','success'); }, [toast]);
-  const permanentDeleteTrash = useCallback(id => { dispatch({type:A.PERMANENT_DELETE_TRASH, payload:id}); toast('Đã xóa vĩnh viễn.','info'); }, [toast]);
-  const emptyTrash           = useCallback(()  => { dispatch({type:A.EMPTY_TRASH});                        toast('Đã dọn sạch thùng rác.','success'); }, [toast]);
+  const restoreFromTrash = useCallback(async (id) => {
+    const item = (state.trash || []).find(t => t.id === id);
+    if (!item) return;
+
+    dispatch({ type: A.RESTORE_FROM_TRASH, payload: id });
+    
+    // Xóa khỏi trash trên Firebase
+    set(ref(db, `2x18_trash/${id}`), null);
+    
+    // Khôi phục về node gốc trên Firebase
+    if (item.type === 'report') {
+      set(ref(db, `2x18_reports/${item.data.id}`), item.data);
+    } else if (item.type === 'doc') {
+      const sid = item.meta.subjectId;
+      // Docs vẫn dùng cơ chế cũ nên chỉ cần xóa trash, useEffect sẽ lo phần còn lại
+    }
+    // ... các loại khác tương tự
+    
+    toast('Đã khôi phục!', 'success');
+  }, [state.trash, toast]);
+
+  const permanentDeleteTrash = useCallback((id) => {
+    dispatch({ type: A.PERMANENT_DELETE_TRASH, payload: id });
+    // Xóa trực tiếp trên Firebase
+    set(ref(db, `2x18_trash/${id}`), null);
+    toast('Đã xóa vĩnh viễn.', 'info');
+  }, [toast]);
+
+  const emptyTrash = useCallback(() => {
+    dispatch({ type: A.EMPTY_TRASH });
+    set(ref(db, '2x18_trash'), null);
+    toast('Đã dọn sạch thùng rác.', 'success');
+  }, [toast]);
 
   const exportMembersCSV = useCallback(() => {
     const h=['STT','MSSV','Họ tên','Giới tính','Email HUS','SĐT','Role'];
