@@ -49,6 +49,8 @@ const A = {
   ADD_REPORT:'ADD_REPORT', APPROVE_REPORT:'APPROVE_REPORT', DELETE_REPORT:'DELETE_REPORT',
   SET_REPORTS:'SET_REPORTS',
   SET_GOOGLE_TOKEN:'SET_GOOGLE_TOKEN',
+  ADD_VOCAB_SET:'ADD_VOCAB_SET', EDIT_VOCAB_SET:'EDIT_VOCAB_SET', DELETE_VOCAB_SET:'DELETE_VOCAB_SET',
+  MARK_WORD_LEARNED:'MARK_WORD_LEARNED',
 };
 
 const init = {
@@ -58,6 +60,7 @@ const init = {
   attendance:[], docs:{}, contributions:{},
   auditLogs:[], toasts:[], unreadCount:0, semesterLabels:{},
   trash:[], reports:[], googleToken:null,
+  vocab:{}, userVocab:{},
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -326,6 +329,22 @@ function reducer(s, { type, payload }) {
     case A.EMPTY_TRASH:
       return { ...s, trash:[] };
 
+    case A.ADD_VOCAB_SET: return { ...s, vocab:{...s.vocab, [payload.id]:payload} };
+    case A.EDIT_VOCAB_SET: return { ...s, vocab:{...s.vocab, [payload.id]:{...s.vocab[payload.id], ...payload}} };
+    case A.DELETE_VOCAB_SET: {
+      const {id} = payload;
+      const newVocab = {...s.vocab};
+      delete newVocab[id];
+      return { ...s, vocab:newVocab };
+    }
+    case A.MARK_WORD_LEARNED: {
+      const {setId, wordIndex, userId, learned} = payload;
+      const prev = s.userVocab[userId] || {};
+      const setProg = prev[setId] || [];
+      const newProg = learned ? [...new Set([...setProg, wordIndex])] : setProg.filter(i => i !== wordIndex);
+      return { ...s, userVocab:{...s.userVocab, [userId]:{...prev, [setId]:newProg}} };
+    }
+
     default: return s;
   }
 }
@@ -445,6 +464,8 @@ export function AppProvider({ children }) {
       listen('2x18_subject_comments', 'subjectComments', v => v || {});
       listen('2x18_semester_labels', 'semesterLabels', v => v || {});
       listen('2x18_trash', 'trash', toArr);
+      listen('2x18_vocab', 'vocab', v => v || {});
+      listen('2x18_user_vocab', 'userVocab', v => v || {});
 
       // 3. Isolated Reports Listener
       const unsubReports = onValue(ref(db, '2x18_reports'), (snap) => {
@@ -539,7 +560,8 @@ export function AppProvider({ children }) {
     fbSet('2x18_subject_comments', state.subjectComments);
     fbSet('2x18_semester_labels',  state.semesterLabels);
     fbSet('2x18_trash',            state.trash);
-    fbSet('2x18_reports',          state.reports);
+    fbSet('2x18_vocab',            state.vocab);
+    fbSet('2x18_user_vocab',       state.userVocab);
     Object.entries(state.grades).forEach(([uid, g]) => {
       if (uid && g) fbSet(`${uid}_grades`, g);
     });
@@ -547,7 +569,8 @@ export function AppProvider({ children }) {
     state.members, state.smeMap, state.tasks, state.calEvents, state.roadmap,
     state.votes, state.notifications, state.contributions,
     state.docs, state.auditLogs, state.subjectTasks, state.subjectComments,
-    state.semesterLabels, state.grades, state.attendance, state.trash
+    state.semesterLabels, state.grades, state.attendance, state.trash,
+    state.vocab, state.userVocab
   ]);
 
   // ── Toast auto-dismiss ────────────────────────────────────────────────────
@@ -982,6 +1005,29 @@ export function AppProvider({ children }) {
   const addContribution     = useCallback(p => dispatch({type:A.ADD_CONTRIBUTION,  payload:p}), []);
   const updateSemesterLabel = useCallback((key,label) => dispatch({type:A.UPDATE_SEMESTER_LABEL,payload:{key,label}}), []);
 
+  // ── VOCABULARY ────────────────────────────────────────────────────────────
+  const addVocabSet = useCallback((set) => {
+    const id = uid();
+    const newSet = { ...set, id, authorId: state.currentUser?.id, authorName: state.currentUser?.fullName, createdAt: new Date().toISOString() };
+    dispatch({ type: A.ADD_VOCAB_SET, payload: newSet });
+    toast('Đã tạo học phần mới!', 'success');
+  }, [state.currentUser, toast]);
+
+  const editVocabSet = useCallback((set) => {
+    dispatch({ type: A.EDIT_VOCAB_SET, payload: set });
+    toast('Đã cập nhật học phần!', 'success');
+  }, [toast]);
+
+  const deleteVocabSet = useCallback((id) => {
+    dispatch({ type: A.DELETE_VOCAB_SET, payload: { id } });
+    toast('Đã xóa học phần.', 'info');
+  }, [toast]);
+
+  const markWordLearned = useCallback((setId, wordIndex, learned) => {
+    if (!state.currentUser?.id) return;
+    dispatch({ type: A.MARK_WORD_LEARNED, payload: { setId, wordIndex, userId: state.currentUser.id, learned } });
+  }, [state.currentUser]);
+
 
 
   const restoreFromTrash = useCallback(async (id) => {
@@ -1069,6 +1115,7 @@ export function AppProvider({ children }) {
     addAttendanceSession, checkAttendance, deleteAttendanceSession, editAttendanceSession,
     addDoc, deleteDoc, rateDoc,
     updateRole, addContribution, updateSemesterLabel,
+    addVocabSet, editVocabSet, deleteVocabSet, markWordLearned,
     restoreFromTrash, permanentDeleteTrash, emptyTrash,
     addReport, approveReport, deleteReport,
     getMemberById, getSmeMember, isProfileComplete, exportMembersCSV,

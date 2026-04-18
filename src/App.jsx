@@ -8,7 +8,7 @@ import {
   LayoutDashboard, User, BookOpen, ClipboardList, Map, Calendar,
   LogOut, ShieldCheck, ChevronRight, AlertTriangle, Bell,
   Vote, Users, Trophy, Menu, X, CheckCircle, Info, AlertCircle as AlertCircleIcon,
-  Trash2, FileText
+  Trash2, FileText, Layers
 } from 'lucide-react';
 
 import { AppProvider, useApp } from './context/AppContext';
@@ -25,6 +25,8 @@ import Attendance    from './pages/Attendance';
 import Gamification  from './pages/Gamification';
 import Trash         from './pages/Trash';
 import Reports       from './pages/Reports';
+import Vocab         from './pages/Vocab';
+import FlashcardSet  from './pages/FlashcardSet';
 import AIChatbot     from './components/AIChatbot';
 
 // ── Toast ──────────────────────────────────────────────────────────────────
@@ -129,6 +131,7 @@ function Sidebar({ onClose }) {
           <NavItem to="/profile"   icon={User}            label="Hồ sơ & GPA"                        onClick={onClose}/>
           <NavItem to="/subjects"  icon={BookOpen}        label="Môn học & SME"  disabled={!complete} onClick={onClose}/>
           <NavItem to="/tasks"     icon={ClipboardList}   label="Tiến độ & Task" disabled={!complete} onClick={onClose}/>
+          <NavItem to="/vocab"     icon={Layers}          label="Vocabulary"      disabled={!complete} onClick={onClose}/>
           <NavItem to="/roadmap"   icon={Map}             label="Lộ trình"       disabled={!complete} onClick={onClose}/>
           <NavItem to="/calendar"  icon={Calendar}        label="Lịch trình"     disabled={!complete} onClick={onClose}/>
         </ul>
@@ -255,6 +258,8 @@ function AppLayout() {
             <Route path="/gamification"  element={<Gamification/>}/>
             <Route path="/trash"         element={<Trash       />}/>
             <Route path="/reports"       element={<Reports     />}/>
+            <Route path="/vocab"         element={<Vocab       />}/>
+            <Route path="/vocab/:setId"  element={<FlashcardSet/>}/>
             <Route path="*"              element={<Navigate to="/dashboard" replace/>}/>
           </Routes>
         </div>
