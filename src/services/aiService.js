@@ -24,7 +24,7 @@ async function callGemini(systemPrompt, userPrompt, { temperature = 0.7, history
   }
 
   const ai = new GoogleGenAI({ apiKey });
-  
+
   // Gemini 2.0+ SDK format
   // Convert history to format: { role: 'user'|'model', parts: [{ text: '...' }] }
   const contents = [
@@ -37,7 +37,7 @@ async function callGemini(systemPrompt, userPrompt, { temperature = 0.7, history
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash', // Using 1.5-flash as it's more stable/widely available than 2.0-flash in some regions
+      model: 'gemini-2.0-flash',
       systemInstruction: systemPrompt,
       contents,
       config: {
@@ -172,18 +172,18 @@ HƯỚNG DẪN:
 export async function analyzeEarlyWarning(members, attendance, tasks) {
   const memberStats = members.map(m => {
     const memberTasks = tasks.filter(t => t.userId === m.id);
-    const doneTasks   = memberTasks.filter(t => t.done).length;
-    const totalTasks  = memberTasks.length;
+    const doneTasks = memberTasks.filter(t => t.done).length;
+    const totalTasks = memberTasks.length;
     const memberAttendance = attendance.reduce((cnt, sess) => {
       const present = Array.isArray(sess.present) ? sess.present : [];
       return cnt + (present.includes(m.id) ? 1 : 0);
     }, 0);
     return {
-      name:            m.fullName || 'N/A',
-      role:            m.role,
-      attendanceRate:  attendance.length ? Math.round((memberAttendance / attendance.length) * 100) : 100,
-      taskCompletion:  totalTasks ? Math.round((doneTasks / totalTasks) * 100) : 100,
-      pendingTasks:    totalTasks - doneTasks,
+      name: m.fullName || 'N/A',
+      role: m.role,
+      attendanceRate: attendance.length ? Math.round((memberAttendance / attendance.length) * 100) : 100,
+      taskCompletion: totalTasks ? Math.round((doneTasks / totalTasks) * 100) : 100,
+      pendingTasks: totalTasks - doneTasks,
     };
   });
 
