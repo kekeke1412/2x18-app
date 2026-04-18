@@ -81,7 +81,7 @@ export default function AIChatbot() {
       console.error('[AIChatbot]', err);
       let errMsg = 'Ối, mình gặp lỗi rồi 😅 Bạn thử lại nhé!';
       if (err.message === 'MISSING_API_KEY' || !getApiKey()) {
-        errMsg = 'Bạn chưa cấu hình Gemini API Key! Vui lòng vào mục Hồ sơ để thiết lập nhé 🔑';
+        errMsg = 'Hệ thống AI chưa được cấu hình hoặc Key đã hết hạn. Vui lòng liên hệ Admin 🔑';
         setHasApiKey(false);
       }
       setMessages(prev => [

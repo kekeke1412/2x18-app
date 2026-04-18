@@ -2,20 +2,9 @@
 import { GoogleGenAI } from "@google/genai";
 
 // ── API Key Management ──────────────────────────────────────────────────────
-const STORAGE_KEY = '2x18_gemini_api_key';
-
 export function getApiKey() {
-  // Ưu tiên lấy Key từ localStorage (Key cá nhân người dùng tự nhập)
-  // Nếu không có mới lấy từ biến môi trường Vercel (Key dùng chung của nhóm)
-  return localStorage.getItem(STORAGE_KEY) || import.meta.env.VITE_GEMINI_API_KEY || "";
-}
-
-export function setApiKey(key) {
-  if (!key) {
-    localStorage.removeItem(STORAGE_KEY);
-  } else {
-    localStorage.setItem(STORAGE_KEY, key);
-  }
+  // Sử dụng Key từ biến môi trường (Vercel/Vite)
+  return import.meta.env.VITE_GEMINI_API_KEY || "";
 }
 
 // ── Core AI Call (Gemini) ───────────────────────────────────────────────────
