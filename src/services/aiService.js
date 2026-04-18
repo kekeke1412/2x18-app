@@ -1,42 +1,52 @@
 // src/services/aiService.js
-// ── Gemini AI Service for 2X18 ─────────────────────────────────────────────
-import { GoogleGenAI } from '@google/genai';
+// ── Anthropic Claude Service for 2X18 ─────────────────────────────────────
+// Dùng Anthropic API tích hợp sẵn — không cần API key bên ngoài
 
-const STORAGE_KEY = '2x18_gemini_api_key';
-const HARDCODED_KEY = '';
-
-// ── API Key Management ─────────────────────────────────────────────────────
-export const getApiKey = () => localStorage.getItem(STORAGE_KEY) || HARDCODED_KEY;
-export const setApiKey = (key) => localStorage.setItem(STORAGE_KEY, key);
-export const removeApiKey = () => localStorage.removeItem(STORAGE_KEY);
+const ANTHROPIC_ENDPOINT = 'https://api.anthropic.com/v1/messages';
+const MODEL = 'claude-sonnet-4-20250514';
 
 // ── Core AI Call ────────────────────────────────────────────────────────────
-async function callGemini(prompt, { maxTokens = 2048, temperature = 0.7, jsonMode = false } = {}) {
-  const apiKey = getApiKey();
-  if (!apiKey) throw new Error('NO_API_KEY');
+async function callClaude(
+  systemPrompt,
+  userPrompt,
+  { maxTokens = 1000, temperature = 0.7, history = [] } = {}
+) {
+  // Build messages: optional history + current user message
+  const messages = [
+    ...history,
+    { role: 'user', content: userPrompt },
+  ];
 
+  const response = await fetch(ANTHROPIC_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: maxTokens,
+      system: systemPrompt,
+      messages,
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text().catch(() => '');
+    throw new Error(`Anthropic API error ${response.status}: ${errText}`);
+  }
+
+  const data = await response.json();
+  // Claude returns content as an array of blocks; grab the first text block
+  const textBlock = (data.content || []).find(b => b.type === 'text');
+  return textBlock?.text || '';
+}
+
+// ── Safe JSON parse helper ─────────────────────────────────────────────────
+function safeJson(text, fallback) {
   try {
-    const genAI = new GoogleGenAI(apiKey);
-    const generationConfig = {
-      maxOutputTokens: maxTokens,
-      temperature: temperature,
-    };
-    
-    if (jsonMode) {
-      generationConfig.responseMimeType = "application/json";
-    }
-
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
-      generationConfig,
-    });
-
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return response.text();
-  } catch (err) {
-    console.error('[Gemini API Error]', err);
-    throw err;
+    // Strip possible markdown code fences
+    const clean = text.replace(/```json|```/g, '').trim();
+    return JSON.parse(clean);
+  } catch {
+    return fallback;
   }
 }
 
@@ -52,148 +62,142 @@ export async function suggestTaskAssignment(taskDescription, members, existingTa
     };
   });
 
-  const prompt = `Bạn là Trưởng nhóm dự án (Project Manager) cực kỳ sắc bén của đội 2X18.
+  const system = `Bạn là Trưởng nhóm dự án (Project Manager) cực kỳ sắc bén của đội 2X18.
+Luôn trả về JSON thuần tuý, không có markdown hay code fence.`;
 
-NHIỆM VỤ MỚI CẦN XỬ LÝ:
+  const user = `NHIỆM VỤ MỚI CẦN XỬ LÝ:
 "${taskDescription}"
 
 TÌNH TRẠNG NHÂN SỰ HIỆN TẠI:
 ${memberInfo.map((m, i) => `${i + 1}. ${m.name} (Role: ${m.role}) — Đang có ${m.currentTasksCount} task chưa xong. Các task đang làm: ${m.currentTasksList}`).join('\n')}
 
-MỤC TIÊU CỦA BẠN:
-1. Đề xuất người phù hợp nhất để nhận nhiệm vụ này, ưu tiên sự cân bằng công việc (tránh dồn việc cho người đang có nhiều task) và phù hợp về vai trò (core/member).
-2. Viết một lý do thuyết phục giải thích tại sao chọn người này.
-3. Chia nhỏ nhiệm vụ này thành 3-4 bước thực hiện cụ thể (subtasks) giúp người nhận dễ hình dung.
-4. Đánh giá số ngày hoàn thành dự kiến (1-14) và mức độ ưu tiên (high, medium, low).
-
-Bạn PHẢI trả về đúng định dạng JSON sau:
+Trả về JSON đúng cấu trúc sau:
 {
-  "suggestedAssignee": "Tên người được chọn (chọn từ danh sách trên)",
-  "reason": "Lý do chọn người này một cách logic (khoảng 2 câu)",
+  "suggestedAssignee": "Tên người được chọn",
+  "reason": "Lý do chọn người này (2 câu)",
   "subtasks": ["Bước 1: ...", "Bước 2: ...", "Bước 3: ..."],
   "estimatedDays": 3,
   "priority": "high"
 }`;
 
   try {
-    const text = await callGemini(prompt, { temperature: 0.4, jsonMode: true });
-    return JSON.parse(text);
+    const text = await callClaude(system, user, { temperature: 0.4, maxTokens: 800 });
+    return safeJson(text, {
+      suggestedAssignee: '', reason: 'Không thể phân tích.', subtasks: [], estimatedDays: 0, priority: 'medium',
+    });
   } catch (err) {
-    console.error("AI Error:", err);
-    return { suggestedAssignee: '', reason: 'Không thể phân tích do lỗi AI hoặc thiếu API Key.', subtasks: [], estimatedDays: 0, priority: 'medium' };
+    console.error('[suggestTaskAssignment]', err);
+    return { suggestedAssignee: '', reason: 'Lỗi khi gọi AI.', subtasks: [], estimatedDays: 0, priority: 'medium' };
   }
 }
 
 // ── 2. AI Review Báo cáo ──────────────────────────────────────────────────
 export async function reviewReport(reportContent, authorName) {
-  const prompt = `Bạn là Cố vấn cấp cao (Senior Advisor) của dự án 2X18. Nhiệm vụ của bạn là đánh giá báo cáo tuần của sinh viên.
+  const system = `Bạn là Cố vấn cấp cao (Senior Advisor) của dự án 2X18.
+Luôn trả về JSON thuần tuý, không có markdown hay code fence.`;
 
-BÁO CÁO CỦA: ${authorName}
+  const user = `BÁO CÁO CỦA: ${authorName}
 NỘI DUNG BÁO CÁO:
 "${reportContent}"
 
-TIÊU CHÍ ĐÁNH GIÁ:
-- Báo cáo có rõ ràng những gì đã làm được và chưa làm được không?
-- Báo cáo có nêu lên vấn đề, khó khăn đang gặp phải không?
-- Kế hoạch tuần tới có khả thi và cụ thể không?
+Tiêu chí: rõ ràng việc đã làm / chưa làm, có nêu khó khăn, kế hoạch tuần tới khả thi.
 
-Bạn PHẢI trả về định dạng JSON sau:
+Trả về JSON:
 {
-  "summary": ["Tóm tắt ý 1", "Tóm tắt ý 2", "Tóm tắt ý 3"],
+  "summary": ["Ý 1", "Ý 2", "Ý 3"],
   "quality": "excellent|good|average|poor",
   "qualityLabel": "Xuất sắc|Tốt|Cần cải thiện|Sơ sài",
-  "feedback": "Nhận xét chân thành, mang tính xây dựng, chỉ ra điểm tốt và điểm cần khắc phục (tối đa 3 câu).",
-  "isComplete": true/false (true nếu báo cáo đủ ý, false nếu quá ngắn/thiếu thông tin)
+  "feedback": "Nhận xét xây dựng (tối đa 3 câu)",
+  "isComplete": true
 }`;
 
   try {
-    const text = await callGemini(prompt, { temperature: 0.3, jsonMode: true });
-    return JSON.parse(text);
+    const text = await callClaude(system, user, { temperature: 0.3, maxTokens: 600 });
+    return safeJson(text, {
+      summary: ['Lỗi đánh giá AI'], quality: 'average', qualityLabel: 'Không xác định',
+      feedback: 'Không thể phân tích lúc này.', isComplete: false,
+    });
   } catch (err) {
-    return { summary: ['Lỗi đánh giá AI'], quality: 'average', qualityLabel: 'Không xác định', feedback: 'Vui lòng kiểm tra lại cấu hình API Key.', isComplete: false };
+    console.error('[reviewReport]', err);
+    return { summary: ['Lỗi AI'], quality: 'average', qualityLabel: 'Không xác định', feedback: 'Lỗi khi gọi AI.', isComplete: false };
   }
 }
 
-// ── 3. AI Chatbot ─────────────────────────────────────────────────────────
-export async function chatWithAI(userMessage, context) {
-  const { userName, userRole, gpa, upcomingEvents, pendingTasks, recentAttendance } = context;
+// ── 3. AI Chatbot (hỗ trợ lịch sử hội thoại) ─────────────────────────────
+export async function chatWithAI(userMessage, context, history = []) {
+  const { userName, userRole, upcomingEvents, pendingTasks, recentAttendance } = context;
 
-  const prompt = `Bạn là "2X18 Bot", một trợ lý ảo siêu việt, dí dỏm và thông minh của nhóm sinh viên 2X18 tại Đại học Khoa học Tự nhiên (HUS), ĐHQGHN.
-Bạn có tính cách năng động, sẵn sàng giúp đỡ, biết đùa nhưng khi cần thì rất nghiêm túc.
+  const system = `Bạn là "2X18 Bot", trợ lý ảo dí dỏm và thông minh của nhóm sinh viên 2X18 tại Đại học Khoa học Tự nhiên (HUS), ĐHQGHN.
+Tính cách: năng động, vui vẻ, sẵn sàng giúp đỡ, biết đùa nhưng nghiêm túc khi cần.
 
-THÔNG TIN NGƯỜI ĐANG TRÒ CHUYỆN VỚI BẠN:
+THÔNG TIN NGƯỜI DÙNG:
 - Tên: ${userName || 'Thành viên 2X18'}
 - Vai trò: ${userRole || 'Thành viên'}
-- GPA hiện tại: ${gpa || 'Chưa rõ'}
-
-DỮ LIỆU NGỮ CẢNH CỦA NGƯỜI NÀY:
 - Sự kiện sắp tới: ${upcomingEvents?.length ? upcomingEvents.map(e => `[${e.date}] ${e.title}`).join(', ') : 'Trống'}
-- Nhiệm vụ chưa xong: ${pendingTasks?.length ? pendingTasks.map(t => t.title).join(', ') : 'Không có'}
-- Lịch sử điểm danh gần đây: ${recentAttendance || 'Chưa rõ'}
+- Task chưa xong: ${pendingTasks?.length ? pendingTasks.map(t => t.task || t.title).join(', ') : 'Không có'}
+- Điểm danh gần đây: ${recentAttendance || 'Chưa rõ'}
 
-CÂU HỎI / TIN NHẮN TỪ NGƯỜI DÙNG:
-"${userMessage}"
+HƯỚNG DẪN:
+- Xưng "mình", gọi người dùng bằng tên (từ cuối tên).
+- Cá nhân hóa câu trả lời dựa trên dữ liệu trên.
+- Ngắn gọn dưới 150 từ. Thêm emoji. Không in đậm toàn câu.`;
 
-HƯỚNG DẪN TRẢ LỜI:
-1. Xưng hô "mình" và gọi người dùng bằng Tên (nếu có).
-2. Dùng dữ liệu ngữ cảnh để câu trả lời mang tính cá nhân hóa (ví dụ: nhắc họ làm task nếu họ hỏi về công việc, hoặc chúc họ thi tốt nếu có sự kiện thi).
-3. Trả lời trực tiếp vào trọng tâm, ngắn gọn dưới 150 từ. Thêm emoji cho sinh động. Không in đậm toàn bộ câu.`;
+  try {
+    // Convert internal chat history to Anthropic format
+    const anthropicHistory = history
+      .filter(m => m.role === 'user' || m.role === 'assistant')
+      .map(m => ({ role: m.role, content: m.text || m.content || '' }));
 
-  return await callGemini(prompt, { maxTokens: 800, temperature: 0.8, jsonMode: false });
+    return await callClaude(system, userMessage, {
+      maxTokens: 800,
+      temperature: 0.8,
+      history: anthropicHistory,
+    });
+  } catch (err) {
+    console.error('[chatWithAI]', err);
+    throw err;
+  }
 }
 
 // ── 4. AI Cảnh báo sớm ───────────────────────────────────────────────────
 export async function analyzeEarlyWarning(members, attendance, tasks) {
   const memberStats = members.map(m => {
     const memberTasks = tasks.filter(t => t.userId === m.id);
-    const doneTasks = memberTasks.filter(t => t.done).length;
-    const totalTasks = memberTasks.length;
-
-    const memberAttendance = attendance.reduce((count, sess) => {
+    const doneTasks   = memberTasks.filter(t => t.done).length;
+    const totalTasks  = memberTasks.length;
+    const memberAttendance = attendance.reduce((cnt, sess) => {
       const present = Array.isArray(sess.present) ? sess.present : [];
-      return count + (present.includes(m.id) ? 1 : 0);
+      return cnt + (present.includes(m.id) ? 1 : 0);
     }, 0);
-    const totalSessions = attendance.length;
-
     return {
-      name: m.fullName || 'N/A',
-      role: m.role,
-      attendanceRate: totalSessions ? Math.round((memberAttendance / totalSessions) * 100) : 100,
-      taskCompletion: totalTasks ? Math.round((doneTasks / totalTasks) * 100) : 100,
-      pendingTasks: totalTasks - doneTasks,
+      name:            m.fullName || 'N/A',
+      role:            m.role,
+      attendanceRate:  attendance.length ? Math.round((memberAttendance / attendance.length) * 100) : 100,
+      taskCompletion:  totalTasks ? Math.round((doneTasks / totalTasks) * 100) : 100,
+      pendingTasks:    totalTasks - doneTasks,
     };
   });
 
-  const prompt = `Bạn là Hệ thống Radar của 2X18, chuyên phân tích dữ liệu hoạt động của các thành viên để phát hiện những ai đang chểnh mảng hoặc bị quá tải.
+  const system = `Bạn là Hệ thống Radar của 2X18, phân tích hoạt động thành viên.
+Luôn trả về JSON thuần tuý, không markdown.`;
 
-DỮ LIỆU HOẠT ĐỘNG HIỆN TẠI CỦA CÁC THÀNH VIÊN:
-${memberStats.map(m => `- ${m.name} (Role: ${m.role}): Điểm danh ${m.attendanceRate}%, Hoàn thành task ${m.taskCompletion}% (Còn ${m.pendingTasks} task tồn đọng)`).join('\n')}
+  const user = `DỮ LIỆU THÀNH VIÊN:
+${memberStats.map(m => `- ${m.name} (${m.role}): Điểm danh ${m.attendanceRate}%, Task ${m.taskCompletion}% (còn ${m.pendingTasks} task)`).join('\n')}
 
-YÊU CẦU:
-1. Xác định những thành viên có dấu hiệu đáng lo ngại (Ví dụ: Điểm danh < 70%, hoặc Hoàn thành task < 50%, hoặc có quá nhiều task tồn đọng).
-2. Xếp loại cảnh báo (high = rất nghiêm trọng, medium = cần lưu ý, low = nhắc nhở nhẹ).
-3. Đánh giá sức khỏe tổng thể của nhóm (good = ổn định, warning = nhiều người chểnh mảng, critical = khủng hoảng).
-4. Đưa ra một lời khuyên chiến lược cho Ban điều hành (Core team) để xử lý tình hình.
-
-Bạn PHẢI trả về JSON có cấu trúc sau:
+Trả về JSON:
 {
   "warnings": [
-    {
-      "memberName": "Tên thành viên",
-      "level": "high|medium|low",
-      "reason": "Lý do cụ thể dựa trên số liệu"
-    }
+    { "memberName": "...", "level": "high|medium|low", "reason": "..." }
   ],
   "overallHealth": "good|warning|critical",
-  "suggestion": "Lời khuyên hành động cho Core team (khoảng 2 câu)"
-}
-(Nếu không ai có vấn đề, trả về mảng warnings rỗng [])`;
+  "suggestion": "Lời khuyên cho Core team (2 câu)"
+}`;
 
   try {
-    const text = await callGemini(prompt, { temperature: 0.2, jsonMode: true });
-    return JSON.parse(text);
+    const text = await callClaude(system, user, { temperature: 0.2, maxTokens: 800 });
+    return safeJson(text, { warnings: [], overallHealth: 'good', suggestion: 'Không thể phân tích lúc này.' });
   } catch (err) {
-    return { warnings: [], overallHealth: 'good', suggestion: 'Không thể phân tích dữ liệu lúc này.' };
+    console.error('[analyzeEarlyWarning]', err);
+    return { warnings: [], overallHealth: 'good', suggestion: 'Lỗi khi gọi AI.' };
   }
 }
-
