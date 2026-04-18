@@ -774,30 +774,46 @@ function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfil
       </Section>
 
       {isOwnProfile && (profile.role === 'core' || profile.role === 'super_admin' || isSuperAdmin) && (
-        <Section icon={Key} title="Cấu hình AI (Gemini API)">
+        <Section 
+          icon={Key} 
+          title="Cấu hình AI (Gemini API)"
+          badge={import.meta.env.VITE_GEMINI_API_KEY ? "Đã có Key hệ thống" : null}
+        >
           <div className="flex flex-col gap-3">
+            {import.meta.env.VITE_GEMINI_API_KEY && (
+              <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 flex items-center gap-3">
+                <CheckCircle className="w-4 h-4 text-green-400 shrink-0"/>
+                <p className="text-[11px] text-green-300 font-medium">
+                  Website đang sử dụng <strong>API Key hệ thống</strong> từ Vercel. Bạn không cần nhập thêm gì để sử dụng AI.
+                </p>
+              </div>
+            )}
+            
             <div className="bg-[#1a1a1a] border border-gray-800 rounded-xl p-4">
               <p className="text-[11px] text-gray-400 mb-3 leading-relaxed">
-                Các tính năng AI (Phân công Smart Task, Duyệt Báo cáo, Radar Cảnh báo) yêu cầu API Key của Google Gemini.<br/>
-                Bạn có thể lấy miễn phí tại: <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline font-bold">Google AI Studio</a>.
+                {import.meta.env.VITE_GEMINI_API_KEY 
+                  ? "Nếu bạn muốn sử dụng Key cá nhân (để có hạn mức riêng), hãy nhập vào đây. Key cá nhân sẽ được ưu tiên."
+                  : "Các tính năng AI yêu cầu API Key của Google Gemini. Lấy miễn phí tại Google AI Studio."}
+                <br/>
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline font-bold">Lấy Key tại đây →</a>
               </p>
               <div className="flex items-center gap-3">
                 <input 
                   type="password" 
                   value={apiKeyInput} 
                   onChange={e => setApiKeyInput(e.target.value)}
-                  placeholder="Nhập API Key bắt đầu bằng AIzaSy..."
+                  placeholder="Nhập API Key cá nhân (AIzaSy...)"
                   className="flex-1 text-sm bg-[#252525] border border-gray-700 rounded-xl px-3 py-2 text-white outline-none focus:border-blue-500"
                 />
                 <button 
                   onClick={handleSaveApiKey}
                   className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors"
                 >
-                  Lưu Key
+                  {apiKeyInput ? 'Lưu Key riêng' : 'Xóa Key riêng'}
                 </button>
               </div>
-              <p className="text-[10px] text-gray-500 mt-2">
-                *Key được lưu an toàn cục bộ trên trình duyệt của bạn (localStorage), không lưu lên server nhóm.
+              <p className="text-[10px] text-gray-500 mt-2 italic">
+                * Key cá nhân chỉ lưu tại trình duyệt này (localStorage), không gửi lên server.
               </p>
             </div>
           </div>

@@ -5,7 +5,9 @@ import { GoogleGenAI } from "@google/genai";
 const STORAGE_KEY = '2x18_gemini_api_key';
 
 export function getApiKey() {
-  return localStorage.getItem(STORAGE_KEY) || "";
+  // Ưu tiên lấy Key từ localStorage (Key cá nhân người dùng tự nhập)
+  // Nếu không có mới lấy từ biến môi trường Vercel (Key dùng chung của nhóm)
+  return localStorage.getItem(STORAGE_KEY) || import.meta.env.VITE_GEMINI_API_KEY || "";
 }
 
 export function setApiKey(key) {
