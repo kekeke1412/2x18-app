@@ -2,7 +2,7 @@
 import { callGemini, safeJson } from './aiService';
 
 /**
- * Suggest definitions, pronunciation and examples for a list of words using Gemini
+ * Suggest definitions, pronunciation, part of speech and examples for a list of words using Gemini
  * @param {string[]} words 
  */
 export const suggestDefinitions = async (words) => {
@@ -11,7 +11,7 @@ export const suggestDefinitions = async (words) => {
   const system = `You are a professional English teacher for Vietnamese students. 
 Return valid JSON representing an array of word definitions.`;
 
-  const user = `For the following English words, provide their Vietnamese definition, IPA pronunciation, and an example sentence with its translation.
+  const user = `For the following English words, provide their Vietnamese definition, IPA pronunciation, Part of Speech (noun, verb, adj, etc.), and an example sentence with its translation.
 
 Words: ${words.join(', ')}
 
@@ -20,6 +20,7 @@ Required JSON structure:
   {
     "word": "...",
     "definition": "...",
+    "type": "noun/verb/adj/...",
     "ipa": "...",
     "example": "...",
     "exampleVi": "..."

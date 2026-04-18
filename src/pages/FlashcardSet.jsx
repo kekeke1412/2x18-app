@@ -49,7 +49,7 @@ export default function FlashcardSet() {
   if (!set) return <div className="p-10 text-center text-gray-500 font-bold">Học phần không tồn tại.</div>;
 
   const handleSave = () => { editVocabSet({ ...set, terms: cards }); setIsEditing(false); };
-  const handleAddCard = () => { setCards([...cards, { word: '', definition: '', ipa: '', example: '', exampleVi: '' }]); };
+  const handleAddCard = () => { setCards([...cards, { word: '', definition: '', type: '', ipa: '', example: '', exampleVi: '' }]); };
   const handleRemoveCard = (idx) => { setCards(cards.filter((_, i) => i !== idx)); };
 
   const handleAiSuggest = async (idx) => {
@@ -221,8 +221,9 @@ export default function FlashcardSet() {
                             <button onClick={() => handleRemoveCard(idx)} className="p-1.5 text-gray-600 hover:text-red-400 transition-colors"><Trash2 className="w-4 h-4" /></button>
                           </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <input placeholder="Thuật ngữ" value={card.word} onChange={e => { const n = [...cards]; n[idx].word = e.target.value; setCards(n); }} className="bg-[#121212] border border-gray-800 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 outline-none" />
+                          <input placeholder="Loại từ (n, v, adj...)" value={card.type} onChange={e => { const n = [...cards]; n[idx].type = e.target.value; setCards(n); }} className="bg-[#121212] border border-gray-800 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 outline-none" />
                           <input placeholder="Định nghĩa" value={card.definition} onChange={e => { const n = [...cards]; n[idx].definition = e.target.value; setCards(n); }} className="bg-[#121212] border border-gray-800 rounded-xl px-4 py-2.5 text-sm focus:border-indigo-500 outline-none" />
                         </div>
                       </div>
@@ -231,6 +232,7 @@ export default function FlashcardSet() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-3 mb-1">
                             <h4 className="text-lg font-black text-indigo-400">{card.word}</h4>
+                            <span className="text-[10px] bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded-md font-black uppercase tracking-wider border border-indigo-500/20">{card.type || 'n/a'}</span>
                             <span className="text-xs text-gray-500 font-mono italic">{card.ipa}</span>
                           </div>
                           <p className="text-sm text-gray-200 font-medium mb-3">{card.definition}</p>
@@ -411,7 +413,10 @@ function StudyCard({ card, isFlipped, onFlip, onSwipe }) {
         >
           <div className="absolute top-8 left-8 text-[10px] font-black text-gray-500 uppercase tracking-widest">Thuật ngữ</div>
           <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight leading-tight">{card.word}</h2>
-          <p className="text-sm text-indigo-400 font-mono italic mt-6 bg-indigo-500/10 px-4 py-1.5 rounded-full border border-indigo-500/20">{card.ipa}</p>
+          <div className="flex items-center gap-3 mt-4">
+            <span className="text-[10px] bg-white/10 text-white/60 px-2 py-0.5 rounded-md font-black uppercase tracking-wider border border-white/10">{card.type || 'n/a'}</span>
+            <span className="text-sm text-indigo-400 font-mono italic bg-indigo-500/10 px-4 py-1.5 rounded-full border border-indigo-500/20">{card.ipa}</span>
+          </div>
           <div className="absolute bottom-10 flex items-center gap-3 text-[10px] font-black text-gray-600 uppercase tracking-[0.3em]">
             <Zap className="w-3 h-3" /> CHẠM ĐỂ LẬT
           </div>
