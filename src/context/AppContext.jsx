@@ -501,7 +501,19 @@ export function AppProvider({ children }) {
   }, [state.members]); // eslint-disable-line
 
   // ── Auto-sync to Firebase ─────────────────────────────────────────────────
+  // Khóa an toàn: Chỉ đồng bộ lên server sau khi đã tải xong dữ liệu ban đầu
+  const isDataReadyRef = useRef(false);
+
   useEffect(() => {
+    if (state.isLoading) return;
+    // Đợi 2 giây sau khi hết Loading để đảm bảo các node lẻ tẻ đã về hết
+    const timer = setTimeout(() => { isDataReadyRef.current = true; }, 2000);
+    return () => clearTimeout(timer);
+  }, [state.isLoading]);
+
+  useEffect(() => {
+    if (!isDataReadyRef.current) return; // CHƯA TẢI XONG THÌ CẤM GHI ĐÈ
+    
     if (fromFirebaseRef.current) {
       fromFirebaseRef.current = false;
       return;
