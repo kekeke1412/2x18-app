@@ -1,46 +1,61 @@
 // src/services/aiService.js
-// ── Anthropic Claude Service for 2X18 ─────────────────────────────────────
-// Dùng Anthropic API tích hợp sẵn — không cần API key bên ngoài
+import { GoogleGenAI } from "@google/genai";
 
-const ANTHROPIC_ENDPOINT = 'https://api.anthropic.com/v1/messages';
-const MODEL = 'claude-sonnet-4-20250514';
+// ── API Key Management ──────────────────────────────────────────────────────
+const STORAGE_KEY = '2x18_gemini_api_key';
 
-// ── Core AI Call ────────────────────────────────────────────────────────────
-async function callClaude(
-  systemPrompt,
-  userPrompt,
-  { maxTokens = 1000, temperature = 0.7, history = [] } = {}
-) {
-  // Build messages: optional history + current user message
-  const messages = [
-    ...history,
-    { role: 'user', content: userPrompt },
-  ];
+export function getApiKey() {
+  return localStorage.getItem(STORAGE_KEY) || "";
+}
 
-  const response = await fetch(ANTHROPIC_ENDPOINT, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages,
-    }),
-  });
+export function setApiKey(key) {
+  if (!key) {
+    localStorage.removeItem(STORAGE_KEY);
+  } else {
+    localStorage.setItem(STORAGE_KEY, key);
+  }
+}
 
-  if (!response.ok) {
-    const errText = await response.text().catch(() => '');
-    throw new Error(`Anthropic API error ${response.status}: ${errText}`);
+// ── Core AI Call (Gemini) ───────────────────────────────────────────────────
+async function callGemini(systemPrompt, userPrompt, { temperature = 0.7, history = [] } = {}) {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error("MISSING_API_KEY");
   }
 
-  const data = await response.json();
-  // Claude returns content as an array of blocks; grab the first text block
-  const textBlock = (data.content || []).find(b => b.type === 'text');
-  return textBlock?.text || '';
+  const ai = new GoogleGenAI({ apiKey });
+  
+  // Gemini 2.0+ SDK format
+  // Convert history to format: { role: 'user'|'model', parts: [{ text: '...' }] }
+  const contents = [
+    ...history.map(m => ({
+      role: m.role === 'user' ? 'user' : 'model',
+      parts: [{ text: m.text || m.content || "" }]
+    })),
+    { role: 'user', parts: [{ text: userPrompt }] }
+  ];
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-1.5-flash', // Using 1.5-flash as it's more stable/widely available than 2.0-flash in some regions
+      systemInstruction: systemPrompt,
+      contents,
+      config: {
+        temperature,
+        maxOutputTokens: 1000,
+      }
+    });
+
+    return response.text;
+  } catch (err) {
+    console.error('[callGemini Error]', err);
+    throw err;
+  }
 }
 
 // ── Safe JSON parse helper ─────────────────────────────────────────────────
 function safeJson(text, fallback) {
+  if (!text) return fallback;
   try {
     // Strip possible markdown code fences
     const clean = text.replace(/```json|```/g, '').trim();
@@ -81,7 +96,7 @@ Trả về JSON đúng cấu trúc sau:
 }`;
 
   try {
-    const text = await callClaude(system, user, { temperature: 0.4, maxTokens: 800 });
+    const text = await callGemini(system, user, { temperature: 0.4 });
     return safeJson(text, {
       suggestedAssignee: '', reason: 'Không thể phân tích.', subtasks: [], estimatedDays: 0, priority: 'medium',
     });
@@ -112,7 +127,7 @@ Trả về JSON:
 }`;
 
   try {
-    const text = await callClaude(system, user, { temperature: 0.3, maxTokens: 600 });
+    const text = await callGemini(system, user, { temperature: 0.3 });
     return safeJson(text, {
       summary: ['Lỗi đánh giá AI'], quality: 'average', qualityLabel: 'Không xác định',
       feedback: 'Không thể phân tích lúc này.', isComplete: false,
@@ -143,15 +158,9 @@ HƯỚNG DẪN:
 - Ngắn gọn dưới 150 từ. Thêm emoji. Không in đậm toàn câu.`;
 
   try {
-    // Convert internal chat history to Anthropic format
-    const anthropicHistory = history
-      .filter(m => m.role === 'user' || m.role === 'assistant')
-      .map(m => ({ role: m.role, content: m.text || m.content || '' }));
-
-    return await callClaude(system, userMessage, {
-      maxTokens: 800,
+    return await callGemini(system, userMessage, {
       temperature: 0.8,
-      history: anthropicHistory,
+      history: history,
     });
   } catch (err) {
     console.error('[chatWithAI]', err);
@@ -194,7 +203,7 @@ Trả về JSON:
 }`;
 
   try {
-    const text = await callClaude(system, user, { temperature: 0.2, maxTokens: 800 });
+    const text = await callGemini(system, user, { temperature: 0.2 });
     return safeJson(text, { warnings: [], overallHealth: 'good', suggestion: 'Không thể phân tích lúc này.' });
   } catch (err) {
     console.error('[analyzeEarlyWarning]', err);

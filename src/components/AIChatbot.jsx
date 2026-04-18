@@ -13,7 +13,7 @@ export default function AIChatbot() {
   const [isMinimized, setIsMinimized] = useState(false);
   const [messages,    setMessages]    = useState([
     {
-      role: 'ai',
+      role: 'assistant',
       text: `Chào ${firstName}! Mình là 2X18 Bot 🤖✨\nMình biết lịch, task và điểm danh của bạn — hỏi gì cũng được nhé!`,
     },
   ]);
@@ -60,18 +60,23 @@ export default function AIChatbot() {
       };
 
       // Pass previous conversation as history for multi-turn awareness
-      // Filter to only real user/AI pairs (skip the welcome message if AI only)
+      // Gemini expects { role: 'user'|'model', parts: [{ text: '...' }] }
+      // But we pass simple { role, text } to aiService which converts it
       const history = messages
         .filter(m => m.role === 'user' || m.role === 'assistant')
         .slice(-10); // last 10 exchanges max
 
       const aiRes = await chatWithAI(userMsg, context, history);
-      setMessages(prev => [...prev, { role: 'ai', text: aiRes }]);
+      setMessages(prev => [...prev, { role: 'assistant', text: aiRes }]);
     } catch (err) {
       console.error('[AIChatbot]', err);
+      let errMsg = 'Ối, mình gặp lỗi rồi 😅 Bạn thử lại nhé!';
+      if (err.message === 'MISSING_API_KEY') {
+        errMsg = 'Bạn chưa cấu hình Gemini API Key! Vui lòng vào mục Hồ sơ để thiết lập nhé 🔑';
+      }
       setMessages(prev => [
         ...prev,
-        { role: 'ai', text: 'Ối, mình gặp lỗi rồi 😅 Bạn thử lại nhé!' },
+        { role: 'assistant', text: errMsg },
       ]);
     } finally {
       setIsTyping(false);
@@ -80,7 +85,7 @@ export default function AIChatbot() {
 
   const clearChat = () => {
     setMessages([{
-      role: 'ai',
+      role: 'assistant',
       text: `Xong! Mình đã xóa lịch sử trò chuyện 🗑️ Hỏi tiếp nào, ${firstName}!`,
     }]);
   };
@@ -105,7 +110,7 @@ export default function AIChatbot() {
       <div className="px-3 py-2.5 border-b border-gray-800 flex items-center justify-between bg-blue-600/10 shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center shrink-0">
-            <Bot className="w-4.5 h-4.5 text-white w-[18px] h-[18px]"/>
+            <Bot className="w-[18px] h-[18px] text-white"/>
           </div>
           <div>
             <div className="text-sm font-bold text-white flex items-center gap-1">
@@ -145,7 +150,7 @@ export default function AIChatbot() {
           <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar bg-[#0f0f0f]">
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                {m.role === 'ai' && (
+                {m.role === 'assistant' && (
                   <div className="w-6 h-6 bg-blue-600 rounded-lg flex items-center justify-center shrink-0 mr-1.5 mt-0.5">
                     <Bot className="w-3.5 h-3.5 text-white"/>
                   </div>
