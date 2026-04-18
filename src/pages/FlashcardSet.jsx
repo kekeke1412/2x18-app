@@ -221,10 +221,38 @@ export default function FlashcardSet() {
                             <button onClick={() => handleRemoveCard(idx)} className="p-1.5 text-gray-600 hover:text-red-400 transition-colors"><Trash2 className="w-4 h-4" /></button>
                           </div>
                         </div>
+                        <div className="flex flex-col md:flex-row gap-4">
+                          <div className="flex-1 flex gap-2">
+                            <input 
+                              placeholder="Thuật ngữ" 
+                              value={card.word} 
+                              onChange={e => { const n = [...cards]; n[idx].word = e.target.value; setCards(n); }} 
+                              className="flex-1 bg-[#121212] border border-gray-800 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 outline-none" 
+                            />
+                            <select 
+                              value={card.type} 
+                              onChange={e => { const n = [...cards]; n[idx].type = e.target.value; setCards(n); }}
+                              className="w-24 bg-[#121212] border border-gray-800 rounded-xl px-2 py-2.5 text-xs font-bold focus:border-indigo-500 outline-none text-indigo-400"
+                            >
+                              <option value="">Loại</option>
+                              <option value="n">n</option>
+                              <option value="v">v</option>
+                              <option value="adj">adj</option>
+                              <option value="adv">adv</option>
+                              <option value="phrase">phrase</option>
+                            </select>
+                          </div>
+                          <input 
+                            placeholder="Định nghĩa (Ví dụ: Vật lý học)" 
+                            value={card.definition} 
+                            onChange={e => { const n = [...cards]; n[idx].definition = e.target.value; setCards(n); }} 
+                            className="flex-1 bg-[#121212] border border-gray-800 rounded-xl px-4 py-2.5 text-sm focus:border-indigo-500 outline-none" 
+                          />
+                        </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <input placeholder="Thuật ngữ" value={card.word} onChange={e => { const n = [...cards]; n[idx].word = e.target.value; setCards(n); }} className="bg-[#121212] border border-gray-800 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 outline-none" />
-                          <input placeholder="Loại từ (n, v, adj...)" value={card.type} onChange={e => { const n = [...cards]; n[idx].type = e.target.value; setCards(n); }} className="bg-[#121212] border border-gray-800 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 outline-none" />
-                          <input placeholder="Định nghĩa" value={card.definition} onChange={e => { const n = [...cards]; n[idx].definition = e.target.value; setCards(n); }} className="bg-[#121212] border border-gray-800 rounded-xl px-4 py-2.5 text-sm focus:border-indigo-500 outline-none" />
+                          <input placeholder="Phiên âm (Ví dụ: /ˈfɪz.ɪks/)" value={card.ipa} onChange={e => { const n = [...cards]; n[idx].ipa = e.target.value; setCards(n); }} className="bg-[#121212] border border-gray-800 rounded-xl px-4 py-2 text-[11px] focus:border-indigo-500 outline-none" />
+                          <input placeholder="Câu ví dụ..." value={card.example} onChange={e => { const n = [...cards]; n[idx].example = e.target.value; setCards(n); }} className="bg-[#121212] border border-gray-800 rounded-xl px-4 py-2 text-[11px] focus:border-indigo-500 outline-none" />
+                          <input placeholder="Dịch nghĩa ví dụ..." value={card.exampleVi} onChange={e => { const n = [...cards]; n[idx].exampleVi = e.target.value; setCards(n); }} className="bg-[#121212] border border-gray-800 rounded-xl px-4 py-2 text-[11px] focus:border-indigo-500 outline-none" />
                         </div>
                       </div>
                     ) : (
