@@ -69,9 +69,9 @@ export default function AIChatbot() {
       };
 
       // Pass previous conversation as history for multi-turn awareness
-      // Gemini expects { role: 'user'|'model', parts: [{ text: '...' }] }
-      // But we pass simple { role, text } to aiService which converts it
+      // Gemini expects history to start with 'user' role
       const history = messages
+        .slice(1) // Bỏ qua câu chào đầu tiên của Bot để lịch sử bắt đầu bằng 'user'
         .filter(m => m.role === 'user' || m.role === 'assistant')
         .slice(-10); // last 10 exchanges max
 
