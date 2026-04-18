@@ -19,7 +19,7 @@ export function setApiKey(key) {
 }
 
 // ── Core AI Call (Gemini) ───────────────────────────────────────────────────
-export async function callGemini(systemPrompt, userPrompt, { temperature = 0.7, history = [] } = {}) {
+export async function callGemini(systemPrompt, userPrompt, { temperature = 0.7, history = [], responseMimeType = 'text/plain' } = {}) {
   const apiKey = getApiKey();
   if (!apiKey) {
     throw new Error("MISSING_API_KEY");
@@ -45,9 +45,14 @@ export async function callGemini(systemPrompt, userPrompt, { temperature = 0.7, 
       config: {
         temperature,
         maxOutputTokens: 1000,
+        responseMimeType
       }
     });
 
+    if (!response.text) {
+      console.warn('[callGemini] Empty response text');
+      return '';
+    }
     return response.text;
   } catch (err) {
     console.error('[callGemini Error]', err);
@@ -59,10 +64,16 @@ export async function callGemini(systemPrompt, userPrompt, { temperature = 0.7, 
 export function safeJson(text, fallback) {
   if (!text) return fallback;
   try {
-    // Strip possible markdown code fences
-    const clean = text.replace(/```json|```/g, '').trim();
-    return JSON.parse(clean);
+    // 1. Try direct parse
+    return JSON.parse(text);
   } catch {
+    try {
+      // 2. Extract JSON between brackets/braces if there's surrounding text
+      const match = text.match(/[\{\[]([\s\S]*)[\}\]]/);
+      if (match) return JSON.parse(match[0]);
+    } catch (e) {
+      console.warn('[safeJson] Failed to parse:', text.slice(0, 100));
+    }
     return fallback;
   }
 }
@@ -205,7 +216,7 @@ Trả về JSON:
 }`;
 
   try {
-    const text = await callGemini(system, user, { temperature: 0.2 });
+    const text = await callGemini(system, user, { temperature: 0.2, responseMimeType: 'application/json' });
     return safeJson(text, { warnings: [], overallHealth: 'good', suggestion: 'Không thể phân tích lúc này.' });
   } catch (err) {
     console.error('[analyzeEarlyWarning]', err);

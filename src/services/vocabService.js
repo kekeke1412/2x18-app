@@ -9,32 +9,29 @@ export const suggestDefinitions = async (words) => {
   if (!words || words.length === 0) return [];
   
   const system = `You are a professional English teacher for Vietnamese students. 
-Return ONLY a JSON array. No markdown, no code fences.`;
+Return valid JSON representing an array of word definitions.`;
 
-  const user = `For the following list of words, provide:
-1. Definition in Vietnamese (clear and concise)
-2. Pronunciation (IPA)
-3. An example sentence in English
-4. Vietnamese translation of that example sentence.
+  const user = `For the following English words, provide their Vietnamese definition, IPA pronunciation, and an example sentence with its translation.
 
 Words: ${words.join(', ')}
 
-Return JSON:
+Required JSON structure:
 [
   {
-    "word": "word",
-    "definition": "nghĩa tiếng Việt",
-    "ipa": "/pronunciation/",
-    "example": "example sentence",
-    "exampleVi": "nghĩa của ví dụ"
+    "word": "...",
+    "definition": "...",
+    "ipa": "...",
+    "example": "...",
+    "exampleVi": "..."
   }
 ]`;
 
   try {
-    const text = await callGemini(system, user, { temperature: 0.3 });
-    return safeJson(text, words.map(w => ({ word: w, definition: '', ipa: '', example: '', exampleVi: '' })));
+    const text = await callGemini(system, user, { temperature: 0.1, responseMimeType: 'application/json' });
+    const result = safeJson(text, []);
+    return Array.isArray(result) ? result : [];
   } catch (error) {
     console.error('[VocabAI] Error suggesting definitions:', error);
-    return words.map(w => ({ word: w, definition: '', ipa: '', example: '', exampleVi: '' }));
+    return [];
   }
 };
