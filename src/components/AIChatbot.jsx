@@ -1,7 +1,7 @@
 // src/components/AIChatbot.jsx
 import React, { useState, useRef, useEffect } from 'react';
-import { Bot, X, Send, Minus, Sparkles, MessageCircle, Trash2 } from 'lucide-react';
-import { chatWithAI } from '../services/aiService';
+import { Bot, X, Send, Minus, Sparkles, MessageCircle, Trash2, AlertCircle } from 'lucide-react';
+import { chatWithAI, getApiKey } from '../services/aiService';
 import { useApp } from '../context/AppContext';
 
 export default function AIChatbot() {
@@ -11,6 +11,7 @@ export default function AIChatbot() {
 
   const [isOpen,      setIsOpen]      = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [hasApiKey,   setHasApiKey]   = useState(true);
   const [messages,    setMessages]    = useState([
     {
       role: 'assistant',
@@ -21,6 +22,14 @@ export default function AIChatbot() {
   const [isTyping,  setIsTyping]  = useState(false);
   const chatEndRef = useRef(null);
   const inputRef   = useRef(null);
+
+  // Check AI readiness on mount and when chat opens
+  useEffect(() => {
+    const checkKey = () => setHasApiKey(!!getApiKey());
+    checkKey();
+    const timer = setInterval(checkKey, 5000); // Re-check every 5s in case user updates Profile
+    return () => clearInterval(timer);
+  }, []);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -71,8 +80,9 @@ export default function AIChatbot() {
     } catch (err) {
       console.error('[AIChatbot]', err);
       let errMsg = 'Ối, mình gặp lỗi rồi 😅 Bạn thử lại nhé!';
-      if (err.message === 'MISSING_API_KEY') {
+      if (err.message === 'MISSING_API_KEY' || !getApiKey()) {
         errMsg = 'Bạn chưa cấu hình Gemini API Key! Vui lòng vào mục Hồ sơ để thiết lập nhé 🔑';
+        setHasApiKey(false);
       }
       setMessages(prev => [
         ...prev,
@@ -97,7 +107,9 @@ export default function AIChatbot() {
       title="Mở 2X18 Bot"
     >
       <MessageCircle className="w-6 h-6 group-hover:rotate-12 transition-transform"/>
-      <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-[#121212]"/>
+      <span className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-[#121212] ${
+        hasApiKey ? 'bg-green-400' : 'bg-amber-500 animate-pulse'
+      }`}/>
     </button>
   );
 
@@ -116,9 +128,9 @@ export default function AIChatbot() {
             <div className="text-sm font-bold text-white flex items-center gap-1">
               2X18 Bot <Sparkles className="w-3 h-3 text-blue-400"/>
             </div>
-            <div className="text-[10px] text-green-400 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block"/>
-              Trực tuyến
+            <div className={`text-[10px] flex items-center gap-1 font-bold ${hasApiKey ? 'text-green-400' : 'text-amber-500'}`}>
+              <span className={`w-1.5 h-1.5 rounded-full inline-block ${hasApiKey ? 'bg-green-400' : 'bg-amber-500 animate-pulse'}`}/>
+              {hasApiKey ? 'Sẵn sàng' : 'Chưa cấu hình API Key'}
             </div>
           </div>
         </div>
