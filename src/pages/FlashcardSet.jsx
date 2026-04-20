@@ -181,13 +181,13 @@ export default function FlashcardSet() {
     <div className="h-full bg-[#121212] text-gray-200 flex flex-col overflow-hidden">
       {/* Top Header */}
       <div className="px-6 py-4 border-b border-gray-800/60 bg-[#1a1a1a] shrink-0 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link to="/vocab" className="p-2 hover:bg-gray-800 rounded-xl transition-colors">
+        <div className="flex items-center gap-2 md:gap-4 min-w-0">
+          <Link to="/vocab" className="p-2 hover:bg-gray-800 rounded-xl transition-colors shrink-0">
             <ChevronLeft className="w-5 h-5 text-gray-400" />
           </Link>
-          <div>
-            <h1 className="text-lg font-black text-white">{set.title}</h1>
-            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">
+          <div className="min-w-0">
+            <h1 className="text-base md:text-lg font-black text-white truncate">{set.title}</h1>
+            <p className="text-[9px] md:text-[10px] text-gray-500 font-bold uppercase tracking-widest truncate">
               {cards.length} THUẬT NGỮ · ĐÃ HỌC {progress.length}/{cards.length}
             </p>
           </div>
@@ -283,18 +283,20 @@ export default function FlashcardSet() {
                     ) : (
                       <div className="flex items-start justify-between gap-6">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-3 mb-1">
-                            <h4 className="text-lg font-black text-indigo-400">{card.word}</h4>
-                            <button 
-                              onClick={() => speak(card.word)} 
-                              className={`p-1.5 rounded-lg transition-all ${isSpeaking === card.word ? 'text-indigo-400 bg-indigo-500/20' : 'text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10'}`}
-                            >
-                              <Volume2 className={`w-4 h-4 ${isSpeaking === card.word ? 'animate-pulse' : ''}`} />
-                            </button>
-                            <span className="text-[10px] bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded-md font-black uppercase tracking-wider border border-indigo-500/20">{card.type || 'n/a'}</span>
-                            <span className="text-xs text-gray-500 font-mono italic">{card.ipa}</span>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-2">
+                            <h4 className="text-lg font-black text-indigo-400 break-words">{card.word}</h4>
+                            <div className="flex items-center gap-2">
+                              <button 
+                                onClick={() => speak(card.word)} 
+                                className={`p-1.5 rounded-lg transition-all ${isSpeaking === card.word ? 'text-indigo-400 bg-indigo-500/20' : 'text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10'}`}
+                              >
+                                <Volume2 className={`w-4 h-4 ${isSpeaking === card.word ? 'animate-pulse' : ''}`} />
+                              </button>
+                              <span className="text-[10px] bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded-md font-black uppercase tracking-wider border border-indigo-500/20">{card.type || 'n/a'}</span>
+                            </div>
+                            <span className="text-xs text-gray-500 font-mono italic break-all">{card.ipa}</span>
                           </div>
-                          <p className="text-sm text-gray-200 font-medium mb-3">{card.definition}</p>
+                          <p className="text-sm text-gray-200 font-medium mb-3 leading-relaxed">{card.definition}</p>
                           {card.example && (
                             <div className="pl-3 border-l-2 border-indigo-500/20 py-1">
                               <p className="text-xs text-gray-400 italic mb-1">"{card.example}"</p>
