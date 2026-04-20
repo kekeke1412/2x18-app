@@ -377,31 +377,68 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
         </div>
 
         <div className="flex items-center justify-between mt-3">
-          <div className="flex items-center gap-2">
-            <UserAvatar user={members.find(m => m.fullName === sme)} size={24} />
-            {isCore ? (
-              <select value={sme||''} onChange={e=>onChangeSme(sub.id,e.target.value)} className="text-xs bg-[#252525] text-white border border-gray-700 rounded-lg px-2 py-1 outline-none">
-                <option value="">-- Chọn SME --</option>
-                {members.map(m=><option key={m.id} value={m.fullName}>{m.fullName}</option>)}
-              </select>
-            ) : <span className="text-xs text-gray-400">{sme||'Chưa có SME'}</span>}
-          </div>
+          {grade?.status === 'Đã học' && !isCore ? (
+            <div className="flex items-center gap-1.5 py-1 px-2.5 bg-green-500/10 border border-green-500/20 rounded-lg">
+              <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+              <span className="text-[10px] font-black text-green-500 uppercase tracking-wider">Môn này đã xong!</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <UserAvatar user={members.find(m => m.fullName === sme)} size={24} />
+              {isCore ? (
+                <select value={sme||''} onChange={e=>onChangeSme(sub.id,e.target.value)} className="text-xs bg-[#252525] text-white border border-gray-700 rounded-lg px-2 py-1 outline-none">
+                  <option value="">-- Chọn SME --</option>
+                  {members.map(m=><option key={m.id} value={m.fullName}>{m.fullName}</option>)}
+                </select>
+              ) : <span className="text-xs text-gray-400">{sme||'Chưa có SME'}</span>}
+            </div>
+          )}
           <button onClick={()=>onUpload(sub)} className="flex items-center gap-1 text-[10px] font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-1 rounded-lg">
             <Link className="w-3 h-3"/> Tài liệu
           </button>
         </div>
 
-        {learnerMap['Đang học'].length > 0 && (
-          <div className="mt-3 pt-3 border-t border-gray-800/40">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-[10px] text-gray-500 font-bold">Đang học:</span>
-              {learnerMap['Đang học'].slice(0, 5).map(m => (
-                <div key={m.id} onClick={isCore ? () => onViewProgress(m) : undefined}
-                  className={isCore ? 'cursor-pointer hover:ring-1 hover:ring-blue-400 rounded-full' : ''}>
-                  <UserAvatar user={m} size={20} />
+        {(learnerMap['Đang học'].length > 0 || learnerMap['Đã học'].length > 0) && (
+          <div className="mt-3 pt-3 border-t border-gray-800/40 space-y-2">
+            {learnerMap['Đang học'].length > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[10px] text-blue-400 font-bold uppercase tracking-tighter">Đang học:</span>
+                <div className="flex -space-x-1.5">
+                  {learnerMap['Đang học'].slice(0, 5).map(m => (
+                    <div key={m.id} onClick={isCore ? () => onViewProgress(m) : undefined}
+                      className={`relative ${isCore ? 'cursor-pointer hover:z-10' : ''}`}>
+                      <UserAvatar user={m} size={20} className="border-2 border-[#1a1a1a]" />
+                    </div>
+                  ))}
+                  {learnerMap['Đang học'].length > 5 && (
+                    <div className="w-5 h-5 rounded-full bg-gray-800 border-2 border-[#1a1a1a] flex items-center justify-center text-[8px] font-bold text-gray-400">
+                      +{learnerMap['Đang học'].length - 5}
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
+            {learnerMap['Đã học'].length > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[10px] text-green-400 font-bold uppercase tracking-tighter">Đã học:</span>
+                <div className="flex -space-x-1.5">
+                  {learnerMap['Đã học'].slice(0, 5).map(m => (
+                    <div key={m.id} onClick={isCore ? () => onViewProgress(m) : undefined}
+                      className={`relative ${isCore ? 'cursor-pointer hover:z-10' : ''}`}>
+                      <UserAvatar user={m} size={20} className="border-2 border-[#1a1a1a]" />
+                      <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-[#1a1a1a] flex items-center justify-center">
+                        <Check className="w-1.5 h-1.5 text-white" strokeWidth={4} />
+                      </div>
+                    </div>
+                  ))}
+                  {learnerMap['Đã học'].length > 5 && (
+                    <div className="w-5 h-5 rounded-full bg-gray-800 border-2 border-[#1a1a1a] flex items-center justify-center text-[8px] font-bold text-gray-400">
+                      +{learnerMap['Đã học'].length - 5}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -412,17 +449,29 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
             <SubjectTaskPanel subjectId={sub.id} isSme={isSme||isCore} currentUser={currentUser}/>
             
             {allLearners.length > 0 && (
-              <div className="p-4 border-b border-gray-800/60">
-                <h4 className="text-xs font-bold text-gray-400 mb-2">Thành viên ({allLearners.length})</h4>
-                <div className="flex flex-wrap gap-1.5">
-                  {allLearners.map(m => (
-                    <div key={m.id} onClick={isCore ? () => onViewProgress(m) : undefined}
-                      className={`flex items-center gap-1 px-2 py-0.5 rounded-full border border-gray-800 bg-[#111] ${isCore?'cursor-pointer hover:border-blue-500/30':''}`}>
-                      <UserAvatar user={m} size={16} />
-                      <span className="text-[10px] text-gray-400">{m.fullName.split(' ').slice(-1)[0]}</span>
+              <div className="p-4 border-b border-gray-800/60 space-y-3">
+                <h4 className="text-xs font-bold text-gray-400">Thành viên ({allLearners.length})</h4>
+                
+                {['Đã học', 'Đang học', 'Được miễn'].map(status => {
+                  const list = learnerMap[status];
+                  if (!list.length) return null;
+                  const color = status === 'Đã học' ? 'text-green-400' : status === 'Đang học' ? 'text-blue-400' : 'text-purple-400';
+                  return (
+                    <div key={status} className="space-y-1.5">
+                      <div className={`text-[10px] font-black uppercase tracking-widest ${color}`}>{status}</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {list.map(m => (
+                          <div key={m.id} onClick={isCore ? () => onViewProgress(m) : undefined}
+                            className={`flex items-center gap-1.5 px-2 py-1 rounded-xl border border-gray-800 bg-[#111] ${isCore?'cursor-pointer hover:border-blue-500/30 transition-all':''}`}>
+                            <UserAvatar user={m} size={16} />
+                            <span className="text-[10px] text-gray-300">{m.fullName}</span>
+                            {status === 'Đã học' && <CheckCircle2 className="w-3 h-3 text-green-500" />}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
             )}
 

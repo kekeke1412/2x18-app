@@ -579,7 +579,7 @@ export function AppProvider({ children }) {
     fbSet('2x18_trash',            state.trash);
     fbSet('2x18_vocab',            state.vocab);
     fbSet('2x18_user_vocab',       state.userVocab);
-    fbSet('2x18_config',           state.config);
+    // fbSet('2x18_config',           state.config); // Handled by updateConfig to avoid loops
     // fbSet('2x18_quiz_history',     state.quizHistory); // Removed from global sync for reliability
     Object.entries(state.grades).forEach(([uid, g]) => {
       if (uid && g) fbSet(`${uid}_grades`, g);
@@ -589,7 +589,7 @@ export function AppProvider({ children }) {
     state.votes, state.notifications, state.contributions,
     state.docs, state.auditLogs, state.subjectTasks, state.subjectComments,
     state.semesterLabels, state.grades, state.attendance, state.trash,
-    state.vocab, state.userVocab, state.quizHistory, state.isLoading, state.config
+    state.vocab, state.userVocab, state.quizHistory, state.isLoading
   ]);
 
   // ── Toast auto-dismiss ────────────────────────────────────────────────────
