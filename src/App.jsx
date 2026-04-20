@@ -13,6 +13,7 @@ import {
 
 import { AppProvider, useApp } from './context/AppContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import UserAvatar from './components/UserAvatar';
 import Auth          from './pages/Auth';
 import Profile       from './pages/Profile';
 import Subjects      from './pages/Subjects';
@@ -187,16 +188,7 @@ function Sidebar({ onClose }) {
       {/* User info */}
       <div className="px-3 pb-3 pt-2 border-t border-gray-800/60">
         <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-[#222]">
-          {currentUser?.avatarUrl ? (
-            <img src={currentUser.avatarUrl} alt="Avatar"
-              className="w-8 h-8 rounded-full object-cover border border-blue-500/30 shrink-0"
-              onError={(e)=>{e.target.style.display='none'}} 
-            />
-          ) : (
-            <div className="w-8 h-8 bg-blue-600/20 border border-blue-500/30 rounded-full flex items-center justify-center text-xs font-bold text-blue-400 shrink-0">
-              {initials}
-            </div>
-          )}
+          <UserAvatar user={currentUser} size={32} isMe />
           <div className="flex-1 min-w-0">
             <div className="text-xs font-bold text-gray-200 truncate">{currentUser?.fullName||'Thành viên'}</div>
             <div className="text-[10px] text-gray-500 truncate">{currentUser?.role||'member'}</div>

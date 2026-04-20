@@ -1,6 +1,7 @@
 // src/pages/Voting.jsx
 import React, { useState, useMemo } from 'react';
 import { Vote, Plus, X, Clock, Users, Trash2, ChevronDown, ChevronUp, UserX } from 'lucide-react';
+import UserAvatar from '../components/UserAvatar';
 import { useApp, uid } from '../context/AppContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -220,12 +221,7 @@ function NonVotersPanel({ vote, activeMembers }) {
                     title={m.fullName}
                     className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-full"
                   >
-                    {m.avatarUrl
-                      ? <img src={m.avatarUrl} alt="" className="w-4 h-4 rounded-full object-cover shrink-0"/>
-                      : <div className="w-4 h-4 rounded-full bg-amber-600/30 flex items-center justify-center text-[8px] font-bold text-amber-300 shrink-0">
-                          {initials}
-                        </div>
-                    }
+                    <UserAvatar user={m} size={16} className="bg-amber-600/30 text-amber-300" />
                     <span className="text-[10px] text-amber-300 font-medium max-w-[80px] truncate">
                       {m.fullName.split(' ').slice(-1)[0]}
                     </span>
@@ -349,19 +345,9 @@ function VoteCard({ vote, onDeleteRequest }) {
               </div>
               {optVotes.length > 0 && (
                 <div className="relative px-4 pb-2 flex items-center gap-1">
-                  {optVotes.slice(0,8).map(uid => {
-                    const m = getMemberById(uid);
-                    return m?.avatarUrl ? (
-                      <img key={uid} src={m.avatarUrl} alt={m?.fullName} title={m?.fullName}
-                        className="w-5 h-5 rounded-full object-cover border border-blue-500/30"
-                        onError={e=>{e.target.style.display='none'}}/>
-                    ) : (
-                      <div key={uid} title={m?.fullName}
-                        className="w-5 h-5 rounded-full bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-[8px] font-bold text-blue-400">
-                        {m?.avatar || '?'}
-                      </div>
-                    );
-                  })}
+                  {optVotes.slice(0,8).map(uid => (
+                    <UserAvatar key={uid} user={getMemberById(uid)} size={20} className="border-blue-500/30" />
+                  ))}
                   {optVotes.length > 8 && <span className="text-[10px] text-gray-600">+{optVotes.length-8}</span>}
                 </div>
               )}

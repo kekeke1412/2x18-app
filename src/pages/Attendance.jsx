@@ -1,6 +1,7 @@
 // src/pages/Attendance.jsx
 import React, { useState, useEffect } from 'react';
 import { Users, CheckCheck, Plus, X, Calendar, Clock, Link2, Trash2, ExternalLink, Pencil } from 'lucide-react';
+import UserAvatar from '../components/UserAvatar';
 import { useApp } from '../context/AppContext';
 import { createCalendarEvent } from '../services/googleApi';
 import { scheduleReminder } from '../services/notificationService';
@@ -327,9 +328,7 @@ export default function Attendance() {
                       const present = (session.present||[]).includes(m.id);
                       return (
                         <div key={m.id} className={`flex items-center gap-2.5 p-2.5 rounded-xl border ${present ? 'border-green-500/25 bg-green-500/8' : 'border-gray-800/40 bg-[#111]'}`}>
-                          <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${present ? 'bg-green-600/25 text-green-400' : 'bg-gray-800 text-gray-500'}`}>
-                            {m.avatar}
-                          </div>
+                          <UserAvatar user={m} size={28} isMe={m.id === currentUser?.id} />
                           <div className="text-xs font-medium truncate text-gray-200">{m.fullName.split(' ').slice(-1)[0]}</div>
                         </div>
                       );

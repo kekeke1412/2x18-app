@@ -9,6 +9,7 @@ import { subjectDatabase } from '../data';
 import { useApp } from '../context/AppContext';
 import { uploadToDrive } from '../services/googleApi';
 import { motion, AnimatePresence } from 'framer-motion';
+import UserAvatar from '../components/UserAvatar';
 
 const progressColor = p => p>=80?'#22c55e':p>=50?'#3b82f6':p>=25?'#f59e0b':'#ef4444';
 
@@ -377,7 +378,7 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
 
         <div className="flex items-center justify-between mt-3">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-blue-600/20 rounded-full flex items-center justify-center text-[10px] font-bold text-blue-400 shrink-0">{(sme||'?')[0]}</div>
+            <UserAvatar user={members.find(m => m.fullName === sme)} size={24} />
             {isCore ? (
               <select value={sme||''} onChange={e=>onChangeSme(sub.id,e.target.value)} className="text-xs bg-[#252525] text-white border border-gray-700 rounded-lg px-2 py-1 outline-none">
                 <option value="">-- Chọn SME --</option>
@@ -396,8 +397,8 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
               <span className="text-[10px] text-gray-500 font-bold">Đang học:</span>
               {learnerMap['Đang học'].slice(0, 5).map(m => (
                 <div key={m.id} onClick={isCore ? () => onViewProgress(m) : undefined}
-                  className={`w-5 h-5 rounded-full bg-blue-600/25 border border-blue-500/30 flex items-center justify-center text-[8px] font-bold text-blue-300 shrink-0 ${isCore?'cursor-pointer hover:ring-1 hover:ring-blue-400':''}`}>
-                  {m.avatar || m.fullName?.[0]}
+                  className={isCore ? 'cursor-pointer hover:ring-1 hover:ring-blue-400 rounded-full' : ''}>
+                  <UserAvatar user={m} size={20} />
                 </div>
               ))}
             </div>
@@ -417,7 +418,7 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
                   {allLearners.map(m => (
                     <div key={m.id} onClick={isCore ? () => onViewProgress(m) : undefined}
                       className={`flex items-center gap-1 px-2 py-0.5 rounded-full border border-gray-800 bg-[#111] ${isCore?'cursor-pointer hover:border-blue-500/30':''}`}>
-                      <div className="w-4 h-4 rounded-full bg-gray-800 flex items-center justify-center text-[8px] font-bold text-gray-500">{m.avatar || m.fullName?.[0]}</div>
+                      <UserAvatar user={m} size={16} />
                       <span className="text-[10px] text-gray-400">{m.fullName.split(' ').slice(-1)[0]}</span>
                     </div>
                   ))}

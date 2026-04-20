@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext';
 import { db, ref, set, onValue } from '../firebase';
 import { uid } from '../context/AppContext';
 import { motion, AnimatePresence } from 'framer-motion'; // eslint-disable-line no-unused-vars
+import UserAvatar from '../components/UserAvatar';
 
 /* ═══════════════════════════════════════════════════════════════
    HỆ THỐNG RANK — 20 bậc (Đồng I→III … Tinh Anh I→III, Huyền Thoại, Cao Thủ)
@@ -64,24 +65,6 @@ function toArr(v) {
   return [];
 }
 
-/* ── Avatar ── */
-function Avatar({ m, size = 34, isMe = false }) {
-  if (m?.avatarUrl)
-    return (
-      <img src={m.avatarUrl} alt={m.fullName}
-        style={{ width:size, height:size, borderRadius:'50%', objectFit:'cover', flexShrink:0,
-          border:`2px solid ${isMe ? '#3b82f6' : '#2a2a2e'}` }}
-        onError={e => { e.target.style.display = 'none'; }} />
-    );
-  return (
-    <div style={{ width:size, height:size, borderRadius:'50%', flexShrink:0, display:'flex',
-      alignItems:'center', justifyContent:'center', fontWeight:900, fontSize:size * 0.36,
-      background: isMe ? 'rgba(59,130,246,0.18)' : '#1c1c22',
-      border:`2px solid ${isMe ? '#3b82f6' : '#2a2a2e'}`, color: isMe ? '#60a5fa' : '#555' }}>
-      {m?.avatar || m?.fullName?.[0] || '?'}
-    </div>
-  );
-}
 
 /* ── Rank Badge ── */
 function RankBadge({ pts, size = 'sm' }) {
@@ -118,7 +101,7 @@ function LbRow({ m, i, currentUser }) {
         color: i<3 ? ['#fbbf24','#9ca3af','#b87333'][i] : '#374151' }}>
         {i < 3 ? medals[i] : `#${i+1}`}
       </div>
-      <Avatar m={m} size={34} isMe={isMe} />
+      <UserAvatar user={m} size={34} isMe={isMe} />
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{ display:'flex', alignItems:'center', gap:5, flexWrap:'wrap' }}>
           <span style={{ fontSize:13, fontWeight:700, color:isMe?'#60a5fa':'#e2e8f0',
@@ -353,7 +336,7 @@ export default function Gamification() {
                   background:`linear-gradient(135deg, ${me.rankInfo.bg} 0%, rgba(255,255,255,0.015) 100%)`,
                   border:`1px solid ${me.rankInfo.glow}`, boxShadow:`0 0 28px ${me.rankInfo.glow}`,
                   display:'flex', gap:18, alignItems:'center', flexWrap:'wrap' }}>
-                  <Avatar m={me} size={54} isMe />
+                  <UserAvatar user={me} size={54} isMe />
                   <div style={{ flex:1, minWidth:200 }}>
                     <div style={{ fontSize:10, color:'#52525b', fontWeight:800, letterSpacing:'0.08em', marginBottom:5 }}>RANK CỦA BẠN</div>
                     <RankBadge pts={me.points} size="lg" />
@@ -408,7 +391,7 @@ export default function Gamification() {
                   return (
                     <div key={m.id} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:5,
                       marginTop: ci===1 ? 0 : 14 }}>
-                      <Avatar m={m} size={ci===1?50:38} isMe={isMe} />
+                      <UserAvatar user={m} size={ci===1?50:38} isMe={isMe} />
                       <div style={{ textAlign:'center' }}>
                         <div style={{ fontSize:11, fontWeight:700, color:isMe?'#60a5fa':'#d4d4d8',
                           overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:90 }}>

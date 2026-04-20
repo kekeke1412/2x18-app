@@ -8,6 +8,7 @@ import {
 import { uploadToDrive } from '../services/googleApi';
 import { reviewReport } from '../services/aiService';
 import { motion, AnimatePresence } from 'framer-motion';
+import UserAvatar from '../components/UserAvatar';
 
 // ── Huy hiệu trạng thái ──────────────────────────────────────────────────────
 function StatusBadge({ status, isOwn }) {
@@ -128,13 +129,7 @@ function ReportCard({ r, getMemberById, isCore, isSuperAdmin, currentUser, appro
       {/* Footer: author + date */}
       <div className="flex items-center justify-between mt-auto pt-2.5 border-t border-gray-800/60">
         <div className="flex items-center gap-2">
-          {author?.avatarUrl ? (
-            <img src={author.avatarUrl} alt="" className="w-5 h-5 rounded-full object-cover" />
-          ) : (
-            <div className="w-5 h-5 rounded-full bg-[#2a2a2a] flex items-center justify-center text-[8px] font-bold text-gray-400">
-              {author?.avatar || <User className="w-2.5 h-2.5" />}
-            </div>
-          )}
+          <UserAvatar user={author} size={20} />
           <span className="text-xs text-gray-400">{author?.fullName || 'Thành viên'}</span>
           {isOwn && <span className="text-[10px] text-blue-400 font-bold">(bạn)</span>}
         </div>
