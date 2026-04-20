@@ -44,8 +44,25 @@ export default function FlashcardSet() {
   const speak = (text, lang = 'en') => {
     if (!text) return;
     setIsSpeaking(text);
-    const utterance = new Audio(`https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${lang}&client=tw-ob`);
-    utterance.play().finally(() => setIsSpeaking(null));
+    
+    // Sử dụng client=gtx thường ổn định hơn trên web
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${lang}&client=gtx`;
+    const audio = new Audio(url);
+    
+    audio.play()
+      .then(() => {
+        console.log('[TTS] Playing:', text);
+      })
+      .catch(err => {
+        console.error('[TTS] Error:', err);
+        // Fallback sang SpeechSynthesis nếu Google API bị chặn
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.lang = lang;
+        window.speechSynthesis.speak(msg);
+      })
+      .finally(() => {
+        setIsSpeaking(null);
+      });
   };
 
   useEffect(() => {
