@@ -1,6 +1,6 @@
 // src/components/AIChatbot.jsx
 import React, { useState, useRef, useEffect } from 'react';
-import { Bot, X, Send, Minus, Sparkles, MessageCircle, Trash2, AlertCircle } from 'lucide-react';
+import { Bot, X, Send, Minus, Sparkles, MessageCircle, Trash2, AlertCircle, Clock, BookOpen, Star } from 'lucide-react';
 import { chatWithAI, getApiKey } from '../services/aiService';
 import { useApp } from '../context/AppContext';
 
