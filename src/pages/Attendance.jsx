@@ -4,6 +4,7 @@ import { Users, CheckCheck, Plus, X, Calendar, Clock, Link2, Trash2, ExternalLin
 import { useApp } from '../context/AppContext';
 import { createCalendarEvent } from '../services/googleApi';
 import { scheduleReminder } from '../services/notificationService';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const REMINDER_OPTIONS = [
   { value: 0,    label: 'Không nhắc' },
@@ -198,82 +199,87 @@ export default function Attendance() {
         </div>
 
         {/* Add form */}
-        {showAdd && (
-          <div className="mt-3 p-3 bg-[#1e1e1e] border border-blue-500/20 rounded-xl fade-in space-y-3">
-            <div className="flex gap-3 items-end">
-              <div className="flex-1">
-                <label className="text-[10px] text-gray-500 font-bold block mb-1">TÊN BUỔI HỌP *</label>
-                <input className="input-dark" placeholder="VD: Họp SME Giải tích tuần 9..."
-                  value={newTitle} onChange={e => setNewTitle(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && canSubmit && addSession()}/>
-              </div>
-              <div>
-                <label className="text-[10px] text-gray-500 font-bold block mb-1">NGÀY HỌP *</label>
-                <input type="date" className="input-dark" value={newDate} onChange={e => setNewDate(e.target.value)}/>
-              </div>
-            </div>
-            {/* Giờ họp */}
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <label className="text-[10px] text-gray-500 font-bold block mb-1">GIỜ BẮT ĐẦU</label>
-                <input type="time" className="input-dark w-full" value={newStartTime} onChange={e => setNewStartTime(e.target.value)}/>
-              </div>
-              <div className="flex-1">
-                <label className="text-[10px] text-gray-500 font-bold block mb-1">GIỜ KẾT THÚC</label>
-                <input type="time" className="input-dark w-full" value={newEndTime} onChange={e => setNewEndTime(e.target.value)}/>
-              </div>
-            </div>
-            {/* Nhắc nhở */}
-            <div>
-              <label className="text-[10px] text-gray-500 font-bold block mb-1 flex items-center gap-1">
-                <Clock className="w-3 h-3"/> NHẮC NHỞ TRƯỚC KHI HỌP
-              </label>
-              <select className="input-dark w-full" value={newReminderMinutes}
-                onChange={e => setNewReminderMinutes(Number(e.target.value))}>
-                {REMINDER_OPTIONS.map(o => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-              {newReminderMinutes > 0 && (
-                <p className="text-[10px] text-blue-400 mt-1">
-                  ⏰ Sẽ nhắc trên màn hình {createMeet ? '+ gửi vào GG Calendar' : '(bật "Tạo Meet" để nhắc qua GG Calendar)'}
-                </p>
-              )}
-            </div>
-            <div className="flex gap-3 items-end">
-              <div className="flex-1">
-                <label className="text-[10px] text-gray-500 font-bold block mb-1">
-                  LINK HỌP <span className="font-normal text-gray-600">(tùy chọn)</span>
-                </label>
-                <div className="relative">
-                  <input className={`input-dark ${createMeet ? 'opacity-50 cursor-not-allowed' : ''}`} 
-                    placeholder={createMeet ? "Sẽ tự động tạo link Google Meet..." : "https://meet.google.com/... hoặc Zoom link"}
-                    value={createMeet ? '' : newLink} onChange={e => setNewLink(e.target.value)} disabled={createMeet || isCreating}/>
-                  
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-                    <input type="checkbox" id="createMeet" checked={createMeet} onChange={e => setCreateMeet(e.target.checked)} disabled={isCreating}
-                      className="w-3.5 h-3.5 rounded border-gray-700 bg-gray-800 text-blue-500 focus:ring-blue-500 cursor-pointer"/>
-                    <label htmlFor="createMeet" className="text-[10px] text-blue-400 font-bold cursor-pointer whitespace-nowrap">Tạo Meet</label>
-                  </div>
+        <AnimatePresence>
+          {showAdd && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-3 p-3 bg-[#1e1e1e] border border-blue-500/20 rounded-xl overflow-hidden space-y-3"
+            >
+              <div className="flex gap-3 items-end">
+                <div className="flex-1">
+                  <label className="text-[10px] text-gray-500 font-bold block mb-1">TÊN BUỔI HỌP *</label>
+                  <input className="input-dark" placeholder="VD: Họp SME Giải tích tuần 9..."
+                    value={newTitle} onChange={e => setNewTitle(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && canSubmit && addSession()}/>
+                </div>
+                <div>
+                  <label className="text-[10px] text-gray-500 font-bold block mb-1">NGÀY HỌP *</label>
+                  <input type="date" className="input-dark" value={newDate} onChange={e => setNewDate(e.target.value)}/>
                 </div>
               </div>
-              {/* FIX: thêm disabled + styles rõ ràng để user biết khi nào có thể nhấn */}
-              <button
-                onClick={addSession}
-                disabled={!canSubmit || isCreating}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl transition-all min-w-[60px] flex justify-center">
-                {isCreating ? <Clock className="w-4 h-4 animate-spin"/> : 'OK'}
-              </button>
-              <button onClick={() => setShowAdd(false)} className="p-2 text-gray-500 hover:text-white"><X className="w-4 h-4"/></button>
-            </div>
-            {/* Hint khi chưa điền đủ */}
-            {!canSubmit && (newTitle.trim() || newDate) && (
-              <p className="text-[10px] text-amber-500">
-                {!newTitle.trim() ? '⚠ Cần nhập tên buổi họp.' : '⚠ Cần chọn ngày họp.'}
-              </p>
-            )}
-          </div>
-        )}
+              {/* Giờ họp */}
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="text-[10px] text-gray-500 font-bold block mb-1">GIỜ BẮT ĐẦU</label>
+                  <input type="time" className="input-dark w-full" value={newStartTime} onChange={e => setNewStartTime(e.target.value)}/>
+                </div>
+                <div className="flex-1">
+                  <label className="text-[10px] text-gray-500 font-bold block mb-1">GIỜ KẾT THÚC</label>
+                  <input type="time" className="input-dark w-full" value={newEndTime} onChange={e => setNewEndTime(e.target.value)}/>
+                </div>
+              </div>
+              {/* Nhắc nhở */}
+              <div>
+                <label className="text-[10px] text-gray-500 font-bold block mb-1 flex items-center gap-1">
+                  <Clock className="w-3 h-3"/> NHẮC NHỞ TRƯỚC KHI HỌP
+                </label>
+                <select className="input-dark w-full" value={newReminderMinutes}
+                  onChange={e => setNewReminderMinutes(Number(e.target.value))}>
+                  {REMINDER_OPTIONS.map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+                {newReminderMinutes > 0 && (
+                  <p className="text-[10px] text-blue-400 mt-1">
+                    ⏰ Sẽ nhắc trên màn hình {createMeet ? '+ gửi vào GG Calendar' : '(bật "Tạo Meet" để nhắc qua GG Calendar)'}
+                  </p>
+                )}
+              </div>
+              <div className="flex gap-3 items-end">
+                <div className="flex-1">
+                  <label className="text-[10px] text-gray-500 font-bold block mb-1">
+                    LINK HỌP <span className="font-normal text-gray-600">(tùy chọn)</span>
+                  </label>
+                  <div className="relative">
+                    <input className={`input-dark ${createMeet ? 'opacity-50 cursor-not-allowed' : ''}`} 
+                      placeholder={createMeet ? "Sẽ tự động tạo link Google Meet..." : "https://meet.google.com/... hoặc Zoom link"}
+                      value={createMeet ? '' : newLink} onChange={e => setNewLink(e.target.value)} disabled={createMeet || isCreating}/>
+                    
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                      <input type="checkbox" id="createMeet" checked={createMeet} onChange={e => setCreateMeet(e.target.checked)} disabled={isCreating}
+                        className="w-3.5 h-3.5 rounded border-gray-700 bg-gray-800 text-blue-500 focus:ring-blue-500 cursor-pointer"/>
+                      <label htmlFor="createMeet" className="text-[10px] text-blue-400 font-bold cursor-pointer whitespace-nowrap">Tạo Meet</label>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={addSession}
+                  disabled={!canSubmit || isCreating}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl transition-all min-w-[60px] flex justify-center">
+                  {isCreating ? <Clock className="w-4 h-4 animate-spin"/> : 'OK'}
+                </button>
+                <button onClick={() => setShowAdd(false)} className="p-2 text-gray-500 hover:text-white"><X className="w-4 h-4"/></button>
+              </div>
+              {!canSubmit && (newTitle.trim() || newDate) && (
+                <p className="text-[10px] text-amber-500">
+                  {!newTitle.trim() ? '⚠ Cần nhập tên buổi họp.' : '⚠ Cần chọn ngày họp.'}
+                </p>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Body */}
@@ -294,64 +300,81 @@ export default function Attendance() {
             {/* Session list */}
             <div className="space-y-2">
               <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Danh sách buổi họp</div>
-              {attendance.map(s => {
-                const today = isToday(s.date);
-                const linkInfo = detectLinkType(s.meetLink);
-                return (
-                  <div key={s.sessionId} onClick={() => setSelected(s.sessionId)}
-                    className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
-                      selected === s.sessionId
-                        ? 'border-blue-500/40 bg-blue-500/10'
-                        : 'border-gray-800/60 bg-[#1a1a1a] hover:border-gray-700'
-                    }`}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="text-sm font-bold text-gray-200 leading-tight flex-1">{s.sessionTitle}</div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        {today && <span className="badge badge-green flex items-center gap-1"><Clock className="w-2.5 h-2.5"/> Hôm nay</span>}
-                        {isCore && (
-                        <div className="flex gap-0.5">
-                          <button
-                            onClick={e => { 
-                              e.stopPropagation(); 
-                            setEditData({ sessionId: s.sessionId, sessionTitle: s.sessionTitle, date: s.date, startTime: s.startTime || '', endTime: s.endTime || '', meetLink: s.meetLink || '' }); 
-                            }}
-                            className="p-1 text-gray-600 hover:text-blue-400 transition-colors rounded-lg hover:bg-blue-500/10">
-                            <Pencil className="w-3.5 h-3.5"/>
-                          </button>
-                          <button
-                            onClick={e => { e.stopPropagation(); setConfirmDel(s.sessionId); }}
-                            className="p-1 text-gray-600 hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/10">
-                            <Trash2 className="w-3.5 h-3.5"/>
-                          </button>
+              <motion.div 
+                initial="hidden"
+                animate="show"
+                variants={{
+                  show: { transition: { staggerChildren: 0.05 } }
+                }}
+                className="space-y-2"
+              >
+                {attendance.map(s => {
+                  const today = isToday(s.date);
+                  const linkInfo = detectLinkType(s.meetLink);
+                  return (
+                    <motion.div 
+                      layout
+                      key={s.sessionId} 
+                      onClick={() => setSelected(s.sessionId)}
+                      variants={{
+                        hidden: { opacity: 0, x: -10 },
+                        show: { opacity: 1, x: 0 }
+                      }}
+                      className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+                        selected === s.sessionId
+                          ? 'border-blue-500/40 bg-blue-500/10'
+                          : 'border-gray-800/60 bg-[#1a1a1a] hover:border-gray-700'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="text-sm font-bold text-gray-200 leading-tight flex-1">{s.sessionTitle}</div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {today && <span className="badge badge-green flex items-center gap-1"><Clock className="w-2.5 h-2.5"/> Hôm nay</span>}
+                          {isCore && (
+                          <div className="flex gap-0.5">
+                            <button
+                              onClick={e => { 
+                                e.stopPropagation(); 
+                              setEditData({ sessionId: s.sessionId, sessionTitle: s.sessionTitle, date: s.date, startTime: s.startTime || '', endTime: s.endTime || '', meetLink: s.meetLink || '' }); 
+                              }}
+                              className="p-1 text-gray-600 hover:text-blue-400 transition-colors rounded-lg hover:bg-blue-500/10">
+                              <Pencil className="w-3.5 h-3.5"/>
+                            </button>
+                            <button
+                              onClick={e => { e.stopPropagation(); setConfirmDel(s.sessionId); }}
+                              className="p-1 text-gray-600 hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/10">
+                              <Trash2 className="w-3.5 h-3.5"/>
+                            </button>
+                          </div>
+                        )}
                         </div>
-                      )}
                       </div>
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                      <Calendar className="w-3 h-3"/> {formatDate(s.date)}
-                      {s.startTime && <><span className="mx-1 text-gray-700">·</span><Clock className="w-3 h-3"/>{s.startTime}{s.endTime && `–${s.endTime}`}</> }
-                      <span className="mx-1 text-gray-700">·</span>{(s.present||[]).length}/{s.total} có mặt
-                    </div>
-                    {s.meetLink && (
-                      <button 
-                        onClick={e => { e.stopPropagation(); handleJoinMeeting(s.meetLink); }}
-                        className="mt-1.5 flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300 hover:underline bg-transparent border-none p-0 cursor-pointer"
-                      >
-                        <ExternalLink className="w-2.5 h-2.5"/> {linkInfo?.icon} {linkInfo?.label}
-                      </button>
-                    )}
-                    <div className="mt-2 h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                      <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${attendRate(s)}%` }}/>
-                    </div>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-[10px] text-gray-600">{attendRate(s)}%</span>
-                      {(s.present||[]).includes(currentUser?.id) && (
-                        <span className="text-[10px] text-green-400 font-bold">✓ Bạn có mặt</span>
+                      <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                        <Calendar className="w-3 h-3"/> {formatDate(s.date)}
+                        {s.startTime && <><span className="mx-1 text-gray-700">·</span><Clock className="w-3 h-3"/>{s.startTime}{s.endTime && `–${s.endTime}`}</> }
+                        <span className="mx-1 text-gray-700">·</span>{(s.present||[]).length}/{s.total} có mặt
+                      </div>
+                      {s.meetLink && (
+                        <button 
+                          onClick={e => { e.stopPropagation(); handleJoinMeeting(s.meetLink); }}
+                          className="mt-1.5 flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300 hover:underline bg-transparent border-none p-0 cursor-pointer"
+                        >
+                          <ExternalLink className="w-2.5 h-2.5"/> {linkInfo?.icon} {linkInfo?.label}
+                        </button>
                       )}
-                    </div>
-                  </div>
-                );
-              })}
+                      <div className="mt-2 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                        <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${attendRate(s)}%` }}/>
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-[10px] text-gray-600">{attendRate(s)}%</span>
+                        {(s.present||[]).includes(currentUser?.id) && (
+                          <span className="text-[10px] text-green-400 font-bold">✓ Bạn có mặt</span>
+                        )}
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </motion.div>
             </div>
 
             {/* Detail panel */}
@@ -435,14 +458,22 @@ export default function Attendance() {
                     </div>
                   </div>
 
-                  <div className="p-4 grid grid-cols-2 md:grid-cols-3 gap-2">
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-4 grid grid-cols-2 md:grid-cols-3 gap-2"
+                  >
                     {members.map(m => {
                       const present = (session.present||[]).includes(m.id);
                       const isMe    = m.id === currentUser?.id;
                       return (
-                        <div key={m.id} className={`flex items-center gap-2.5 p-2.5 rounded-xl border transition-all ${
-                          present ? 'border-green-500/25 bg-green-500/8' : 'border-gray-800/40 bg-[#111]'
-                        } ${isMe ? 'ring-1 ring-blue-500/30' : ''}`}>
+                        <motion.div 
+                          layout
+                          key={m.id} 
+                          className={`flex items-center gap-2.5 p-2.5 rounded-xl border transition-all ${
+                            present ? 'border-green-500/25 bg-green-500/8' : 'border-gray-800/40 bg-[#111]'
+                          } ${isMe ? 'ring-1 ring-blue-500/30' : ''}`}
+                        >
                           <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
                             present ? 'bg-green-600/25 text-green-400' : 'bg-gray-800 text-gray-500'
                           }`}>
@@ -462,10 +493,10 @@ export default function Attendance() {
                               {present ? '✓ Có mặt' : '✗ Vắng'}
                             </div>
                           </div>
-                        </div>
+                        </motion.div>
                       );
                     })}
-                  </div>
+                  </motion.div>
                 </div>
               </div>
             ) : (
@@ -478,73 +509,92 @@ export default function Attendance() {
       </div>
 
       {/* Confirm delete modal */}
-      {confirmDel && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="bg-[#1e1e1e] border border-red-500/30 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
-                <Trash2 className="w-5 h-5 text-red-400"/>
-              </div>
-              <div>
-                <div className="font-bold text-white">Xóa buổi họp?</div>
-                <div className="text-xs text-gray-500 mt-0.5">Buổi họp sẽ được chuyển vào <span className="text-red-400 font-bold">Thùng rác</span> — có thể khôi phục sau.</div>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => setConfirmDel(null)} className="flex-1 py-2 border border-gray-700 rounded-xl text-sm text-gray-400 hover:bg-[#252525]">Hủy</button>
-              <button onClick={() => handleDelete(confirmDel)} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-sm rounded-xl">Chuyển vào thùng rác</button>
-            </div>
-          </div>
-        </div>
-      )}
-        {/* CHÈN CODE MODAL SỬA VÀO ĐÂY */}
-      {editData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="bg-[#1e1e1e] border border-blue-500/30 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl fade-in">
-            <h3 className="text-white font-bold mb-4 flex items-center gap-2">
-              <Pencil className="w-4 h-4 text-blue-400"/> Chỉnh sửa buổi họp
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <label className="text-[10px] text-gray-500 font-bold block mb-1">TÊN BUỔI HỌP *</label>
-                <input className="input-dark w-full" value={editData.sessionTitle} 
-                  onChange={e => setEditData({...editData, sessionTitle: e.target.value})} />
-              </div>
-              <div>
-                <label className="text-[10px] text-gray-500 font-bold block mb-1">NGÀY HỌP *</label>
-                <input type="date" className="input-dark w-full" value={editData.date} 
-                  onChange={e => setEditData({...editData, date: e.target.value})} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] text-gray-500 font-bold block mb-1">GIỜ BẮT ĐẦU</label>
-                  <input type="time" className="input-dark w-full" value={editData.startTime || ''}
-                    onChange={e => setEditData({...editData, startTime: e.target.value})} />
+      <AnimatePresence>
+        {confirmDel && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+            onClick={() => setConfirmDel(null)}>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[#1e1e1e] border border-red-500/30 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
+                  <Trash2 className="w-5 h-5 text-red-400"/>
                 </div>
                 <div>
-                  <label className="text-[10px] text-gray-500 font-bold block mb-1">GIỜ KẾT THÚC</label>
-                  <input type="time" className="input-dark w-full" value={editData.endTime || ''}
-                    onChange={e => setEditData({...editData, endTime: e.target.value})} />
+                  <div className="font-bold text-white">Xóa buổi họp?</div>
+                  <div className="text-xs text-gray-500 mt-0.5">Buổi họp sẽ được chuyển vào <span className="text-red-400 font-bold">Thùng rác</span> — có thể khôi phục sau.</div>
                 </div>
               </div>
-              <div>
-                <label className="text-[10px] text-gray-500 font-bold block mb-1">LINK HỌP (tùy chọn)</label>
-                <input className="input-dark w-full" value={editData.meetLink}
-                  onChange={e => setEditData({...editData, meetLink: e.target.value})} />
+              <div className="flex gap-3">
+                <button onClick={() => setConfirmDel(null)} className="flex-1 py-2 border border-gray-700 rounded-xl text-sm text-gray-400 hover:bg-[#252525]">Hủy</button>
+                <button onClick={() => handleDelete(confirmDel)} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-sm rounded-xl">Chuyển vào thùng rác</button>
               </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <button onClick={() => setEditData(null)} className="flex-1 py-2 border border-gray-700 rounded-xl text-sm text-gray-400 hover:bg-[#252525]">Hủy</button>
-              <button 
-                onClick={handleSaveEdit} 
-                disabled={!editData.sessionTitle.trim() || !editData.date}
-                className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-bold text-sm rounded-xl">
-                Lưu thay đổi
-              </button>
-            </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
+
+      {/* Edit modal */}
+      <AnimatePresence>
+        {editData && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+            onClick={() => setEditData(null)}>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-[#1e1e1e] border border-blue-500/30 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <h3 className="text-white font-bold mb-4 flex items-center gap-2">
+                <Pencil className="w-4 h-4 text-blue-400"/> Chỉnh sửa buổi họp
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] text-gray-500 font-bold block mb-1">TÊN BUỔI HỌP *</label>
+                  <input className="input-dark w-full" value={editData.sessionTitle} 
+                    onChange={e => setEditData({...editData, sessionTitle: e.target.value})} />
+                </div>
+                <div>
+                  <label className="text-[10px] text-gray-500 font-bold block mb-1">NGÀY HỌP *</label>
+                  <input type="date" className="input-dark w-full" value={editData.date} 
+                    onChange={e => setEditData({...editData, date: e.target.value})} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] text-gray-500 font-bold block mb-1">GIỜ BẮT ĐẦU</label>
+                    <input type="time" className="input-dark w-full" value={editData.startTime || ''}
+                      onChange={e => setEditData({...editData, startTime: e.target.value})} />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-gray-500 font-bold block mb-1">GIỜ KẾT THÚC</label>
+                    <input type="time" className="input-dark w-full" value={editData.endTime || ''}
+                      onChange={e => setEditData({...editData, endTime: e.target.value})} />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] text-gray-500 font-bold block mb-1">LINK HỌP (tùy chọn)</label>
+                  <input className="input-dark w-full" value={editData.meetLink}
+                    onChange={e => setEditData({...editData, meetLink: e.target.value})} />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button onClick={() => setEditData(null)} className="flex-1 py-2 border border-gray-700 rounded-xl text-sm text-gray-400 hover:bg-[#252525]">Hủy</button>
+                <button 
+                  onClick={handleSaveEdit} 
+                  disabled={!editData.sessionTitle.trim() || !editData.date}
+                  className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-bold text-sm rounded-xl">
+                  Lưu thay đổi
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
       {/* KẾT THÚC MODAL SỬA */}
       
     </div>

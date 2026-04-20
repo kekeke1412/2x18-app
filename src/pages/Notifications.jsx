@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const typeIcon = {
   task:     { icon: Clipboard,  color: 'text-red-400',    bg: 'bg-red-500/10',    label: 'Task'       },
@@ -141,44 +142,68 @@ export default function Notifications() {
       <NotifPermissionBanner/>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar">
-        {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <Bell className="w-12 h-12 text-gray-700 mb-3"/>
-            <p className="text-gray-500 font-medium">
-              {filter === 'unread' ? 'Không có thông báo chưa đọc' : 'Không có thông báo nào'}
-            </p>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-800/40">
-            {filtered.map(n => {
-              const ti = typeIcon[n.type] || typeIcon.system;
-              const Icon = ti.icon;
-              return (
-                <div key={n.id} onClick={() => handleClick(n)}
-                  className={`flex items-start gap-4 px-6 py-4 cursor-pointer hover:bg-[#1a1a1a] transition-colors group ${
-                    !n.read ? 'bg-blue-500/5 border-l-2 border-l-blue-500/50' : ''
-                  }`}>
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${ti.bg}`}>
-                    <Icon className={`w-4 h-4 ${ti.color}`}/>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <span className={`text-[9px] font-black uppercase tracking-wider ${ti.color} opacity-70`}>{ti.label}</span>
-                    <p className={`text-sm leading-relaxed mt-0.5 ${n.read ? 'text-gray-400' : 'text-gray-200 font-medium'}`}>{n.msg}</p>
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      <span className="text-[10px] text-gray-600">{timeAgo(n.time)}</span>
-                      {n.link && (
-                        <span className="text-[10px] text-blue-500/60 group-hover:text-blue-400 transition-colors font-medium">
-                          Nhấn để xem →
-                        </span>
-                      )}
+        <AnimatePresence mode="popLayout">
+          {filtered.length === 0 ? (
+            <motion.div 
+              key="empty"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col items-center justify-center py-20"
+            >
+              <Bell className="w-12 h-12 text-gray-700 mb-3"/>
+              <p className="text-gray-500 font-medium">
+                {filter === 'unread' ? 'Không có thông báo chưa đọc' : 'Không có thông báo nào'}
+              </p>
+            </motion.div>
+          ) : (
+            <motion.div 
+              key="list"
+              initial="hidden"
+              animate="show"
+              variants={{
+                show: { transition: { staggerChildren: 0.03 } }
+              }}
+              className="divide-y divide-gray-800/40"
+            >
+              {filtered.map(n => {
+                const ti = typeIcon[n.type] || typeIcon.system;
+                const Icon = ti.icon;
+                return (
+                  <motion.div 
+                    layout
+                    key={n.id} 
+                    onClick={() => handleClick(n)}
+                    variants={{
+                      hidden: { opacity: 0, x: -10 },
+                      show: { opacity: 1, x: 0 }
+                    }}
+                    className={`flex items-start gap-4 px-6 py-4 cursor-pointer hover:bg-[#1a1a1a] transition-colors group ${
+                      !n.read ? 'bg-blue-500/5 border-l-2 border-l-blue-500/50' : ''
+                    }`}
+                  >
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${ti.bg}`}>
+                      <Icon className={`w-4 h-4 ${ti.color}`}/>
                     </div>
-                  </div>
-                  {!n.read && <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 shrink-0 animate-pulse"/>}
-                </div>
-              );
-            })}
-          </div>
-        )}
+                    <div className="flex-1 min-w-0">
+                      <span className={`text-[9px] font-black uppercase tracking-wider ${ti.color} opacity-70`}>{ti.label}</span>
+                      <p className={`text-sm leading-relaxed mt-0.5 ${n.read ? 'text-gray-400' : 'text-gray-200 font-medium'}`}>{n.msg}</p>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className="text-[10px] text-gray-600">{timeAgo(n.time)}</span>
+                        {n.link && (
+                          <span className="text-[10px] text-blue-500/60 group-hover:text-blue-400 transition-colors font-medium">
+                            Nhấn để xem →
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {!n.read && <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 shrink-0 animate-pulse"/>}
+                  </motion.div>
+                );
+              })}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

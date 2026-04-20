@@ -7,16 +7,25 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// Safe array coerce
+const toArr = v => {
+  if (!v) return [];
+  if (Array.isArray(v)) return v.filter(Boolean);
+  if (typeof v === 'object') return Object.values(v).filter(Boolean);
+  return [];
+};
 
 export default function Vocab() {
-  const { vocab = {}, currentUser, isCore, isSuperAdmin, addVocabSet, deleteVocabSet, userVocab = {} } = useApp();
+  const { vocab = {}, currentUser, isSuperAdmin, addVocabSet, deleteVocabSet, userVocab = {} } = useApp();
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [newSet, setNewSet] = useState({ title: '', description: '', terms: [] });
 
-  const sets = Object.values(vocab).filter(s => 
-    s.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.description.toLowerCase().includes(searchTerm.toLowerCase())
+  const sets = toArr(vocab).filter(s => 
+    s.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.description?.toLowerCase().includes(searchTerm.toLowerCase())
   ).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
   const handleAddSet = () => {
@@ -75,7 +84,14 @@ export default function Vocab() {
             <p className="text-sm text-gray-600 mt-1">Hãy tạo học phần đầu tiên để bắt đầu học tập!</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <motion.div 
+            variants={{
+              show: { transition: { staggerChildren: 0.05 } }
+            }}
+            initial="hidden"
+            animate="show"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          >
             {sets.map(set => (
               <VocabSetCard 
                 key={set.id} 
@@ -87,66 +103,80 @@ export default function Vocab() {
                 progress={userVocab[currentUser?.id]?.[set.id]?.length || 0}
               />
             ))}
-          </div>
+          </motion.div>
         )}
       </div>
 
       {/* Add Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setShowAddModal(false)}>
-          <div className="w-full max-w-md bg-[#1a1a1a] border border-gray-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
-              <h3 className="font-black text-white flex items-center gap-2">
-                <PlusCircle className="w-5 h-5 text-indigo-400" /> TẠO HỌC PHẦN MỚI
-              </h3>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-500 hover:text-white transition-colors">
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-1.5">Tiêu đề học phần</label>
-                <input 
-                  type="text" 
-                  placeholder="VD: Từ vựng Tuần 1 - Giải tích 1"
-                  value={newSet.title}
-                  onChange={e => setNewSet({...newSet, title: e.target.value})}
-                  className="w-full bg-[#121212] border border-gray-800 rounded-xl py-3 px-4 text-sm focus:border-indigo-500 outline-none transition-all"
-                />
+      <AnimatePresence>
+        {showAddModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setShowAddModal(false)}>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="w-full max-w-md bg-[#1a1a1a] border border-gray-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden" 
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
+                <h3 className="font-black text-white flex items-center gap-2">
+                  <PlusCircle className="w-5 h-5 text-indigo-400" /> TẠO HỌC PHẦN MỚI
+                </h3>
+                <button onClick={() => setShowAddModal(false)} className="text-gray-500 hover:text-white transition-colors">
+                  <X className="w-6 h-6" />
+                </button>
               </div>
-              <div>
-                <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-1.5">Mô tả (Tùy chọn)</label>
-                <textarea 
-                  placeholder="Ghi chú về học phần này..."
-                  value={newSet.description}
-                  onChange={e => setNewSet({...newSet, description: e.target.value})}
-                  className="w-full bg-[#121212] border border-gray-800 rounded-xl py-3 px-4 text-sm focus:border-indigo-500 outline-none transition-all min-h-[100px] resize-none"
-                />
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-1.5">Tiêu đề học phần</label>
+                  <input 
+                    type="text" 
+                    placeholder="VD: Từ vựng Tuần 1 - Giải tích 1"
+                    value={newSet.title}
+                    onChange={e => setNewSet({...newSet, title: e.target.value})}
+                    className="w-full bg-[#121212] border border-gray-800 rounded-xl py-3 px-4 text-sm focus:border-indigo-500 outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-1.5">Mô tả (Tùy chọn)</label>
+                  <textarea 
+                    placeholder="Ghi chú về học phần này..."
+                    value={newSet.description}
+                    onChange={e => setNewSet({...newSet, description: e.target.value})}
+                    className="w-full bg-[#121212] border border-gray-800 rounded-xl py-3 px-4 text-sm focus:border-indigo-500 outline-none transition-all min-h-[100px] resize-none"
+                  />
+                </div>
               </div>
-            </div>
-            <div className="p-6 border-t border-gray-800 flex gap-3">
-              <button onClick={() => setShowAddModal(false)} className="flex-1 py-3 text-sm font-bold text-gray-400 hover:text-white transition-colors">HỦY</button>
-              <button 
-                onClick={handleAddSet}
-                disabled={!newSet.title.trim()}
-                className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-black rounded-xl transition-all shadow-lg shadow-indigo-900/30"
-              >
-                TẠO NGAY
-              </button>
-            </div>
+              <div className="p-6 border-t border-gray-800 flex gap-3">
+                <button onClick={() => setShowAddModal(false)} className="flex-1 py-3 text-sm font-bold text-gray-400 hover:text-white transition-colors">HỦY</button>
+                <button 
+                  onClick={handleAddSet}
+                  disabled={!newSet.title.trim()}
+                  className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-black rounded-xl transition-all shadow-lg shadow-indigo-900/30"
+                >
+                  TẠO NGAY
+                </button>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
 function VocabSetCard({ set, onDelete, isOwner, progress }) {
-  const termCount = set.terms?.length || 0;
+  const termCount = toArr(set.terms).length;
   const pct = termCount > 0 ? Math.round((progress / termCount) * 100) : 0;
 
   return (
-    <div className="group bg-[#1a1a1a] border border-gray-800 hover:border-indigo-500/50 rounded-2xl overflow-hidden transition-all duration-300 flex flex-col shadow-lg hover:shadow-indigo-500/5">
+    <motion.div 
+      variants={{
+        hidden: { opacity: 0, scale: 0.95, y: 10 },
+        show: { opacity: 1, scale: 1, y: 0 }
+      }}
+      className="group bg-[#1a1a1a] border border-gray-800 hover:border-indigo-500/50 rounded-2xl overflow-hidden transition-all duration-300 flex flex-col shadow-lg hover:shadow-indigo-500/5"
+    >
       <div className="p-5 flex-1">
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2 text-[10px] font-black text-indigo-400 uppercase tracking-widest">
@@ -186,6 +216,6 @@ function VocabSetCard({ set, onDelete, isOwner, progress }) {
           style={{ width: `${pct}%` }}
         />
       </div>
-    </div>
+      </motion.div>
   );
 }

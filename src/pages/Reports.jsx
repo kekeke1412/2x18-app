@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { uploadToDrive } from '../services/googleApi';
 import { reviewReport } from '../services/aiService';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // ── Huy hiệu trạng thái ──────────────────────────────────────────────────────
 function StatusBadge({ status, isOwn }) {
@@ -55,7 +56,12 @@ function ReportCard({ r, getMemberById, isCore, isSuperAdmin, currentUser, appro
   };
 
   return (
-    <div className={`
+    <motion.div 
+      layout
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className={`
       relative p-4 rounded-2xl border flex flex-col gap-3 transition-all
       ${isPending 
         ? 'bg-amber-500/5 border-amber-500/20 hover:border-amber-500/40' 
@@ -138,36 +144,43 @@ function ReportCard({ r, getMemberById, isCore, isSuperAdmin, currentUser, appro
       </div>
 
       {/* AI Review Result Overlay/Expansion */}
-      {aiResult && (
-        <div className="mt-2 p-3 bg-blue-600/5 border border-blue-500/20 rounded-xl space-y-2 fade-in">
-          <div className="flex items-center justify-between">
-            <div className="text-[10px] font-black text-blue-400 flex items-center gap-1 uppercase tracking-widest">
-              <Sparkles className="w-2.5 h-2.5" /> Kết quả AI
-            </div>
-            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${
-              aiResult.quality === 'excellent' ? 'bg-green-500/20 text-green-400' : 
-              aiResult.quality === 'good' ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-500/20 text-gray-400'
-            }`}>
-              {aiResult.qualityLabel}
-            </span>
-          </div>
-          <div className="space-y-1">
-            {aiResult.summary?.map((s, i) => (
-              <div key={i} className="text-[11px] text-gray-400 flex items-start gap-1.5">
-                <span className="text-blue-500 mt-1">•</span>
-                <span className="leading-snug">{s}</span>
+      <AnimatePresence>
+        {aiResult && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="mt-2 p-3 bg-blue-600/5 border border-blue-500/20 rounded-xl space-y-2 overflow-hidden"
+          >
+            <div className="flex items-center justify-between">
+              <div className="text-[10px] font-black text-blue-400 flex items-center gap-1 uppercase tracking-widest">
+                <Sparkles className="w-2.5 h-2.5" /> Kết quả AI
               </div>
-            ))}
-          </div>
-          {aiResult.feedback && (
-            <div className="text-[10px] text-gray-500 italic mt-1 pt-1 border-t border-gray-800/40">
-              Phản hồi: "{aiResult.feedback}"
+              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${
+                aiResult.quality === 'excellent' ? 'bg-green-500/20 text-green-400' : 
+                aiResult.quality === 'good' ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-500/20 text-gray-400'
+              }`}>
+                {aiResult.qualityLabel}
+              </span>
             </div>
-          )}
-          <button onClick={() => setAiResult(null)} className="text-[9px] text-gray-600 hover:text-gray-400 font-bold uppercase underline mt-1">Đóng review</button>
-        </div>
-      )}
-    </div>
+            <div className="space-y-1">
+              {aiResult.summary?.map((s, i) => (
+                <div key={i} className="text-[11px] text-gray-400 flex items-start gap-1.5">
+                  <span className="text-blue-500 mt-1">•</span>
+                  <span className="leading-snug">{s}</span>
+                </div>
+              ))}
+            </div>
+            {aiResult.feedback && (
+              <div className="text-[10px] text-gray-500 italic mt-1 pt-1 border-t border-gray-800/40">
+                Phản hồi: "{aiResult.feedback}"
+              </div>
+            )}
+            <button onClick={() => setAiResult(null)} className="text-[9px] text-gray-600 hover:text-gray-400 font-bold uppercase underline mt-1">Đóng review</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 
@@ -417,14 +430,22 @@ export default function Reports() {
               </div>
 
               {approved.length === 0 ? (
-                <div className="text-center py-16 border border-dashed border-gray-800 rounded-2xl">
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-center py-16 border border-dashed border-gray-800 rounded-2xl"
+                >
                   <FileText className="w-12 h-12 text-gray-700 mx-auto mb-3" />
                   <p className="text-gray-500 text-sm font-medium">Chưa có tài liệu nào</p>
                   <p className="text-gray-600 text-xs mt-1">Hãy là người đầu tiên chia sẻ!</p>
-                </div>
+                </motion.div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {approved.map(r => <ReportCard key={r.id} r={r} {...cardProps} />)}
+                  <AnimatePresence mode="popLayout">
+                    {approved.map((r, i) => (
+                      <ReportCard key={r.id} r={r} {...cardProps} index={i} />
+                    ))}
+                  </AnimatePresence>
                 </div>
               )}
             </section>
@@ -434,107 +455,121 @@ export default function Reports() {
       </div>
 
       {/* ── Modal Thêm tài liệu ── */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm backdrop-enter" onClick={() => setShowModal(false)}>
-          <div className="w-full max-w-md bg-[#1a1a1a] border border-gray-800 rounded-2xl shadow-2xl flex flex-col modal-enter" onClick={e => e.stopPropagation()}>
-            
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
-              <h3 className="font-bold text-white flex items-center gap-2">
-                <FileText className="w-4 h-4 text-blue-500" /> Thêm tài liệu mới
-              </h3>
-              <button onClick={() => setShowModal(false)} className="text-gray-500 hover:text-white p-1 transition-colors btn-active">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-5 space-y-4">
-              {err && (
-                <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                  <p>{err}</p>
-                </div>
-              )}
-
-              {!canModerate && (
-                <div className="flex items-start gap-2 p-3 bg-blue-500/5 border border-blue-500/15 rounded-xl">
-                  <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                  <p className="text-xs text-gray-400 leading-relaxed">
-                    Tài liệu sẽ vào trạng thái <strong className="text-amber-400">Chờ duyệt</strong>. Core Team sẽ kiểm tra và phê duyệt trước khi hiển thị công khai.
-                  </p>
-                </div>
-              )}
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Tên tài liệu <span className="text-red-500">*</span></label>
-                <input
-                  type="text" value={form.title} onChange={e => setForm({...form, title: e.target.value})}
-                  placeholder="VD: Báo cáo seminar vật liệu 2D..."
-                  className="w-full h-10 px-4 bg-[#121212] border border-gray-700 rounded-xl text-sm text-white placeholder:text-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
-                />
+      <AnimatePresence>
+        {showModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" 
+            onClick={() => setShowModal(false)}
+          >
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="w-full max-w-md bg-[#1a1a1a] border border-gray-800 rounded-2xl shadow-2xl flex flex-col" 
+              onClick={e => e.stopPropagation()}
+            >
+              
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
+                <h3 className="font-bold text-white flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-blue-500" /> Thêm tài liệu mới
+                </h3>
+                <button onClick={() => setShowModal(false)} className="text-gray-500 hover:text-white p-1 transition-colors btn-active">
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Tài liệu đính kèm <span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <input type="file" disabled={isUploading}
-                    onChange={e => { setSelectedFile(e.target.files[0]); setForm({...form, link: ''}); }}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+              <div className="p-5 space-y-4">
+                {err && (
+                  <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <p>{err}</p>
+                  </div>
+                )}
+
+                {!canModerate && (
+                  <div className="flex items-start gap-2 p-3 bg-blue-500/5 border border-blue-500/15 rounded-xl">
+                    <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                    <p className="text-xs text-gray-400 leading-relaxed">
+                      Tài liệu sẽ vào trạng thái <strong className="text-amber-400">Chờ duyệt</strong>. Core Team sẽ kiểm tra và phê duyệt trước khi hiển thị công khai.
+                    </p>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Tên tài liệu <span className="text-red-500">*</span></label>
+                  <input
+                    type="text" value={form.title} onChange={e => setForm({...form, title: e.target.value})}
+                    placeholder="VD: Báo cáo seminar vật liệu 2D..."
+                    className="w-full h-10 px-4 bg-[#121212] border border-gray-700 rounded-xl text-sm text-white placeholder:text-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
                   />
-                  <div className={`w-full h-10 px-4 flex items-center border rounded-xl text-sm transition-all ${
-                    selectedFile ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' : 'bg-[#121212] border-gray-700 text-gray-500'
-                  }`}>
-                    <span className="truncate">{selectedFile ? selectedFile.name : 'Nhấn để chọn file...'}</span>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Tài liệu đính kèm <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <input type="file" disabled={isUploading}
+                      onChange={e => { setSelectedFile(e.target.files[0]); setForm({...form, link: ''}); }}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+                    <div className={`w-full h-10 px-4 flex items-center border rounded-xl text-sm transition-all ${
+                      selectedFile ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' : 'bg-[#121212] border-gray-700 text-gray-500'
+                    }`}>
+                      <span className="truncate">{selectedFile ? selectedFile.name : 'Nhấn để chọn file...'}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 my-1">
+                    <div className="h-px bg-gray-800 flex-1" />
+                    <span className="text-[10px] text-gray-500 font-bold uppercase">Hoặc dán link</span>
+                    <div className="h-px bg-gray-800 flex-1" />
+                  </div>
+
+                  <input
+                    type="url" value={form.link} disabled={isUploading}
+                    onChange={e => { setForm({...form, link: e.target.value}); setSelectedFile(null); }}
+                    placeholder="https://docs.google.com/..."
+                    className="w-full h-10 px-4 bg-[#121212] border border-gray-700 rounded-xl text-sm text-white placeholder:text-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Phân loại</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: 'event',    label: 'Sự kiện' },
+                      { id: 'research', label: 'Nghiên cứu' },
+                      { id: 'book',     label: 'Sách' },
+                    ].map(t => (
+                      <button key={t.id} onClick={() => setForm({...form, type: t.id})}
+                        className={`h-10 rounded-xl text-sm font-semibold transition-all border btn-active ${
+                          form.type === t.id
+                            ? 'bg-blue-600/20 border-blue-500 text-blue-400'
+                            : 'bg-[#121212] border-gray-700 text-gray-400 hover:border-gray-600'
+                        }`}>
+                        {t.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
-
-                <div className="flex items-center gap-2 my-1">
-                  <div className="h-px bg-gray-800 flex-1" />
-                  <span className="text-[10px] text-gray-500 font-bold uppercase">Hoặc dán link</span>
-                  <div className="h-px bg-gray-800 flex-1" />
-                </div>
-
-                <input
-                  type="url" value={form.link} disabled={isUploading}
-                  onChange={e => { setForm({...form, link: e.target.value}); setSelectedFile(null); }}
-                  placeholder="https://docs.google.com/..."
-                  className="w-full h-10 px-4 bg-[#121212] border border-gray-700 rounded-xl text-sm text-white placeholder:text-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
-                />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Phân loại</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { id: 'event',    label: 'Sự kiện' },
-                    { id: 'research', label: 'Nghiên cứu' },
-                    { id: 'book',     label: 'Sách' },
-                  ].map(t => (
-                    <button key={t.id} onClick={() => setForm({...form, type: t.id})}
-                      className={`h-10 rounded-xl text-sm font-semibold transition-all border btn-active ${
-                        form.type === t.id
-                          ? 'bg-blue-600/20 border-blue-500 text-blue-400'
-                          : 'bg-[#121212] border-gray-700 text-gray-400 hover:border-gray-600'
-                      }`}>
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
+              <div className="p-5 border-t border-gray-800 bg-[#121212] rounded-b-2xl flex justify-end gap-3">
+                <button onClick={() => setShowModal(false)}
+                  className="px-5 h-10 rounded-xl text-sm font-bold text-gray-400 hover:text-white hover:bg-gray-800 transition-colors btn-active">
+                  Hủy
+                </button>
+                <button onClick={handleAdd} disabled={isUploading}
+                  className="px-6 h-10 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-all flex items-center gap-2 btn-active shadow-lg shadow-blue-600/20">
+                  {isUploading ? <><Clock className="w-4 h-4 animate-spin" /> Đang tải lên...</> : 'Đăng tài liệu'}
+                </button>
               </div>
-            </div>
-
-            <div className="p-5 border-t border-gray-800 bg-[#121212] rounded-b-2xl flex justify-end gap-3">
-              <button onClick={() => setShowModal(false)}
-                className="px-5 h-10 rounded-xl text-sm font-bold text-gray-400 hover:text-white hover:bg-gray-800 transition-colors btn-active">
-                Hủy
-              </button>
-              <button onClick={handleAdd} disabled={isUploading}
-                className="px-6 h-10 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-all flex items-center gap-2 btn-active shadow-lg shadow-blue-600/20">
-                {isUploading ? <><Clock className="w-4 h-4 animate-spin" /> Đang tải lên...</> : 'Đăng tài liệu'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

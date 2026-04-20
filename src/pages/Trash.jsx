@@ -5,6 +5,7 @@ import {
   Calendar, BookOpen, Map, AlertTriangle, X, CheckCircle2
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Type metadata
 const TYPE_META = {
@@ -57,8 +58,20 @@ function formatDate(iso) {
 // ── Confirm Modal ──────────────────────────────────────────────────────────
 function ConfirmModal({ msg, onConfirm, onClose }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-[#1e1e1e] border border-gray-700 rounded-2xl w-full max-w-xs shadow-2xl" onClick={e=>e.stopPropagation()}>
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" 
+      onClick={onClose}
+    >
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="bg-[#1e1e1e] border border-gray-700 rounded-2xl w-full max-w-xs shadow-2xl" 
+        onClick={e=>e.stopPropagation()}
+      >
         <div className="px-5 py-5">
           <div className="flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5"/>
@@ -78,8 +91,8 @@ function ConfirmModal({ msg, onConfirm, onClose }) {
             Xác nhận
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -93,7 +106,14 @@ function TrashRow({ item, onRestore, onDelete }) {
 
   return (
     <>
-      <div className="flex items-center gap-4 p-4 rounded-xl border border-gray-800/60 bg-[#1a1a1a] hover:border-gray-700 transition-all group">
+    <>
+      <motion.div 
+        layout
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="flex items-center gap-4 p-4 rounded-xl border border-gray-800/60 bg-[#1a1a1a] hover:border-gray-700 transition-all group"
+      >
         {/* Icon */}
         <div className={`w-9 h-9 ${meta.bg} rounded-xl flex items-center justify-center shrink-0`}>
           <meta.Icon className={`w-4 h-4 ${meta.color}`}/>
@@ -129,15 +149,18 @@ function TrashRow({ item, onRestore, onDelete }) {
             <Trash2 className="w-4 h-4"/>
           </button>
         </div>
-      </div>
+      </motion.div>
 
-      {confirmDel && (
-        <ConfirmModal
-          msg={`Xóa vĩnh viễn "${name}"? Hành động này không thể hoàn tác.`}
-          onConfirm={()=>onDelete(item.id)}
-          onClose={()=>setConfirmDel(false)}
-        />
-      )}
+      <AnimatePresence>
+        {confirmDel && (
+          <ConfirmModal
+            msg={`Xóa vĩnh viễn "${name}"? Hành động này không thể hoàn tác.`}
+            onConfirm={()=>onDelete(item.id)}
+            onClose={()=>setConfirmDel(false)}
+          />
+        )}
+      </AnimatePresence>
+    </>
     </>
   );
 }
@@ -215,33 +238,41 @@ export default function Trash() {
       {/* List */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
         {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 bg-[#1a1a1a] border border-dashed border-gray-800 rounded-2xl">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex flex-col items-center justify-center py-20 bg-[#1a1a1a] border border-dashed border-gray-800 rounded-2xl"
+          >
             <CheckCircle2 className="w-12 h-12 text-gray-700 mb-3"/>
             <p className="text-gray-500 font-medium">Thùng rác trống</p>
             <p className="text-xs text-gray-600 mt-1">Các mục bị xóa sẽ xuất hiện ở đây.</p>
-          </div>
+          </motion.div>
         ) : (
           <div className="space-y-2">
-            {filtered.map(item=>(
-              <TrashRow
-                key={item.id}
-                item={item}
-                onRestore={restoreFromTrash}
-                onDelete={permanentDeleteTrash}
-              />
-            ))}
+            <AnimatePresence mode="popLayout">
+              {filtered.map(item=>(
+                <TrashRow
+                  key={item.id}
+                  item={item}
+                  onRestore={restoreFromTrash}
+                  onDelete={permanentDeleteTrash}
+                />
+              ))}
+            </AnimatePresence>
           </div>
         )}
       </div>
 
       {/* Confirm empty trash */}
-      {confirmEmpty && (
-        <ConfirmModal
-          msg={`Xóa vĩnh viễn tất cả ${items.length} mục trong thùng rác? Không thể hoàn tác.`}
-          onConfirm={emptyTrash}
-          onClose={()=>setConfirmEmpty(false)}
-        />
-      )}
+      <AnimatePresence>
+        {confirmEmpty && (
+          <ConfirmModal
+            msg={`Xóa vĩnh viễn tất cả ${items.length} mục trong thùng rác? Không thể hoàn tác.`}
+            onConfirm={emptyTrash}
+            onClose={()=>setConfirmEmpty(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

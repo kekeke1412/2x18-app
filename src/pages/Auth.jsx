@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Clock, ChevronLeft, ShieldCheck } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Google Logo SVG
 const GoogleLogo = () => (
@@ -48,7 +49,11 @@ export default function Auth() {
       {/* ── Left panel (desktop only) ── */}
       <div className="hidden lg:flex lg:w-[420px] xl:w-[500px] bg-gradient-to-br from-blue-950 via-[#0d0d20] to-[#080810] flex-col justify-between p-12 border-r border-white/5 shrink-0">
         {/* Brand */}
-        <div className="flex items-center gap-3">
+        <motion.div 
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="flex items-center gap-3"
+        >
           <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-black text-white text-lg shadow-lg shadow-blue-900/50">
             2X
           </div>
@@ -56,11 +61,18 @@ export default function Auth() {
             <div className="text-white font-black text-lg leading-none">2X18</div>
             <div className="text-blue-400/60 text-xs mt-0.5">K70 CÔNG NGHỆ BÁN DẪN</div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Feature highlights */}
-        <div className="space-y-8">
-          <div>
+        <motion.div 
+          initial="hidden"
+          animate="show"
+          variants={{
+            show: { transition: { staggerChildren: 0.15, delayChildren: 0.2 } }
+          }}
+          className="space-y-8"
+        >
+          <motion.div variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}>
             <h2 className="text-3xl font-black text-white leading-tight mb-3">
               Quản lý nhóm học tập<br/>
               <span className="text-blue-400">thông minh hơn</span>
@@ -68,29 +80,43 @@ export default function Auth() {
             <p className="text-gray-400 text-sm leading-relaxed">
               Theo dõi GPA, điểm danh, tài liệu và tiến độ học tập của các thành viên — tất cả trong một nơi.
             </p>
-          </div>
+          </motion.div>
 
           {[
             { icon:'📊', title:'Tracking GPA realtime', desc:'So sánh CPA cá nhân với nhóm theo từng học kỳ.' },
             { icon:'🎯', title:'Hệ thống SME & Tài liệu', desc:'Phân công chuyên gia, chia sẻ tài liệu qua Google Drive.' },
             { icon:'🏅', title:'Chiến Tích & Huy Hiệu', desc:'Gamification — cộng điểm cống hiến mỗi khi đóng góp.' },
           ].map(f => (
-            <div key={f.title} className="flex items-start gap-4">
+            <motion.div 
+              key={f.title} 
+              variants={{ hidden: { opacity: 0, x: -10 }, show: { opacity: 1, x: 0 } }}
+              className="flex items-start gap-4"
+            >
               <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-xl shrink-0">{f.icon}</div>
               <div>
                 <div className="text-white font-bold text-sm mb-1">{f.title}</div>
                 <div className="text-gray-500 text-xs leading-relaxed">{f.desc}</div>
               </div>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
 
         <div className="text-gray-700 text-xs">© 2X18 HUS K70 · Bán dẫn &amp; Công nghệ bán dẫn</div>
       </div>
 
       {/* ── Right panel ── */}
-      <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
-        <div className="w-full max-w-md space-y-8">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.6 }}
+        className="flex-1 flex items-center justify-center p-6 lg:p-12"
+      >
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.5 }}
+          className="w-full max-w-md space-y-8"
+        >
           <div>
             <h1 className="text-3xl font-black text-white mb-2">Đăng nhập</h1>
             <p className="text-gray-400 text-sm leading-relaxed">
@@ -107,67 +133,72 @@ export default function Auth() {
           <p className="text-center text-xs text-gray-600">
             Bằng cách đăng nhập, bạn đồng ý với các quy định chung của tập thể lớp K70 CÔNG NGHỆ BÁN DẪN.
           </p>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       {/* ── Pending overlay modal (Google login khi chưa được duyệt) ── */}
-      {pendingInfo && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-          onClick={() => setPendingInfo(null)}>
+      <AnimatePresence>
+        {pendingInfo && (
           <div
-            className="w-full max-w-sm bg-[#111118] border border-amber-500/25 rounded-3xl shadow-2xl shadow-black/60 overflow-hidden"
-            onClick={e => e.stopPropagation()}>
-            {/* Amber accent bar */}
-            <div className="h-1 w-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500"/>
-            <div className="p-7 space-y-5 text-center">
-              {/* Icon */}
-              <div className="w-16 h-16 bg-amber-500/10 border-2 border-amber-500/25 rounded-full flex items-center justify-center mx-auto">
-                <Clock className="w-8 h-8 text-amber-400"/>
-              </div>
-              {/* Title */}
-              <div>
-                <h2 className="text-xl font-black text-white mb-1.5">Đang chờ xét duyệt</h2>
-                <p className="text-gray-400 text-sm leading-relaxed">
-                  Tài khoản của bạn đang chờ <strong className="text-white">Core Team hoặc Super Admin</strong> phê duyệt.
-                </p>
-              </div>
-              {/* Info card */}
-              {(pendingInfo.name || pendingInfo.email) && (
-                <div className="bg-[#1a1a22] border border-gray-800 rounded-2xl overflow-hidden text-left">
-                  {[
-                    pendingInfo.name  && ['Họ tên', pendingInfo.name],
-                    pendingInfo.email && ['Email',  pendingInfo.email],
-                  ].filter(Boolean).map(([k, v]) => (
-                    <div key={k} className="flex justify-between items-center px-4 py-2.5 border-b border-gray-800/60 last:border-0">
-                      <span className="text-xs text-gray-500">{k}</span>
-                      <span className="text-sm font-semibold text-white">{v}</span>
-                    </div>
-                  ))}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            onClick={() => setPendingInfo(null)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="w-full max-w-sm bg-[#111118] border border-amber-500/25 rounded-3xl shadow-2xl shadow-black/60 overflow-hidden"
+              onClick={e => e.stopPropagation()}>
+              {/* Amber accent bar */}
+              <div className="h-1 w-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500"/>
+              <div className="p-7 space-y-5 text-center">
+                {/* Icon */}
+                <div className="w-16 h-16 bg-amber-500/10 border-2 border-amber-500/25 rounded-full flex items-center justify-center mx-auto">
+                  <Clock className="w-8 h-8 text-amber-400"/>
                 </div>
-              )}
-              {/* Status pill */}
-              <div className="flex items-center justify-center gap-2 py-2.5 px-4 bg-amber-500/8 border border-amber-500/20 rounded-xl">
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0"/>
-                <span className="text-sm font-medium text-amber-300">Đang chờ phê duyệt...</span>
+                {/* Title */}
+                <div>
+                  <h2 className="text-xl font-black text-white mb-1.5">Đang chờ xét duyệt</h2>
+                  <p className="text-gray-400 text-sm leading-relaxed">
+                    Tài khoản của bạn đang chờ <strong className="text-white">Core Team hoặc Super Admin</strong> phê duyệt.
+                  </p>
+                </div>
+                {/* Info card */}
+                {(pendingInfo.name || pendingInfo.email) && (
+                  <div className="bg-[#1a1a22] border border-gray-800 rounded-2xl overflow-hidden text-left">
+                    {[
+                      pendingInfo.name  && ['Họ tên', pendingInfo.name],
+                      pendingInfo.email && ['Email',  pendingInfo.email],
+                    ].filter(Boolean).map(([k, v]) => (
+                      <div key={k} className="flex justify-between items-center px-4 py-2.5 border-b border-gray-800/60 last:border-0">
+                        <span className="text-xs text-gray-500">{k}</span>
+                        <span className="text-sm font-semibold text-white">{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {/* Status pill */}
+                <div className="flex items-center justify-center gap-2 py-2.5 px-4 bg-amber-500/8 border border-amber-500/20 rounded-xl">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0"/>
+                  <span className="text-sm font-medium text-amber-300">Đang chờ phê duyệt...</span>
+                </div>
+                {/* Zalo hint */}
+                <div className="p-3 bg-blue-500/5 border border-blue-500/15 rounded-xl flex items-start gap-2 text-left">
+                  <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0 mt-0.5"/>
+                  <p className="text-xs text-gray-400 leading-relaxed">
+                    Cần gấp? Nhắn vào <strong className="text-white">Zalo nhóm 2X18</strong> để được duyệt sớm hơn.
+                  </p>
+                </div>
+                {/* Close button */}
+                <button
+                  onClick={() => setPendingInfo(null)}
+                  className="w-full h-10 flex items-center justify-center gap-2 border border-gray-700 hover:border-gray-600 hover:bg-white/5 text-gray-300 font-medium text-sm rounded-xl transition-all">
+                  <ChevronLeft className="w-4 h-4"/> Quay lại
+                </button>
               </div>
-              {/* Zalo hint */}
-              <div className="p-3 bg-blue-500/5 border border-blue-500/15 rounded-xl flex items-start gap-2 text-left">
-                <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0 mt-0.5"/>
-                <p className="text-xs text-gray-400 leading-relaxed">
-                  Cần gấp? Nhắn vào <strong className="text-white">Zalo nhóm 2X18</strong> để được duyệt sớm hơn.
-                </p>
-              </div>
-              {/* Close button */}
-              <button
-                onClick={() => setPendingInfo(null)}
-                className="w-full h-10 flex items-center justify-center gap-2 border border-gray-700 hover:border-gray-600 hover:bg-white/5 text-gray-300 font-medium text-sm rounded-xl transition-all">
-                <ChevronLeft className="w-4 h-4"/> Quay lại
-              </button>
-            </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 }

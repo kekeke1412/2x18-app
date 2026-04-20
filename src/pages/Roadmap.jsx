@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Target, Save, Edit3, Award, Plus, Trash2, CheckCircle2, Clock, TrendingUp, Flag, X, CalendarPlus } from 'lucide-react';
 import { useApp, uid } from '../context/AppContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const STATUS_OPTS = ['None','Planning','In Progress','Done'];
 
@@ -19,8 +20,20 @@ function AddEventModal({ year, onSave, onClose }) {
   const [form, setForm] = useState({ month:'', level:'', status:'Planning', task:'', pic:'Cả nhóm', goal:'' });
   const set = (k,v) => setForm(f => ({...f,[k]:v}));
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-[#1e1e1e] border border-gray-700 rounded-2xl w-full max-w-md shadow-2xl" onClick={e=>e.stopPropagation()}>
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" 
+      onClick={onClose}
+    >
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="bg-[#1e1e1e] border border-gray-700 rounded-2xl w-full max-w-md shadow-2xl" 
+        onClick={e=>e.stopPropagation()}
+      >
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
           <h3 className="font-bold text-white">Thêm mốc năm {year}</h3>
           <button onClick={onClose}><X className="w-5 h-5 text-gray-500 hover:text-white"/></button>
@@ -62,8 +75,8 @@ function AddEventModal({ year, onSave, onClose }) {
             Thêm mốc
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -74,8 +87,20 @@ function AddYearModal({ existingYears, onSave, onClose }) {
   const isValid = yearNum >= 2020 && yearNum <= 2040 && !existingYears.includes(yearNum);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-[#1e1e1e] border border-gray-700 rounded-2xl w-full max-w-sm shadow-2xl" onClick={e=>e.stopPropagation()}>
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" 
+      onClick={onClose}
+    >
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="bg-[#1e1e1e] border border-gray-700 rounded-2xl w-full max-w-sm shadow-2xl" 
+        onClick={e=>e.stopPropagation()}
+      >
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
           <h3 className="font-bold text-white flex items-center gap-2">
             <CalendarPlus className="w-4 h-4 text-blue-400"/> Thêm năm mới
@@ -107,8 +132,8 @@ function AddYearModal({ existingYears, onSave, onClose }) {
             Thêm năm {yearInput}
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -262,8 +287,12 @@ export default function Roadmap() {
             <span className="font-bold text-white">{yearProgress}%</span>
           </div>
           <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded-full transition-all duration-700"
-              style={{ width: `${yearProgress}%` }}/>
+            <motion.div 
+              initial={{ width: 0 }}
+              animate={{ width: `${yearProgress}%` }}
+              transition={{ duration: 1, ease: "easeOut" }}
+              className="h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded-full"
+            />
           </div>
         </div>
 
@@ -288,57 +317,69 @@ export default function Roadmap() {
                 <tbody className="divide-y divide-gray-800/40">
                   {events.length === 0 ? (
                     <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-600 text-sm">Chưa có mốc nào — thêm mốc đầu tiên!</td></tr>
-                  ) : events.map(ev => {
-                    const s = statusStyle(ev.status);
-                    return (
-                      <tr key={ev.id} className={`hover:bg-[#1e1e1e] transition-colors ${ev.checked?'opacity-60':''}`}>
-                        <td className="px-4 py-4">
-                          <div className="text-xs font-black text-blue-400 mb-1">{ev.month}</div>
-                          {isEditing
-                            ? <input className="input-dark text-xs py-1 px-2" value={ev.level} onChange={e=>update(ev.id,'level',e.target.value)}/>
-                            : <div className="text-xs font-bold text-gray-200">{ev.level}</div>
-                          }
-                        </td>
-                        <td className="px-3 py-4">
-                          {isEditing
-                            ? <select value={ev.status} onChange={e=>update(ev.id,'status',e.target.value)} className="input-dark text-xs py-1 px-2">
-                                {STATUS_OPTS.map(s=><option key={s} value={s}>{s}</option>)}
-                              </select>
-                            : <span className={`badge ${s.badge}`}>{s.label}</span>
-                          }
-                        </td>
-                        <td className="px-4 py-4 max-w-xs">
-                          {isEditing
-                            ? <textarea rows={2} value={ev.task} onChange={e=>update(ev.id,'task',e.target.value)} className="input-dark text-xs resize-none py-1 px-2 w-full"/>
-                            : <p className="text-xs text-gray-300 leading-relaxed italic line-clamp-3">"{ev.task}"</p>
-                          }
-                        </td>
-                        <td className="px-4 py-4">
-                          {isEditing
-                            ? <input className="input-dark text-xs py-1 px-2" value={ev.pic} onChange={e=>update(ev.id,'pic',e.target.value)}/>
-                            : <span className="text-xs text-gray-400 bg-[#252525] px-2 py-1 rounded-lg border border-gray-700">{ev.pic}</span>
-                          }
-                        </td>
-                        <td className="px-4 py-4">
-                          <div className="flex items-start gap-2">
-                            <input type="checkbox" checked={ev.checked} onChange={e=>update(ev.id,'checked',e.target.checked)}
-                              className="w-4 h-4 mt-0.5 accent-blue-600 cursor-pointer shrink-0"/>
-                            {isEditing
-                              ? <input className="input-dark text-xs py-1 px-2 flex-1" value={ev.goal} onChange={e=>update(ev.id,'goal',e.target.value)}/>
-                              : <span className={`text-xs leading-relaxed flex-1 ${ev.checked?'line-through text-gray-600':'text-gray-200 font-medium'}`}>{ev.goal}</span>
-                            }
-                          </div>
-                        </td>
-                        {isEditing && (
-                          <td className="px-4 py-4">
-                            <button onClick={()=>deleteEvt(ev.id)} className="p-1.5 text-gray-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
-                              <Trash2 className="w-4 h-4"/>
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })}
+                  ) : (
+                    <AnimatePresence mode="popLayout">
+                      {events.map((ev, i) => {
+                        const s = statusStyle(ev.status);
+                        return (
+                          <motion.tr 
+                            layout
+                            key={ev.id} 
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            transition={{ delay: i * 0.03 }}
+                            className={`hover:bg-[#1e1e1e] transition-colors ${ev.checked?'opacity-60':''}`}
+                          >
+                            <td className="px-4 py-4">
+                              <div className="text-xs font-black text-blue-400 mb-1">{ev.month}</div>
+                              {isEditing
+                                ? <input className="input-dark text-xs py-1 px-2" value={ev.level} onChange={e=>update(ev.id,'level',e.target.value)}/>
+                                : <div className="text-xs font-bold text-gray-200">{ev.level}</div>
+                              }
+                            </td>
+                            <td className="px-3 py-4">
+                              {isEditing
+                                ? <select value={ev.status} onChange={e=>update(ev.id,'status',e.target.value)} className="input-dark text-xs py-1 px-2">
+                                    {STATUS_OPTS.map(s=><option key={s} value={s}>{s}</option>)}
+                                  </select>
+                                : <span className={`badge ${s.badge}`}>{s.label}</span>
+                              }
+                            </td>
+                            <td className="px-4 py-4 max-w-xs">
+                              {isEditing
+                                ? <textarea rows={2} value={ev.task} onChange={e=>update(ev.id,'task',e.target.value)} className="input-dark text-xs resize-none py-1 px-2 w-full"/>
+                                : <p className="text-xs text-gray-300 leading-relaxed italic line-clamp-3">"{ev.task}"</p>
+                              }
+                            </td>
+                            <td className="px-4 py-4">
+                              {isEditing
+                                ? <input className="input-dark text-xs py-1 px-2" value={ev.pic} onChange={e=>update(ev.id,'pic',e.target.value)}/>
+                                : <span className="text-xs text-gray-400 bg-[#252525] px-2 py-1 rounded-lg border border-gray-700">{ev.pic}</span>
+                              }
+                            </td>
+                            <td className="px-4 py-4">
+                              <div className="flex items-start gap-2">
+                                <input type="checkbox" checked={ev.checked} onChange={e=>update(ev.id,'checked',e.target.checked)}
+                                  className="w-4 h-4 mt-0.5 accent-blue-600 cursor-pointer shrink-0"/>
+                                {isEditing
+                                  ? <input className="input-dark text-xs py-1 px-2 flex-1" value={ev.goal} onChange={e=>update(ev.id,'goal',e.target.value)}/>
+                                  : <span className={`text-xs leading-relaxed flex-1 ${ev.checked?'line-through text-gray-600':'text-gray-200 font-medium'}`}>{ev.goal}</span>
+                                }
+                              </div>
+                            </td>
+                            {isEditing && (
+                              <td className="px-4 py-4">
+                                <button onClick={()=>deleteEvt(ev.id)} className="p-1.5 text-gray-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
+                                  <Trash2 className="w-4 h-4"/>
+                                </button>
+                              </td>
+                            )}
+                          </motion.tr>
+                        );
+                      })}
+                    </AnimatePresence>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -358,72 +399,99 @@ export default function Roadmap() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {events.length === 0
               ? <div className="col-span-2 text-center py-12 text-gray-600">Chưa có mốc nào</div>
-              : events.map(ev => {
-                  const s = statusStyle(ev.status);
-                  return (
-                    <div key={ev.id} className={`bg-[#1a1a1a] border rounded-2xl overflow-hidden card-hover ${
-                      ev.status==='Done'?'border-green-500/20':ev.status==='In Progress'?'border-blue-500/20':'border-gray-800/60'
-                    }`}>
-                      <div className="h-1 w-full" style={{background:s.bar}}/>
-                      <div className="p-5">
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <div className="text-xs font-black text-blue-400">{ev.month}</div>
-                            <div className="text-sm font-bold text-white mt-0.5">{ev.level}</div>
+              : (
+                <AnimatePresence mode="popLayout">
+                  {events.map((ev, i) => {
+                    const s = statusStyle(ev.status);
+                    return (
+                      <motion.div 
+                        layout
+                        key={ev.id} 
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ delay: i * 0.03 }}
+                        className={`bg-[#1a1a1a] border rounded-2xl overflow-hidden card-hover ${
+                        ev.status==='Done'?'border-green-500/20':ev.status==='In Progress'?'border-blue-500/20':'border-gray-800/60'
+                      }`}>
+                        <div className="h-1 w-full" style={{background:s.bar}}/>
+                        <div className="p-5">
+                          <div className="flex items-start justify-between mb-3">
+                            <div>
+                              <div className="text-xs font-black text-blue-400">{ev.month}</div>
+                              <div className="text-sm font-bold text-white mt-0.5">{ev.level}</div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`badge ${s.badge}`}>{s.label}</span>
+                              {isEditing && (
+                                <button onClick={()=>deleteEvt(ev.id)} className="p-1 text-gray-600 hover:text-red-400">
+                                  <Trash2 className="w-3.5 h-3.5"/>
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className={`badge ${s.badge}`}>{s.label}</span>
-                            {isEditing && (
-                              <button onClick={()=>deleteEvt(ev.id)} className="p-1 text-gray-600 hover:text-red-400">
-                                <Trash2 className="w-3.5 h-3.5"/>
-                              </button>
-                            )}
+                          <p className="text-xs text-gray-400 leading-relaxed mb-3 italic">"{ev.task}"</p>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-gray-500 bg-[#252525] px-2 py-1 rounded-lg border border-gray-700">{ev.pic}</span>
+                            <div className="flex items-center gap-2">
+                              <input type="checkbox" checked={ev.checked} onChange={e=>update(ev.id,'checked',e.target.checked)}
+                                className="w-4 h-4 accent-blue-600 cursor-pointer"/>
+                              <span className={`text-xs ${ev.checked?'line-through text-gray-600':'text-gray-300'}`}>{ev.goal}</span>
+                            </div>
                           </div>
                         </div>
-                        <p className="text-xs text-gray-400 leading-relaxed mb-3 italic">"{ev.task}"</p>
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-gray-500 bg-[#252525] px-2 py-1 rounded-lg border border-gray-700">{ev.pic}</span>
-                          <div className="flex items-center gap-2">
-                            <input type="checkbox" checked={ev.checked} onChange={e=>update(ev.id,'checked',e.target.checked)}
-                              className="w-4 h-4 accent-blue-600 cursor-pointer"/>
-                            <span className={`text-xs ${ev.checked?'line-through text-gray-600':'text-gray-300'}`}>{ev.goal}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-              })
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
+              )
             }
           </div>
         )}
       </div>
 
       {/* Modals */}
-      {showAdd    && <AddEventModal year={activeYear} onSave={handleAdd} onClose={()=>setShowAdd(false)}/>}
-      {showAddYear && <AddYearModal existingYears={years} onSave={handleAddYear} onClose={()=>setShowAddYear(false)}/>}
+      <AnimatePresence>
+        {showAdd && <AddEventModal year={activeYear} onSave={handleAdd} onClose={()=>setShowAdd(false)}/>}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showAddYear && <AddYearModal existingYears={years} onSave={handleAddYear} onClose={()=>setShowAddYear(false)}/>}
+      </AnimatePresence>
 
       {/* Confirm delete year */}
-      {confirmDelYear && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="bg-[#1e1e1e] border border-red-500/30 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
-                <Trash2 className="w-5 h-5 text-red-400"/>
-              </div>
-              <div>
-                <div className="font-bold text-white">Xóa năm {confirmDelYear}?</div>
-                <div className="text-xs text-gray-500 mt-0.5">
-                  {(roadmap.find(r=>r.year===confirmDelYear)?.events?.length||0)} mốc sẽ bị xóa vĩnh viễn
+      <AnimatePresence>
+        {confirmDelYear && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          >
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-[#1e1e1e] border border-red-500/30 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
+                  <Trash2 className="w-5 h-5 text-red-400"/>
+                </div>
+                <div>
+                  <div className="font-bold text-white">Xóa năm {confirmDelYear}?</div>
+                  <div className="text-xs text-gray-500 mt-0.5">
+                    {(roadmap.find(r=>r.year===confirmDelYear)?.events?.length||0)} mốc sẽ bị xóa vĩnh viễn
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="flex gap-3">
-              <button onClick={()=>setConfirmDelYear(null)} className="flex-1 py-2 border border-gray-700 rounded-xl text-sm text-gray-400 hover:bg-[#252525]">Hủy</button>
-              <button onClick={()=>handleDeleteYear(confirmDelYear)} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-sm rounded-xl">Xóa năm {confirmDelYear}</button>
-            </div>
-          </div>
-        </div>
-      )}
+              <div className="flex gap-3">
+                <button onClick={()=>setConfirmDelYear(null)} className="flex-1 py-2 border border-gray-700 rounded-xl text-sm text-gray-400 hover:bg-[#252525]">Hủy</button>
+                <button onClick={()=>handleDeleteYear(confirmDelYear)} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-sm rounded-xl">Xóa năm {confirmDelYear}</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

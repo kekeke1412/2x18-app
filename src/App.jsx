@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 
 import { AppProvider, useApp } from './context/AppContext';
+import { motion, AnimatePresence } from 'framer-motion';
 import Auth          from './pages/Auth';
 import Profile       from './pages/Profile';
 import Subjects      from './pages/Subjects';
@@ -209,10 +210,26 @@ function Sidebar({ onClose }) {
   );
 }
 
+// ── Page Transition Wrapper ────────────────────────────────────────────────
+function PageTransition({ children }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className="h-full"
+    >
+      {children}
+    </motion.div>
+  );
+}
+
 // ── Protected Layout ───────────────────────────────────────────────────────
 function AppLayout() {
   const { currentUser, isLoading } = useApp();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const location = useLocation();
 
   if (isLoading) return (
     <div className="min-h-screen bg-[#121212] flex items-center justify-center">
@@ -244,24 +261,26 @@ function AppLayout() {
           <div className="font-black text-blue-400 text-lg">2X18</div>
         </div>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar fade-in-up">
-          <Routes>
-            <Route path="/dashboard"     element={<Dashboard   />}/>
-            <Route path="/profile"       element={<Profile     />}/>
-            <Route path="/subjects"      element={<Subjects    />}/>
-            <Route path="/tasks"         element={<Tasks       />}/>
-            <Route path="/roadmap"       element={<Roadmap     />}/>
-            <Route path="/calendar"      element={<CalendarPage/>}/>
-            <Route path="/voting"        element={<Voting      />}/>
-            <Route path="/notifications" element={<Notifications/>}/>
-            <Route path="/attendance"    element={<Attendance  />}/>
-            <Route path="/gamification"  element={<Gamification/>}/>
-            <Route path="/trash"         element={<Trash       />}/>
-            <Route path="/reports"       element={<Reports     />}/>
-            <Route path="/vocab"         element={<Vocab       />}/>
-            <Route path="/vocab/:setId"  element={<FlashcardSet/>}/>
-            <Route path="*"              element={<Navigate to="/dashboard" replace/>}/>
-          </Routes>
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          <AnimatePresence mode="wait">
+            <Routes location={location} key={location.pathname}>
+              <Route path="/dashboard"     element={<PageTransition><Dashboard   /></PageTransition>}/>
+              <Route path="/profile"       element={<PageTransition><Profile     /></PageTransition>}/>
+              <Route path="/subjects"      element={<PageTransition><Subjects    /></PageTransition>}/>
+              <Route path="/tasks"         element={<PageTransition><Tasks       /></PageTransition>}/>
+              <Route path="/roadmap"       element={<PageTransition><Roadmap     /></PageTransition>}/>
+              <Route path="/calendar"      element={<PageTransition><CalendarPage/></PageTransition>}/>
+              <Route path="/voting"        element={<PageTransition><Voting      /></PageTransition>}/>
+              <Route path="/notifications" element={<PageTransition><Notifications/></PageTransition>}/>
+              <Route path="/attendance"    element={<PageTransition><Attendance  /></PageTransition>}/>
+              <Route path="/gamification"  element={<PageTransition><Gamification/></PageTransition>}/>
+              <Route path="/trash"         element={<PageTransition><Trash       /></PageTransition>}/>
+              <Route path="/reports"       element={<PageTransition><Reports     /></PageTransition>}/>
+              <Route path="/vocab"         element={<PageTransition><Vocab       /></PageTransition>}/>
+              <Route path="/vocab/:setId"  element={<PageTransition><FlashcardSet/></PageTransition>}/>
+              <Route path="*"              element={<Navigate to="/dashboard" replace/>}/>
+            </Routes>
+          </AnimatePresence>
         </div>
       </main>
 

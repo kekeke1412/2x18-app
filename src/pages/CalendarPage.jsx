@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, Plus, X, Clock, MapPin, Users, AlignLeft, Ex
 import { useApp } from '../context/AppContext';
 import { createCalendarEvent } from '../services/googleApi';
 import { requestNotificationPermission, scheduleReminder, cancelReminder, syncAllReminders } from '../services/notificationService';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const REMINDER_OPTIONS = [
   { value: 0,    label: 'Không nhắc' },
@@ -523,160 +524,189 @@ export default function CalendarPage() {
       </div>
 
       {/* ── Calendar body ── */}
-      {view==='month' && renderMonth()}
-      {view==='week'  && renderWeek()}
-      {view==='day'   && renderDay()}
+      <AnimatePresence mode="wait">
+        <motion.div 
+          key={view}
+          initial={{ opacity: 0, x: 10 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -10 }}
+          transition={{ duration: 0.3 }}
+          className="flex-1 flex flex-col overflow-hidden"
+        >
+          {view==='month' && renderMonth()}
+          {view==='week'  && renderWeek()}
+          {view==='day'   && renderDay()}
+        </motion.div>
+      </AnimatePresence>
 
       {/* ── Detail Popup ── */}
-      {popup && (
-        <div ref={popupRef}
-          className="fixed z-50 bg-[#1e1e1e] border border-gray-700 rounded-2xl shadow-2xl w-72 p-4 fade-in"
-          style={{ top: Math.min(popup.y, window.innerHeight-340), left: Math.min(popup.x, window.innerWidth-300) }}>
-          {(() => {
-            const ev = popup.event;
-            const ts = typeStyle(ev.type);
-            return (
-              <>
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{background:ts.color}}/>
-                      <span className="text-[10px] font-bold uppercase tracking-wider" style={{color:ts.color}}>{ts.label}</span>
-                      {ev.auto && <span className="text-[9px] text-gray-600 border border-gray-700 px-1 rounded">auto</span>}
+      <AnimatePresence>
+        {popup && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setPopup(null)} />
+            <motion.div 
+              ref={popupRef}
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="fixed z-50 bg-[#1e1e1e] border border-gray-700 rounded-2xl shadow-2xl w-72 p-4"
+              style={{ top: Math.min(popup.y, window.innerHeight-340), left: Math.min(popup.x, window.innerWidth-300) }}
+            >
+              {(() => {
+                const ev = popup.event;
+                const ts = typeStyle(ev.type);
+                return (
+                  <>
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{background:ts.color}}/>
+                          <span className="text-[10px] font-bold uppercase tracking-wider" style={{color:ts.color}}>{ts.label}</span>
+                          {ev.auto && <span className="text-[9px] text-gray-600 border border-gray-700 px-1 rounded">auto</span>}
+                        </div>
+                        <div className="font-bold text-white text-sm leading-tight">{ev.title}</div>
+                      </div>
+                      <button onClick={()=>setPopup(null)} className="p-1 text-gray-600 hover:text-white ml-2"><X className="w-4 h-4"/></button>
                     </div>
-                    <div className="font-bold text-white text-sm leading-tight">{ev.title}</div>
-                  </div>
-                  <button onClick={()=>setPopup(null)} className="p-1 text-gray-600 hover:text-white ml-2"><X className="w-4 h-4"/></button>
-                </div>
-                <div className="space-y-1.5 text-xs text-gray-400 mb-4">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-3.5 h-3.5 shrink-0"/>
-                    <span>{fmtDate(ev.date)}{ev.startTime&&` · ${ev.startTime}`}{ev.endTime&&`–${ev.endTime}`}{ev.allDay&&' · Cả ngày'}</span>
-                  </div>
-                  {ev.location && (
-                    ev.location.startsWith('http')
-                      ? <a href={ev.location} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center gap-2 text-blue-400 hover:underline">
-                          <ExternalLink className="w-3.5 h-3.5 shrink-0"/><span>Tham gia cuộc họp</span>
-                        </a>
-                      : <div className="flex items-center gap-2"><MapPin className="w-3.5 h-3.5 shrink-0"/><span>{ev.location}</span></div>
-                  )}
-                  {ev.guests && <div className="flex items-center gap-2"><Users className="w-3.5 h-3.5 shrink-0"/><span>{ev.guests}</span></div>}
-                  {ev.desc   && <div className="flex items-start gap-2"><AlignLeft className="w-3.5 h-3.5 shrink-0 mt-0.5"/><span className="line-clamp-3">{ev.desc}</span></div>}
-                </div>
-                {!ev.readonly && (
-                  <div className="space-y-2">
-                    <div className="flex gap-2">
-                      <button onClick={()=>openEdit(ev)} className="flex-1 py-1.5 text-xs font-bold border border-gray-700 rounded-xl hover:bg-[#252525] transition-all">Sửa</button>
-                      <button onClick={()=>delEv(ev.id)} className="flex-1 py-1.5 text-xs font-bold text-red-400 border border-red-500/20 rounded-xl hover:bg-red-500/10 transition-all">Xóa</button>
+                    <div className="space-y-1.5 text-xs text-gray-400 mb-4">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-3.5 h-3.5 shrink-0"/>
+                        <span>{fmtDate(ev.date)}{ev.startTime&&` · ${ev.startTime}`}{ev.endTime&&`–${ev.endTime}`}{ev.allDay&&' · Cả ngày'}</span>
+                      </div>
+                      {ev.location && (
+                        ev.location.startsWith('http')
+                          ? <a href={ev.location} target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-2 text-blue-400 hover:underline">
+                              <ExternalLink className="w-3.5 h-3.5 shrink-0"/><span>Tham gia cuộc họp</span>
+                            </a>
+                          : <div className="flex items-center gap-2"><MapPin className="w-3.5 h-3.5 shrink-0"/><span>{ev.location}</span></div>
+                      )}
+                      {ev.guests && <div className="flex items-center gap-2"><Users className="w-3.5 h-3.5 shrink-0"/><span>{ev.guests}</span></div>}
+                      {ev.desc   && <div className="flex items-start gap-2"><AlignLeft className="w-3.5 h-3.5 shrink-0 mt-0.5"/><span className="line-clamp-3">{ev.desc}</span></div>}
                     </div>
-                    <SyncGCalButton ev={ev} requireGoogleAuth={requireGoogleAuth} toast={toast}/>
-                  </div>
-                )}
-                {ev.readonly && (
-                  <div className="space-y-2">
-                    <div className="text-[10px] text-center text-gray-600 border border-gray-800 rounded-xl py-1.5">
-                      Sự kiện được tạo tự động · Sửa trong module gốc
-                    </div>
-                    <SyncGCalButton ev={ev} requireGoogleAuth={requireGoogleAuth} toast={toast}/>
-                  </div>
-                )}
-              </>
-            );
-          })()}
-        </div>
-      )}
+                    {!ev.readonly && (
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
+                          <button onClick={()=>openEdit(ev)} className="flex-1 py-1.5 text-xs font-bold border border-gray-700 rounded-xl hover:bg-[#252525] transition-all">Sửa</button>
+                          <button onClick={()=>delEv(ev.id)} className="flex-1 py-1.5 text-xs font-bold text-red-400 border border-red-500/20 rounded-xl hover:bg-red-500/10 transition-all">Xóa</button>
+                        </div>
+                        <SyncGCalButton ev={ev} requireGoogleAuth={requireGoogleAuth} toast={toast}/>
+                      </div>
+                    )}
+                    {ev.readonly && (
+                      <div className="space-y-2">
+                        <div className="text-[10px] text-center text-gray-600 border border-gray-800 rounded-xl py-1.5">
+                          Sự kiện được tạo tự động · Sửa trong module gốc
+                        </div>
+                        <SyncGCalButton ev={ev} requireGoogleAuth={requireGoogleAuth} toast={toast}/>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* ── Add/Edit Modal ── */}
-      {modal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={()=>setModal(null)}>
-          <div className="bg-[#1e1e1e] border border-gray-700 rounded-2xl w-full max-w-md shadow-2xl" onClick={e=>e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
-              <h3 className="font-bold text-white">{modal.mode==='new'?'Thêm sự kiện':'Chỉnh sửa sự kiện'}</h3>
-              <button onClick={()=>setModal(null)}><X className="w-5 h-5 text-gray-500 hover:text-white"/></button>
-            </div>
-            <div className="px-5 py-4 space-y-3 max-h-[70vh] overflow-y-auto custom-scrollbar">
-              <div>
-                <label className="text-[10px] text-gray-500 font-bold block mb-1">TIÊU ĐỀ *</label>
-                <input className="input-dark" value={form.title||''} onChange={e=>setForm(f=>({...f,title:e.target.value}))} autoFocus placeholder="Tên sự kiện..."/>
+      <AnimatePresence>
+        {modal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={()=>setModal(null)}>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-[#1e1e1e] border border-gray-700 rounded-2xl w-full max-w-md shadow-2xl" 
+              onClick={e=>e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
+                <h3 className="font-bold text-white">{modal.mode==='new'?'Thêm sự kiện':'Chỉnh sửa sự kiện'}</h3>
+                <button onClick={()=>setModal(null)}><X className="w-5 h-5 text-gray-500 hover:text-white"/></button>
               </div>
-              <div>
-                <label className="text-[10px] text-gray-500 font-bold block mb-1">LOẠI</label>
-                <select className="input-dark" value={form.type||'other'} onChange={e=>setForm(f=>({...f,type:e.target.value}))}>
-                  {EVENT_TYPES.map(t=><option key={t.value} value={t.value}>{t.label}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-[10px] text-gray-500 font-bold block mb-1">NGÀY</label>
-                <input type="date" className="input-dark" value={form.date||''} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/>
-                {form.date && <p className="text-[10px] text-gray-600 mt-1">📅 {fmtDate(form.date)}</p>}
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" className="w-4 h-4 accent-blue-600" checked={!!form.allDay} onChange={e=>setForm(f=>({...f,allDay:e.target.checked}))}/>
-                <span className="text-sm text-gray-300">Cả ngày</span>
-              </label>
-              {!form.allDay && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[10px] text-gray-500 font-bold block mb-1">GIỜ BẮT ĐẦU</label>
-                    <input type="time" className="input-dark" value={form.startTime||''} onChange={e=>setForm(f=>({...f,startTime:e.target.value}))}/>
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-gray-500 font-bold block mb-1">GIỜ KẾT THÚC</label>
-                    <input type="time" className="input-dark" value={form.endTime||''} onChange={e=>setForm(f=>({...f,endTime:e.target.value}))}/>
-                  </div>
+              <div className="px-5 py-4 space-y-3 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                <div>
+                  <label className="text-[10px] text-gray-500 font-bold block mb-1">TIÊU ĐỀ *</label>
+                  <input className="input-dark" value={form.title||''} onChange={e=>setForm(f=>({...f,title:e.target.value}))} autoFocus placeholder="Tên sự kiện..."/>
                 </div>
-              )}
-              <div>
-                <label className="text-[10px] text-gray-500 font-bold block mb-1">ĐỊA ĐIỂM / LINK HỌP</label>
-                <input className="input-dark" value={form.location||''} onChange={e=>setForm(f=>({...f,location:e.target.value}))} placeholder="Google Meet, Zoom, Phòng học..."/>
-              </div>
-              <div>
-                <label className="text-[10px] text-gray-500 font-bold block mb-1">THÀNH PHẦN</label>
-                <input className="input-dark" value={form.guests||''} onChange={e=>setForm(f=>({...f,guests:e.target.value}))} placeholder="Cả nhóm, Core, SME..."/>
-              </div>
-              <div>
-                <label className="text-[10px] text-gray-500 font-bold block mb-1">GHI CHÚ</label>
-                <textarea rows={2} className="input-dark resize-none" value={form.desc||''} onChange={e=>setForm(f=>({...f,desc:e.target.value}))} placeholder="Mô tả thêm..."/>
-              </div>
-              {/* Nhắc nhở */}
-              <div>
-                <label className="text-[10px] text-gray-500 font-bold block mb-1 flex items-center gap-1">
-                  <Clock className="w-3 h-3"/> NHẮC NHỞ
+                <div>
+                  <label className="text-[10px] text-gray-500 font-bold block mb-1">LOẠI</label>
+                  <select className="input-dark" value={form.type||'other'} onChange={e=>setForm(f=>({...f,type:e.target.value}))}>
+                    {EVENT_TYPES.map(t=><option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] text-gray-500 font-bold block mb-1">NGÀY</label>
+                  <input type="date" className="input-dark" value={form.date||''} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/>
+                  {form.date && <p className="text-[10px] text-gray-600 mt-1">📅 {fmtDate(form.date)}</p>}
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" className="w-4 h-4 accent-blue-600" checked={!!form.allDay} onChange={e=>setForm(f=>({...f,allDay:e.target.checked}))}/>
+                  <span className="text-sm text-gray-300">Cả ngày</span>
                 </label>
-                <select className="input-dark" value={form.reminderMinutes ?? 30}
-                  onChange={e => setForm(f => ({...f, reminderMinutes: Number(e.target.value)}))}>
-                  {REMINDER_OPTIONS.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-                {(form.reminderMinutes > 0) && (
-                  <p className="text-[10px] text-blue-400 mt-1 flex items-center gap-1">
-                    ⏰ Sẽ nhắc trên màn hình + email khi đồng bộ GG Calendar
-                  </p>
+                {!form.allDay && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] text-gray-500 font-bold block mb-1">GIỜ BẮT ĐẦU</label>
+                      <input type="time" className="input-dark" value={form.startTime||''} onChange={e=>setForm(f=>({...f,startTime:e.target.value}))}/>
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-gray-500 font-bold block mb-1">GIỜ KẾT THÚC</label>
+                      <input type="time" className="input-dark" value={form.endTime||''} onChange={e=>setForm(f=>({...f,endTime:e.target.value}))}/>
+                    </div>
+                  </div>
                 )}
+                <div>
+                  <label className="text-[10px] text-gray-500 font-bold block mb-1">ĐỊA ĐIỂM / LINK HỌP</label>
+                  <input className="input-dark" value={form.location||''} onChange={e=>setForm(f=>({...f,location:e.target.value}))} placeholder="Google Meet, Zoom, Phòng học..."/>
+                </div>
+                <div>
+                  <label className="text-[10px] text-gray-500 font-bold block mb-1">THÀNH PHẦN</label>
+                  <input className="input-dark" value={form.guests||''} onChange={e=>setForm(f=>({...f,guests:e.target.value}))} placeholder="Cả nhóm, Core, SME..."/>
+                </div>
+                <div>
+                  <label className="text-[10px] text-gray-500 font-bold block mb-1">GHI CHÚ</label>
+                  <textarea rows={2} className="input-dark resize-none" value={form.desc||''} onChange={e=>setForm(f=>({...f,desc:e.target.value}))} placeholder="Mô tả thêm..."/>
+                </div>
+                {/* Nhắc nhở */}
+                <div>
+                  <label className="text-[10px] text-gray-500 font-bold block mb-1 flex items-center gap-1">
+                    <Clock className="w-3 h-3"/> NHẮC NHỞ
+                  </label>
+                  <select className="input-dark" value={form.reminderMinutes ?? 30}
+                    onChange={e => setForm(f => ({...f, reminderMinutes: Number(e.target.value)}))}>
+                    {REMINDER_OPTIONS.map(o => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                  {(form.reminderMinutes > 0) && (
+                    <p className="text-[10px] text-blue-400 mt-1 flex items-center gap-1">
+                      ⏰ Sẽ nhắc trên màn hình + email khi đồng bộ GG Calendar
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
-            <div className="flex gap-3 px-5 py-4 border-t border-gray-800 flex-wrap">
-              {modal.mode==='edit' && (
-                <button onClick={()=>delEv(form.id)} className="px-4 py-2 text-red-400 border border-red-500/20 rounded-xl text-sm hover:bg-red-500/10">Xóa</button>
-              )}
-              <button onClick={()=>setModal(null)} className="flex-1 py-2 border border-gray-700 rounded-xl text-sm text-gray-400 hover:bg-[#252525]">Hủy</button>
-              <button onClick={()=>saveForm(false)} disabled={isSyncing}
-                className="flex-1 py-2 bg-[#252525] hover:bg-[#303030] border border-gray-700 text-white font-bold text-sm rounded-xl transition-all">
-                {modal.mode==='new'?'Lưu':'Lưu'}
-              </button>
-              <button onClick={()=>saveForm(true)} disabled={isSyncing}
-                className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-1.5">
-                {isSyncing
-                  ? <><Clock className="w-3.5 h-3.5 animate-spin"/> Đang...</>
-                  : <><CalendarCheck className="w-3.5 h-3.5"/> + GG Cal</>
-                }
-              </button>
-            </div>
+              <div className="flex gap-3 px-5 py-4 border-t border-gray-800 flex-wrap">
+                {modal.mode==='edit' && (
+                  <button onClick={()=>delEv(form.id)} className="px-4 py-2 text-red-400 border border-red-500/20 rounded-xl text-sm hover:bg-red-500/10">Xóa</button>
+                )}
+                <button onClick={()=>setModal(null)} className="flex-1 py-2 border border-gray-700 rounded-xl text-sm text-gray-400 hover:bg-[#252525]">Hủy</button>
+                <button onClick={()=>saveForm(false)} disabled={isSyncing}
+                  className="flex-1 py-2 bg-[#252525] hover:bg-[#303030] border border-gray-700 text-white font-bold text-sm rounded-xl transition-all">
+                  {modal.mode==='new'?'Lưu':'Lưu'}
+                </button>
+                <button onClick={()=>saveForm(true)} disabled={isSyncing}
+                  className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-sm rounded-xl flex items-center justify-center gap-1.5">
+                  {isSyncing
+                    ? <><Clock className="w-3.5 h-3.5 animate-spin"/> Đang...</>
+                    : <><CalendarCheck className="w-3.5 h-3.5"/> + GG Cal</>
+                  }
+                </button>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Vote, Plus, X, Clock, Users, Trash2, ChevronDown, ChevronUp, UserX } from 'lucide-react';
 import { useApp, uid } from '../context/AppContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Safe array coerce
 const toArr = v => {
@@ -51,8 +52,20 @@ function CreateVoteModal({ onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-[#1e1e1e] border border-gray-700 rounded-2xl w-full max-w-md shadow-2xl" onClick={e=>e.stopPropagation()}>
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" 
+      onClick={onClose}
+    >
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="bg-[#1e1e1e] border border-gray-700 rounded-2xl w-full max-w-md shadow-2xl" 
+        onClick={e=>e.stopPropagation()}
+      >
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
           <h3 className="font-bold text-white">Tạo bình chọn mới</h3>
           <button onClick={onClose}><X className="w-5 h-5 text-gray-500 hover:text-white"/></button>
@@ -79,17 +92,26 @@ function CreateVoteModal({ onClose }) {
           <div>
             <label className="text-[10px] text-gray-500 font-bold block mb-2">CÁC PHƯƠNG ÁN * (tối thiểu 2)</label>
             <div className="space-y-2">
-              {options.map((opt, i) => (
-                <div key={i} className="flex gap-2">
-                  <input className="input-dark flex-1" placeholder={`Phương án ${i+1}...`}
-                    value={opt} onChange={e=>setOption(i, e.target.value)}/>
-                  {options.length > 2 && (
-                    <button onClick={()=>delOption(i)} className="p-2 text-gray-600 hover:text-red-400 transition-colors">
-                      <X className="w-4 h-4"/>
-                    </button>
-                  )}
-                </div>
-              ))}
+              <AnimatePresence mode="popLayout">
+                {options.map((opt, i) => (
+                  <motion.div 
+                    layout
+                    key={i} 
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="flex gap-2"
+                  >
+                    <input className="input-dark flex-1" placeholder={`Phương án ${i+1}...`}
+                      value={opt} onChange={e=>setOption(i, e.target.value)}/>
+                    {options.length > 2 && (
+                      <button onClick={()=>delOption(i)} className="p-2 text-gray-600 hover:text-red-400 transition-colors">
+                        <X className="w-4 h-4"/>
+                      </button>
+                    )}
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </div>
             <button onClick={addOption} className="mt-2 flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors">
               <Plus className="w-3.5 h-3.5"/> Thêm phương án
@@ -100,16 +122,26 @@ function CreateVoteModal({ onClose }) {
           <button onClick={onClose} className="flex-1 py-2 border border-gray-700 rounded-xl text-sm text-gray-400 hover:bg-[#252525]">Hủy</button>
           <button onClick={save} className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm rounded-xl">Tạo bình chọn</button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
 // ── Confirm Delete Modal ───────────────────────────────────────────────────
 function ConfirmDeleteModal({ title, onConfirm, onClose }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="bg-[#1e1e1e] border border-red-500/30 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+    >
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="bg-[#1e1e1e] border border-red-500/30 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl"
+      >
         <div className="flex items-center gap-3 mb-3">
           <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center shrink-0">
             <Trash2 className="w-5 h-5 text-red-400"/>
@@ -124,8 +156,8 @@ function ConfirmDeleteModal({ title, onConfirm, onClose }) {
           <button onClick={onClose} className="flex-1 py-2 border border-gray-700 rounded-xl text-sm text-gray-400 hover:bg-[#252525]">Hủy</button>
           <button onClick={onConfirm} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-sm rounded-xl">Xóa</button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -169,30 +201,41 @@ function NonVotersPanel({ vote, activeMembers }) {
         }
       </button>
 
-      {open && (
-        <div className="px-4 pb-3">
-          <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto custom-scrollbar pr-1">
-            {nonVoters.map(m => {
-              const initials = (m.avatar || m.fullName?.[0] || '?');
-              return (
-                <div key={m.id}
-                  title={m.fullName}
-                  className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-full">
-                  {m.avatarUrl
-                    ? <img src={m.avatarUrl} alt="" className="w-4 h-4 rounded-full object-cover shrink-0"/>
-                    : <div className="w-4 h-4 rounded-full bg-amber-600/30 flex items-center justify-center text-[8px] font-bold text-amber-300 shrink-0">
-                        {initials}
-                      </div>
-                  }
-                  <span className="text-[10px] text-amber-300 font-medium max-w-[80px] truncate">
-                    {m.fullName.split(' ').slice(-1)[0]}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {open && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="px-4 pb-3 overflow-hidden"
+          >
+            <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto custom-scrollbar pr-1">
+              {nonVoters.map(m => {
+                const initials = (m.avatar || m.fullName?.[0] || '?');
+                return (
+                  <motion.div 
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    key={m.id}
+                    title={m.fullName}
+                    className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-full"
+                  >
+                    {m.avatarUrl
+                      ? <img src={m.avatarUrl} alt="" className="w-4 h-4 rounded-full object-cover shrink-0"/>
+                      : <div className="w-4 h-4 rounded-full bg-amber-600/30 flex items-center justify-center text-[8px] font-bold text-amber-300 shrink-0">
+                          {initials}
+                        </div>
+                    }
+                    <span className="text-[10px] text-amber-300 font-medium max-w-[80px] truncate">
+                      {m.fullName.split(' ').slice(-1)[0]}
+                    </span>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -221,7 +264,13 @@ function VoteCard({ vote, onDeleteRequest }) {
   };
 
   return (
-    <div className={`bg-[#1a1a1a] border rounded-2xl overflow-hidden ${isClosed?'border-gray-800/30 opacity-80':'border-gray-800/60'}`}>
+    <motion.div 
+      layout
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className={`bg-[#1a1a1a] border rounded-2xl overflow-hidden ${isClosed?'border-gray-800/30 opacity-80':'border-gray-800/60'}`}
+    >
       {/* Header */}
       <div className="px-5 py-4 border-b border-gray-800/60">
         <div className="flex items-start justify-between gap-3">
@@ -275,8 +324,13 @@ function VoteCard({ vote, onDeleteRequest }) {
               className={`relative rounded-xl border overflow-hidden transition-all ${
                 isClosed ? 'cursor-default' : 'cursor-pointer hover:border-blue-500/40'
               } ${isVoted ? 'border-blue-500/40 bg-blue-500/5' : 'border-gray-700/60 bg-[#111]'}`}>
-              <div className="absolute inset-0 rounded-xl transition-all duration-700"
-                style={{ width:`${pct}%`, background: isVoted ? 'rgba(59,130,246,0.12)' : 'rgba(255,255,255,0.03)' }}/>
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${pct}%` }}
+                transition={{ duration: 1, ease: "easeOut" }}
+                className="absolute inset-0 rounded-xl transition-all"
+                style={{ background: isVoted ? 'rgba(59,130,246,0.12)' : 'rgba(255,255,255,0.03)' }}
+              />
               <div className="relative flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className={`w-4 h-4 rounded-${vote.multiSelect?'md':'full'} border-2 flex items-center justify-center shrink-0 ${
@@ -315,34 +369,47 @@ function VoteCard({ vote, onDeleteRequest }) {
         })}
 
         {!isClosed && (
-          showAdd ? (
-            <div className="flex gap-2 pt-1">
-              <input className="input-dark flex-1 py-2 text-sm" placeholder="Nhập phương án mới..."
-                value={newOption} onChange={e=>setNewOption(e.target.value)}
-                onKeyDown={e=>e.key==='Enter'&&handleAddOption()} autoFocus/>
-              <button onClick={handleAddOption} className="px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold">OK</button>
-              <button onClick={()=>setShowAdd(false)} className="px-3 py-2 border border-gray-700 text-gray-400 rounded-xl text-xs hover:bg-[#252525]">
-                <X className="w-4 h-4"/>
-              </button>
-            </div>
-          ) : (
-            <button onClick={()=>setShowAdd(true)}
-              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors pt-1">
-              <Plus className="w-3.5 h-3.5"/> Thêm phương án
-            </button>
-          )
+          <AnimatePresence mode="wait">
+            {showAdd ? (
+              <motion.div 
+                key="add-field"
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -5 }}
+                className="flex gap-2 pt-1"
+              >
+                <input className="input-dark flex-1 py-2 text-sm" placeholder="Nhập phương án mới..."
+                  value={newOption} onChange={e=>setNewOption(e.target.value)}
+                  onKeyDown={e=>e.key==='Enter'&&handleAddOption()} autoFocus/>
+                <button onClick={handleAddOption} className="px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold">OK</button>
+                <button onClick={()=>setShowAdd(false)} className="px-3 py-2 border border-gray-700 text-gray-400 rounded-xl text-xs hover:bg-[#252525]">
+                  <X className="w-4 h-4"/>
+                </button>
+              </motion.div>
+            ) : (
+              <motion.button 
+                key="add-btn"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                onClick={()=>setShowAdd(true)}
+                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors pt-1"
+              >
+                <Plus className="w-3.5 h-3.5"/> Thêm phương án
+              </motion.button>
+            )}
+          </AnimatePresence>
         )}
       </div>
 
       {/* ── Non-voters section ─────────────────────────────────────────── */}
       <NonVotersPanel vote={vote} activeMembers={activeMembers}/>
-    </div>
+      </motion.div>
   );
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────
 export default function Voting() {
-  const { votes, isCore, deleteVote, toast } = useApp();
+  const { votes, isCore, deleteVote } = useApp();
   const [showCreate, setShowCreate] = useState(false);
   const [filter,     setFilter]     = useState('all');
   const [delTarget,  setDelTarget]  = useState(null); // { id, title }
@@ -392,22 +459,32 @@ export default function Voting() {
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
         {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 bg-[#1a1a1a] border border-dashed border-gray-800 rounded-2xl">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex flex-col items-center justify-center py-16 bg-[#1a1a1a] border border-dashed border-gray-800 rounded-2xl"
+          >
             <Vote className="w-12 h-12 text-gray-700 mb-3"/>
             <p className="text-gray-500 font-medium">Chưa có bình chọn nào</p>
             {isCore && <button onClick={()=>setShowCreate(true)} className="mt-3 text-blue-400 text-sm hover:underline">Tạo bình chọn đầu tiên</button>}
-          </div>
+          </motion.div>
         ) : (
           <div className="space-y-4 max-w-2xl mx-auto">
-            {filtered.map(v => (
-              <VoteCard key={v.id} vote={v} onDeleteRequest={(v) => setDelTarget({ id: v.id, title: v.title })}/>
-            ))}
+            <AnimatePresence mode="popLayout">
+              {filtered.map(v => (
+                <VoteCard key={v.id} vote={v} onDeleteRequest={(v) => setDelTarget({ id: v.id, title: v.title })}/>
+              ))}
+            </AnimatePresence>
           </div>
         )}
       </div>
 
-      {showCreate && <CreateVoteModal onClose={()=>setShowCreate(false)}/>}
-      {delTarget   && <ConfirmDeleteModal title={delTarget.title} onConfirm={handleDeleteConfirm} onClose={()=>setDelTarget(null)}/>}
+      <AnimatePresence>
+        {showCreate && <CreateVoteModal onClose={()=>setShowCreate(false)}/>}
+      </AnimatePresence>
+      <AnimatePresence>
+        {delTarget   && <ConfirmDeleteModal title={delTarget.title} onConfirm={handleDeleteConfirm} onClose={()=>setDelTarget(null)}/>}
+      </AnimatePresence>
     </div>
   );
 }

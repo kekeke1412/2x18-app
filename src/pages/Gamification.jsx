@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { db, ref, set, onValue } from '../firebase';
 import { uid } from '../context/AppContext';
+import { motion, AnimatePresence } from 'framer-motion'; // eslint-disable-line no-unused-vars
 
 /* ═══════════════════════════════════════════════════════════════
    HỆ THỐNG RANK — 20 bậc (Đồng I→III … Tinh Anh I→III, Huyền Thoại, Cao Thủ)
@@ -99,11 +100,16 @@ function RankBadge({ pts, size = 'sm' }) {
 }
 
 /* ── Leaderboard row ── */
-function LbRow({ m, i, currentUser, onRevoke }) {
+function LbRow({ m, i, currentUser }) {
   const isMe = m.id === currentUser?.id;
   const medals = ['🥇','🥈','🥉'];
   return (
-    <div style={{ display:'flex', alignItems:'center', gap:10, padding:'11px 16px',
+    <motion.div 
+      layout
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: i * 0.05 }}
+      style={{ display:'flex', alignItems:'center', gap:10, padding:'11px 16px',
       borderBottom:'1px solid rgba(255,255,255,0.04)',
       background: isMe ? 'rgba(59,130,246,0.06)' : 'transparent', transition:'background .15s' }}
       onMouseEnter={e=>{ if(!isMe) e.currentTarget.style.background='rgba(255,255,255,0.025)'; }}
@@ -133,7 +139,7 @@ function LbRow({ m, i, currentUser, onRevoke }) {
         <span style={{ fontSize:15, fontWeight:900, minWidth:38, textAlign:'right',
           color:m.rankInfo.color, textShadow:`0 0 12px ${m.rankInfo.glow}` }}>{m.points}</span>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -318,6 +324,14 @@ export default function Gamification() {
 
       {/* ── BODY ── */}
       <div style={{ flex:1, overflowY:'auto', padding:'18px 22px', position:'relative', zIndex:1 }}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={tab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
 
         {/* ════════ CURRENT SEASON ════════ */}
         {tab === 'current' && (
@@ -326,7 +340,10 @@ export default function Gamification() {
             {me && (() => {
               const next = getNextRank(me.points);
               return (
-                <div style={{ marginBottom:18, padding:'18px 22px', borderRadius:16,
+                <motion.div 
+                  initial={{ scale: 0.95 }}
+                  animate={{ scale: 1 }}
+                  style={{ marginBottom:18, padding:'18px 22px', borderRadius:16,
                   background:`linear-gradient(135deg, ${me.rankInfo.bg} 0%, rgba(255,255,255,0.015) 100%)`,
                   border:`1px solid ${me.rankInfo.glow}`, boxShadow:`0 0 28px ${me.rankInfo.glow}`,
                   display:'flex', gap:18, alignItems:'center', flexWrap:'wrap' }}>
@@ -336,8 +353,10 @@ export default function Gamification() {
                     <RankBadge pts={me.points} size="lg" />
                     <div style={{ marginTop:9, display:'flex', alignItems:'center', gap:7 }}>
                       <div style={{ flex:1, height:5, background:'rgba(255,255,255,0.06)', borderRadius:99, overflow:'hidden' }}>
-                        <div style={{ height:'100%', borderRadius:99, transition:'width .6s ease',
-                          width:`${me.progress}%`,
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${me.progress}%` }}
+                          style={{ height:'100%', borderRadius:99, transition:'width .6s ease',
                           background:`linear-gradient(90deg, ${me.rankInfo.color}aa, ${me.rankInfo.color})` }}/>
                       </div>
                       <span style={{ fontSize:9, color:'#52525b', fontWeight:700 }}>{me.progress}%</span>
@@ -359,7 +378,7 @@ export default function Gamification() {
                       textShadow:`0 0 24px ${me.rankInfo.glow}` }}>{me.points}</div>
                     <div style={{ fontSize:10, color:'#52525b', marginTop:2 }}>điểm · #{myRank} / {ranked.length}</div>
                   </div>
-                </div>
+                </motion.div>
               );
             })()}
 
@@ -372,7 +391,6 @@ export default function Gamification() {
                 {[ranked[1], ranked[0], ranked[2]].map((m, ci) => {
                   if (!m) return <div key={ci}/>;
                   const isMe  = m.id === currentUser?.id;
-                  const pIdx  = [1,0,2][ci];
                   const meds  = ['🥈','🥇','🥉'];
                   const hts   = [56,72,46];
                   const podGrd = [
@@ -603,15 +621,26 @@ export default function Gamification() {
             </div>
           </div>
         )}
+        </motion.div>
+        </AnimatePresence>
       </div>
 
       {/* ══════════ ADMIN MODAL ══════════ */}
-      {showAdmin && canAdmin && (
-        <div style={{ position:'fixed', inset:0, zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center',
-          background:'rgba(0,0,0,0.72)', backdropFilter:'blur(5px)' }}
-          onClick={e => { if(e.target===e.currentTarget){setShowAdmin(false);setConfirmReset(false);} }}>
-          <div style={{ width:'min(520px,94vw)', maxHeight:'82vh', overflowY:'auto',
-            background:'#111113', border:'1px solid rgba(255,255,255,0.09)', borderRadius:18, padding:'22px' }}>
+      <AnimatePresence>
+        {showAdmin && canAdmin && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{ position:'fixed', inset:0, zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center',
+            background:'rgba(0,0,0,0.72)', backdropFilter:'blur(5px)' }}
+            onClick={e => { if(e.target===e.currentTarget){setShowAdmin(false);setConfirmReset(false);} }}>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              style={{ width:'min(520px,94vw)', maxHeight:'82vh', overflowY:'auto',
+              background:'#111113', border:'1px solid rgba(255,255,255,0.09)', borderRadius:18, padding:'22px' }}>
 
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
               <h2 style={{ margin:0, fontSize:15, fontWeight:900, color:'#e4e4e7' }}>⚙ Quản lý Gamification</h2>
@@ -797,9 +826,10 @@ export default function Gamification() {
                 )}
               </div>
             )}
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }

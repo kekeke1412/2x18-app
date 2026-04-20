@@ -179,10 +179,19 @@ export default function FlashcardSet() {
     setIsChecking(true);
     const current = quizQuestions[quizIndex];
     const isCorrect = ans.toLowerCase().trim() === current.answer.toLowerCase().trim();
-    if (isCorrect) setQuizScore(prev => prev + 1);
-    setQuizFeedback({ correct: isCorrect, message: isCorrect ? 'Chính xác! 🎉' : `Sai rồi! Đáp án: ${current.answer}` });
     
-    // Ghi lại chi tiết
+    // Set feedback immediately for animation
+    setQuizFeedback({ 
+      correct: isCorrect, 
+      message: isCorrect ? 'Chính xác! 🎉' : `Sai rồi! Đáp án: ${current.answer}`,
+      selected: ans
+    });
+
+    if (isCorrect) {
+      setQuizScore(prev => prev + 1);
+    }
+    
+    // Record details
     setQuizDetails(prev => [...prev, {
       question: current.question,
       userAns: ans,
@@ -190,10 +199,13 @@ export default function FlashcardSet() {
       isCorrect
     }]);
 
+    // Delay before next question to show animation
     setTimeout(() => {
-      setQuizFeedback(null); setUserAnswer('');
       if (quizIndex < quizQuestions.length - 1) {
         setQuizIndex(quizIndex + 1);
+        setQuizFeedback(null); 
+        setUserAnswer('');
+        setIsChecking(false);
       } else {
         const finalScore = isCorrect ? quizScore + 1 : quizScore;
         const result = {
@@ -205,10 +217,32 @@ export default function FlashcardSet() {
         };
         addQuizResult(result);
         setQuizComplete(true);
+        setIsChecking(false);
       }
-      setIsChecking(false);
-    }, 1200);
+    }, 1500); // Slightly longer for better feedback visibility
   };
+
+  // Keyboard shortcuts for Quiz
+  useEffect(() => {
+    if (activeTab === 'quiz' && quizStarted && !quizComplete && !quizFeedback) {
+      const handleKeyDown = (e) => {
+        const current = quizQuestions[quizIndex];
+        if (!current) return;
+
+        if (current.type === 'choice') {
+          if (e.key >= '1' && e.key <= '4') {
+            const idx = parseInt(e.key) - 1;
+            if (current.options[idx]) handleQuizAnswer(current.options[idx]);
+          }
+        } else if (current.type === 'tf') {
+          if (e.key === '1') handleQuizAnswer('true');
+          if (e.key === '2') handleQuizAnswer('false');
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [activeTab, quizStarted, quizComplete, quizFeedback, quizIndex, quizQuestions]);
 
   return (
     <div className="h-full bg-[#121212] text-gray-200 flex flex-col overflow-hidden">
@@ -476,123 +510,351 @@ export default function FlashcardSet() {
           {activeTab === 'quiz' && (
             <div className="flex flex-col items-center gap-8 h-full">
               {!quizStarted ? (
-                <>
-                  <div className="text-center bg-[#1a1a1a] p-10 rounded-3xl border border-gray-800 shadow-2xl max-w-md w-full">
-                    <Zap className="w-16 h-16 text-indigo-500 mx-auto mb-6" />
-                    <h2 className="text-2xl font-black text-white mb-2">Kiểm tra năng lực</h2>
-                    <p className="text-gray-500 text-xs mb-8 font-bold uppercase tracking-widest">Sẵn sàng để thử thách kiến thức?</p>
-                    <button onClick={startQuiz} className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl transition-all">BẮT ĐẦU</button>
+                <div className="w-full max-w-2xl animate-in fade-in slide-in-from-bottom-4 duration-700">
+                  <div className="bg-[#1a1a1a] border border-gray-800 rounded-[2.5rem] p-10 md:p-12 shadow-2xl relative overflow-hidden group">
+                    {/* Background Decorative Elements */}
+                    <div className="absolute -top-24 -right-24 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl group-hover:bg-indigo-600/20 transition-all duration-700" />
+                    <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-purple-600/10 rounded-full blur-3xl group-hover:bg-purple-600/20 transition-all duration-700" />
+                    
+                    <div className="relative z-10 flex flex-col items-center text-center">
+                      <div className="w-20 h-20 bg-gradient-to-tr from-indigo-600 to-violet-600 rounded-3xl flex items-center justify-center shadow-2xl shadow-indigo-500/20 mb-8 rotate-3 group-hover:rotate-6 transition-transform">
+                        <Zap className="w-10 h-10 text-white" />
+                      </div>
+                      
+                      <h2 className="text-3xl font-black text-white mb-3 tracking-tight">Kiểm tra năng lực</h2>
+                      <p className="text-gray-400 text-sm max-w-sm mb-10 leading-relaxed font-medium">
+                        Thử thách bản thân với {cards.length} thuật ngữ trong học phần này. Hệ thống sẽ tự động tạo các dạng câu hỏi khác nhau.
+                      </p>
+                      
+                      <div className="grid grid-cols-2 gap-4 w-full mb-10">
+                        <div className="bg-white/5 border border-white/5 rounded-2xl p-4 backdrop-blur-sm">
+                          <div className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-1">Số lượng</div>
+                          <div className="text-xl font-black text-white">{cards.length} câu</div>
+                        </div>
+                        <div className="bg-white/5 border border-white/5 rounded-2xl p-4 backdrop-blur-sm">
+                          <div className="text-[10px] font-black text-purple-400 uppercase tracking-[0.2em] mb-1">Thời gian dự kiến</div>
+                          <div className="text-xl font-black text-white">~{Math.ceil(cards.length * 0.5)} phút</div>
+                        </div>
+                      </div>
+                      
+                      <button 
+                        onClick={startQuiz} 
+                        className="group/btn relative w-full py-5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl transition-all shadow-xl shadow-indigo-900/40 active:scale-95 overflow-hidden"
+                      >
+                        <span className="relative z-10 flex items-center justify-center gap-3 text-lg">
+                          BẮT ĐẦU NGAY <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
+                        </span>
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover/btn:translate-x-full transition-transform duration-1000" />
+                      </button>
+                    </div>
                   </div>
                   
                   {/* Dashboard lịch sử mini */}
-                  <div className="w-full max-w-2xl space-y-6">
+                  <div className="mt-12 space-y-8">
+                    <div className="flex items-center justify-between px-2">
+                      <h3 className="text-sm font-black text-gray-500 uppercase tracking-[0.3em]">Thành tích gần đây</h3>
+                      {currentSetHistory.length > 0 && (
+                        <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
+                          TB: {Math.round(currentSetHistory.reduce((a,b)=>a+b.percentage,0)/currentSetHistory.length)}%
+                        </div>
+                      )}
+                    </div>
                     <HistoryDashboard history={currentSetHistory} />
                   </div>
-                </>
+                </div>
               ) : quizComplete ? (
-                <div className="w-full max-w-2xl space-y-8">
-                  <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center bg-[#1a1a1a] p-10 rounded-3xl border border-gray-800 shadow-2xl w-full">
-                    <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-6" />
-                    <h2 className="text-2xl font-black text-white mb-2">Kết quả!</h2>
-                    <div className="text-5xl font-black text-indigo-400 mb-4">{Math.round((quizScore / quizQuestions.length) * 100)}%</div>
-                    <p className="text-gray-500 text-xs mb-8 font-bold uppercase tracking-widest">ĐÚNG {quizScore} / {quizQuestions.length} CÂU</p>
-                    <div className="flex gap-4">
-                      <button onClick={startQuiz} className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl transition-all">LÀM LẠI</button>
-                      <button onClick={() => setQuizStarted(false)} className="px-6 py-4 bg-gray-800 hover:bg-gray-700 text-white font-black rounded-2xl transition-all">XONG</button>
+                <div className="w-full max-w-2xl animate-in zoom-in-95 fade-in duration-500 pb-20">
+                  <div className="bg-[#1a1a1a] border border-gray-800 rounded-[2.5rem] p-10 md:p-12 shadow-2xl relative overflow-hidden flex flex-col items-center text-center mb-10">
+                    <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
+                    
+                    <motion.div 
+                      initial={{ scale: 0 }} 
+                      animate={{ scale: 1 }} 
+                      transition={{ type: "spring", damping: 12, stiffness: 200, delay: 0.2 }}
+                      className="w-24 h-24 bg-yellow-500/20 rounded-full flex items-center justify-center mb-6 shadow-2xl shadow-yellow-500/20"
+                    >
+                      <Trophy className="w-12 h-12 text-yellow-500" />
+                    </motion.div>
+                    
+                    <h2 className="text-3xl font-black text-white mb-2">Tuyệt vời!</h2>
+                    <p className="text-gray-500 text-xs font-black uppercase tracking-[0.2em] mb-8">Bạn đã hoàn thành bài kiểm tra</p>
+                    
+                    <div className="relative mb-10">
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.5 }}
+                        className="text-7xl font-black text-transparent bg-clip-text bg-gradient-to-br from-indigo-400 to-violet-600"
+                      >
+                        {Math.round((quizScore / quizQuestions.length) * 100)}%
+                      </motion.div>
+                      <div className="text-[10px] font-black text-gray-500 uppercase tracking-widest mt-2">ĐÚNG {quizScore} / {quizQuestions.length} CÂU</div>
                     </div>
-                  </motion.div>
 
-                  <div className="bg-[#1a1a1a] border border-gray-800 rounded-3xl overflow-hidden shadow-2xl">
-                    <div className="p-6 border-b border-gray-800 bg-black/20 flex items-center gap-2">
-                      <FileEdit className="w-4 h-4 text-indigo-400" />
-                      <span className="text-sm font-black uppercase tracking-widest text-white">Xem lại chi tiết</span>
-                    </div>
-                    <div className="divide-y divide-gray-800 max-h-[400px] overflow-y-auto custom-scrollbar">
-                      {quizDetails.map((item, idx) => (
-                        <div key={idx} className="p-5 flex gap-4">
-                          <div className={`mt-1 shrink-0 p-1.5 rounded-lg ${item.isCorrect ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
-                            {item.isCorrect ? <CheckCircle className="w-4 h-4" /> : <X className="w-4 h-4" />}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-bold text-gray-200 mb-2">{item.question}</p>
-                            <div className="flex flex-col gap-1.5">
-                              <div className="text-[11px] flex items-center gap-2">
-                                <span className="text-gray-500 font-bold uppercase tracking-wider">Bạn chọn:</span>
-                                <span className={item.isCorrect ? 'text-green-400 font-medium' : 'text-red-400 font-medium line-through'}>{item.userAns || '(Trống)'}</span>
-                              </div>
-                              {!item.isCorrect && (
-                                <div className="text-[11px] flex items-center gap-2">
-                                  <span className="text-indigo-400 font-bold uppercase tracking-wider">Đáp án đúng:</span>
-                                  <span className="text-indigo-300 font-bold underline underline-offset-4">{item.correctAns}</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                    <div className="grid grid-cols-2 gap-4 w-full mb-8">
+                      <button 
+                        onClick={startQuiz} 
+                        className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl transition-all shadow-lg shadow-indigo-900/40 active:scale-95 flex items-center justify-center gap-2"
+                      >
+                        <RotateCcw className="w-4 h-4" /> THỬ LẠI
+                      </button>
+                      <button 
+                        onClick={() => setQuizStarted(false)} 
+                        className="flex-1 py-4 bg-gray-800 hover:bg-gray-700 text-white font-black rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2"
+                      >
+                        <CheckCircle className="w-4 h-4" /> HOÀN TẤT
+                      </button>
                     </div>
                   </div>
 
-                  <div className="pt-4">
-                    <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] px-2 mb-6">Cập nhật tiến trình của bạn</h4>
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between px-2">
+                      <h3 className="text-sm font-black text-gray-500 uppercase tracking-[0.3em] flex items-center gap-2">
+                        <FileEdit className="w-4 h-4 text-indigo-400" /> CHI TIẾT KẾT QUẢ
+                      </h3>
+                    </div>
+                    
+                    <div className="bg-[#1a1a1a] border border-gray-800 rounded-3xl overflow-hidden shadow-2xl">
+                      <div className="divide-y divide-gray-800/50 max-h-[500px] overflow-y-auto custom-scrollbar">
+                        {quizDetails.map((item, idx) => (
+                          <div key={idx} className="p-6 flex gap-6 hover:bg-white/[0.02] transition-colors">
+                            <div className={`mt-1 shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${item.isCorrect ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
+                              {item.isCorrect ? <CheckCircle className="w-5 h-5" /> : <X className="w-5 h-5" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold text-gray-200 mb-3 leading-relaxed">{item.question}</p>
+                              <div className="flex flex-wrap items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[9px] font-black text-gray-600 uppercase tracking-wider">Của bạn:</span>
+                                  <span className={`text-xs font-bold ${item.isCorrect ? 'text-green-500' : 'text-red-500 line-through'}`}>{item.userAns || '(Trống)'}</span>
+                                </div>
+                                {!item.isCorrect && (
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[9px] font-black text-indigo-400 uppercase tracking-wider">Đúng nhất:</span>
+                                    <span className="text-xs font-black text-indigo-400 underline decoration-indigo-500/30 underline-offset-4">{item.correctAns}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-12">
+                    <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] px-2 mb-6 text-center">Tiến trình học tập đã được cập nhật</h4>
                     <HistoryDashboard history={currentSetHistory} />
                   </div>
                 </div>
               ) : (
-                <div className="w-full max-w-2xl bg-[#1a1a1a] border border-gray-800 rounded-3xl overflow-hidden shadow-2xl">
-                  <div className="h-1 bg-gray-800 w-full relative">
-                    <motion.div initial={{ width: 0 }} animate={{ width: `${(quizIndex / quizQuestions.length) * 100}%` }} className="h-full bg-indigo-500" />
-                  </div>
-                  <div className="p-8">
-                    <div className="flex items-center justify-between mb-8">
-                      <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Câu {quizIndex + 1} / {quizQuestions.length}</span>
+                <div className="w-full max-w-2xl flex flex-col h-full relative">
+                  {/* Header & Progress */}
+                  <div className="mb-10 px-2 flex flex-col gap-4 shrink-0">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-indigo-600/20 rounded-lg flex items-center justify-center">
+                          <HelpCircle className="w-4 h-4 text-indigo-400" />
+                        </div>
+                        <span className="text-sm font-black text-white uppercase tracking-widest">
+                          Câu {quizIndex + 1} <span className="text-gray-500">/ {quizQuestions.length}</span>
+                        </span>
+                      </div>
+                      <div className="text-[10px] font-black text-indigo-500/80 bg-indigo-500/5 px-3 py-1 rounded-full border border-indigo-500/10">
+                        {Math.round((quizIndex / quizQuestions.length) * 100)}% HOÀN THÀNH
+                      </div>
                     </div>
-                    <h3 className="text-xl font-bold text-white mb-8 leading-relaxed">{quizQuestions[quizIndex].question}</h3>
-                    {quizQuestions[quizIndex].type === 'choice' && (
-                      <div className="grid grid-cols-1 gap-3">
-                        {quizQuestions[quizIndex].options.map((opt, i) => (
-                          <button key={i} onClick={() => handleQuizAnswer(opt)} className="p-4 text-left border border-gray-800 rounded-2xl text-sm font-medium hover:border-indigo-500 transition-all bg-[#121212]">{opt}</button>
-                        ))}
-                      </div>
-                    )}
-                    {quizQuestions[quizIndex].type === 'tf' && (
-                      <div className="grid grid-cols-2 gap-4">
-                        <button onClick={() => handleQuizAnswer('true')} className="p-6 bg-green-600/10 border border-green-500/20 rounded-2xl text-green-500 font-black">ĐÚNG</button>
-                        <button onClick={() => handleQuizAnswer('false')} className="p-6 bg-red-600/10 border border-red-500/20 rounded-2xl text-red-500 font-black">SAI</button>
-                      </div>
-                    )}
-                    {(quizQuestions[quizIndex].type === 'written' || quizQuestions[quizIndex].type === 'fill') && (
-                      <div className="space-y-4">
-                        <input 
-                          autoFocus 
-                          placeholder="Trả lời..." 
-                          value={userAnswer} 
-                          onChange={e => setUserAnswer(e.target.value)} 
-                          onKeyDown={e => e.key === 'Enter' && handleQuizAnswer(userAnswer)} 
-                          disabled={isChecking || quizFeedback}
-                          className={`w-full bg-[#121212] border rounded-2xl p-5 text-lg font-bold outline-none transition-all ${
-                            quizFeedback ? (quizFeedback.correct ? 'border-green-500 bg-green-500/5' : 'border-red-500 bg-red-500/5') : 'border-gray-800 focus:border-indigo-500'
-                          }`} 
-                        />
-                        <button 
-                          onClick={() => handleQuizAnswer(userAnswer)} 
-                          disabled={isChecking || quizFeedback}
-                          className={`w-full py-4 font-black rounded-2xl transition-all flex items-center justify-center gap-3 ${
-                            quizFeedback 
-                              ? (quizFeedback.correct ? 'bg-green-600' : 'bg-red-600') 
-                              : 'bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98]'
-                          } text-white`}
-                        >
-                          {isChecking ? (
-                            <><Loader2 className="w-5 h-5 animate-spin" /> ĐANG KIỂM TRA...</>
-                          ) : quizFeedback ? (
-                            quizFeedback.correct ? 'CHÍNH XÁC!' : 'CHƯA ĐÚNG!'
-                          ) : (
-                            'KIỂM TRA KẾT QUẢ'
+                    <div className="h-2 bg-gray-800 rounded-full overflow-hidden w-full relative">
+                      <motion.div 
+                        initial={{ width: 0 }} 
+                        animate={{ width: `${(quizIndex / quizQuestions.length) * 100}%` }} 
+                        className="h-full bg-gradient-to-r from-indigo-600 to-violet-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]" 
+                      />
+                    </div>
+                  </div>
+
+                  {/* Question Container */}
+                  <div className="flex-1 relative min-h-[400px]">
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={quizIndex}
+                        initial={{ opacity: 0, x: 20, scale: 0.95 }}
+                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                        exit={{ opacity: 0, x: -20, scale: 0.95 }}
+                        transition={{ duration: 0.4, ease: "easeOut" }}
+                        className="w-full bg-[#1a1a1a] border border-gray-800 rounded-[2.5rem] p-8 md:p-10 shadow-2xl relative overflow-hidden flex flex-col"
+                      >
+                        {/* Decorative Background Icon */}
+                        <div className="absolute -top-10 -right-10 opacity-[0.03] rotate-12">
+                          <Book className="w-40 h-40" />
+                        </div>
+
+                        <div className="relative z-10 flex-1 flex flex-col">
+                          <h3 className="text-xl md:text-2xl font-bold text-white mb-10 leading-relaxed">
+                            {quizQuestions[quizIndex].question}
+                          </h3>
+
+                          {/* Multiple Choice */}
+                          {quizQuestions[quizIndex].type === 'choice' && (
+                            <div className="grid grid-cols-1 gap-4">
+                              {quizQuestions[quizIndex].options.map((opt, i) => {
+                                const isSelected = quizFeedback?.selected === opt;
+                                const isCorrect = opt === quizQuestions[quizIndex].answer;
+                                const showResult = quizFeedback !== null;
+                                
+                                return (
+                                  <motion.button 
+                                    key={i} 
+                                    whileHover={!showResult ? { x: 4, backgroundColor: 'rgba(255, 255, 255, 0.05)' } : {}}
+                                    whileTap={!showResult ? { scale: 0.98 } : {}}
+                                    onClick={() => handleQuizAnswer(opt)} 
+                                    className={`group relative p-5 text-left border rounded-2xl text-sm font-medium transition-all flex items-center justify-between ${
+                                      showResult
+                                        ? isCorrect
+                                          ? 'border-green-500 bg-green-500/10 text-green-400'
+                                          : isSelected
+                                            ? 'border-red-500 bg-red-500/10 text-red-400'
+                                            : 'border-gray-800 opacity-40'
+                                        : 'border-gray-800 bg-[#121212] hover:border-indigo-500/50'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-4">
+                                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs border transition-colors ${
+                                        showResult 
+                                          ? isCorrect ? 'bg-green-500 border-green-500 text-white' : isSelected ? 'bg-red-500 border-red-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-500'
+                                          : 'bg-gray-800 border-gray-700 text-gray-400 group-hover:border-indigo-500 group-hover:text-indigo-400'
+                                      }`}>
+                                        {i + 1}
+                                      </div>
+                                      <span className="flex-1">{opt}</span>
+                                    </div>
+                                    
+                                    {showResult && isCorrect && <CheckCircle className="w-5 h-5 text-green-500 animate-in zoom-in duration-300" />}
+                                    {showResult && isSelected && !isCorrect && <X className="w-5 h-5 text-red-500 animate-in zoom-in duration-300" />}
+                                  </motion.button>
+                                );
+                              })}
+                            </div>
                           )}
-                        </button>
-                      </div>
-                    )}
+
+                          {/* True/False */}
+                          {quizQuestions[quizIndex].type === 'tf' && (
+                            <div className="grid grid-cols-2 gap-6 mt-4">
+                              {['true', 'false'].map((val) => {
+                                const isSelected = quizFeedback?.selected === val;
+                                const isCorrect = val === quizQuestions[quizIndex].answer;
+                                const showResult = quizFeedback !== null;
+                                const label = val === 'true' ? 'ĐÚNG' : 'SAI';
+                                const colorClass = val === 'true' ? 'green' : 'red';
+                                
+                                return (
+                                  <motion.button 
+                                    key={val}
+                                    whileHover={!showResult ? { scale: 1.02 } : {}}
+                                    whileTap={!showResult ? { scale: 0.98 } : {}}
+                                    onClick={() => handleQuizAnswer(val)} 
+                                    className={`h-32 flex flex-col items-center justify-center gap-3 border-2 rounded-3xl font-black transition-all ${
+                                      showResult
+                                        ? isCorrect
+                                          ? 'border-green-500 bg-green-500/10 text-green-400'
+                                          : isSelected
+                                            ? 'border-red-500 bg-red-500/10 text-red-400'
+                                            : 'border-gray-800 opacity-40'
+                                        : `border-gray-800 bg-[#121212] hover:border-${colorClass}-500/50 hover:text-${colorClass}-400`
+                                    }`}
+                                  >
+                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center bg-${colorClass}-500/10 text-${colorClass}-500`}>
+                                      {val === 'true' ? <CheckCircle2 className="w-7 h-7" /> : <X className="w-7 h-7" />}
+                                    </div>
+                                    {label}
+                                    <div className="text-[10px] font-black opacity-30 tracking-widest">{val === 'true' ? 'Phím 1' : 'Phím 2'}</div>
+                                  </motion.button>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {/* Written / Fill */}
+                          {(quizQuestions[quizIndex].type === 'written' || quizQuestions[quizIndex].type === 'fill') && (
+                            <div className="space-y-6">
+                              <div className="relative">
+                                <input 
+                                  autoFocus 
+                                  placeholder="Nhập câu trả lời của bạn..." 
+                                  value={userAnswer} 
+                                  onChange={e => setUserAnswer(e.target.value)} 
+                                  onKeyDown={e => e.key === 'Enter' && handleQuizAnswer(userAnswer)} 
+                                  disabled={isChecking || quizFeedback}
+                                  className={`w-full bg-[#121212] border-2 rounded-2xl p-6 text-xl font-bold outline-none transition-all ${
+                                    quizFeedback 
+                                      ? (quizFeedback.correct ? 'border-green-500 bg-green-500/5 text-green-400' : 'border-red-500 bg-red-500/5 text-red-400') 
+                                      : 'border-gray-800 focus:border-indigo-500 shadow-inner shadow-black/40'
+                                  }`} 
+                                />
+                                {quizFeedback && (
+                                  <div className="absolute right-6 top-1/2 -translate-y-1/2">
+                                    {quizFeedback.correct ? (
+                                      <CheckCircle className="w-8 h-8 text-green-500 animate-bounce" />
+                                    ) : (
+                                      <X className="w-8 h-8 text-red-500 animate-shake" />
+                                    )}
+                                  </div>
+                                ) }
+                              </div>
+
+                              <button 
+                                onClick={() => handleQuizAnswer(userAnswer)} 
+                                disabled={isChecking || quizFeedback}
+                                className={`w-full py-5 font-black rounded-2xl transition-all flex items-center justify-center gap-3 text-lg shadow-xl active:scale-95 ${
+                                  quizFeedback 
+                                    ? (quizFeedback.correct ? 'bg-green-600 shadow-green-900/40' : 'bg-red-600 shadow-red-900/40') 
+                                    : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-900/40'
+                                } text-white`}
+                              >
+                                {isChecking ? (
+                                  <><Loader2 className="w-6 h-6 animate-spin" /> Đang kiểm tra...</>
+                                ) : quizFeedback ? (
+                                  quizFeedback.correct ? 'CHÍNH XÁC!' : 'SAI MẤT RỒI!'
+                                ) : (
+                                  'KIỂM TRA'
+                                )}
+                              </button>
+                              
+                              {!quizFeedback && (
+                                <p className="text-center text-[10px] text-gray-600 font-bold uppercase tracking-widest">
+                                  Nhấn Enter để gửi câu trả lời
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Visual Feedback Overlays */}
+                        <AnimatePresence>
+                          {quizFeedback && (
+                            <motion.div 
+                              initial={{ opacity: 0, scale: 0.5 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 1.5 }}
+                              className="absolute inset-0 z-50 flex flex-col items-center justify-center pointer-events-none bg-black/20 backdrop-blur-[2px]"
+                            >
+                              <div className={`w-32 h-32 rounded-full flex items-center justify-center shadow-2xl ${quizFeedback.correct ? 'bg-green-500 shadow-green-500/50' : 'bg-red-500 shadow-red-500/50'}`}>
+                                {quizFeedback.correct ? <CheckCircle className="w-16 h-16 text-white" /> : <X className="w-16 h-16 text-white" />}
+                              </div>
+                              {!quizFeedback.correct && (
+                                <motion.div 
+                                  initial={{ y: 20, opacity: 0 }}
+                                  animate={{ y: 0, opacity: 1 }}
+                                  className="mt-6 bg-white/10 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/10"
+                                >
+                                  <p className="text-white text-sm font-bold">Đáp án đúng: <span className="text-green-400">{quizQuestions[quizIndex].answer}</span></p>
+                                </motion.div>
+                              )}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </motion.div>
+                    </AnimatePresence>
                   </div>
                 </div>
               )}
@@ -607,6 +869,30 @@ export default function FlashcardSet() {
         .backface-hidden { backface-visibility: hidden; }
         .rotate-y-180 { transform: rotateY(180deg); }
         .no-scrollbar::-webkit-scrollbar { display: none; }
+        
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-5px); }
+          50% { transform: translateX(5px); }
+          75% { transform: translateX(-5px); }
+        }
+        .animate-shake {
+          animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #333;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #444;
+        }
       `}} />
     </div>
   );

@@ -9,6 +9,7 @@ import {
 import { subjectDatabase, calculateHe10, getHe4, electiveLimits } from '../data';
 import { useApp } from '../context/AppContext';
 import { getApiKey } from '../services/aiService';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 const BLOOD_TYPES = ['A+','A−','B+','B−','AB+','AB−','O+','O−'];
@@ -234,7 +235,12 @@ const Field = ({ label, value, onChange, type='text', options, disabled, require
 const Section = ({ icon:Icon, title, children, defaultOpen=true, badge }) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl overflow-hidden mb-4">
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl overflow-hidden mb-4"
+    >
       <button onClick={()=>setOpen(v=>!v)}
         className="w-full flex items-center gap-3 px-5 py-3.5 bg-[#1e1e1e] hover:bg-[#222] transition-colors text-left">
         <Icon className="w-4 h-4 text-gray-500 shrink-0"/>
@@ -242,8 +248,19 @@ const Section = ({ icon:Icon, title, children, defaultOpen=true, badge }) => {
         {badge && <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/20">{badge}</span>}
         {open ? <ChevronUp className="w-4 h-4 text-gray-600"/> : <ChevronDown className="w-4 h-4 text-gray-600"/>}
       </button>
-      {open && <div className="p-5 border-t border-gray-800/60">{children}</div>}
-    </div>
+      <AnimatePresence>
+        {open && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="border-t border-gray-800/60 overflow-hidden"
+          >
+            <div className="p-5">{children}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 };
 
@@ -261,7 +278,11 @@ function ProfileCompletionBanner({ profile, isEditing, onStartEdit }) {
   const pct = Math.round((filled / total) * 100);
 
   return (
-    <div className="mb-5 bg-[#1a1a1a] border border-amber-500/20 rounded-2xl p-4">
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="mb-5 bg-[#1a1a1a] border border-amber-500/20 rounded-2xl p-4"
+    >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0"/>
@@ -270,8 +291,12 @@ function ProfileCompletionBanner({ profile, isEditing, onStartEdit }) {
         <span className="text-sm font-black text-amber-400">{filled}/{total}</span>
       </div>
       <div className="h-1.5 bg-gray-800 rounded-full mb-3 overflow-hidden">
-        <div className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full transition-all duration-500"
-          style={{width:`${pct}%`}}/>
+        <motion.div 
+          initial={{ width: 0 }}
+          animate={{ width: `${pct}%` }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full"
+        />
       </div>
       <div className="flex flex-wrap gap-1.5">
         {missing.map(f => (
@@ -287,7 +312,7 @@ function ProfileCompletionBanner({ profile, isEditing, onStartEdit }) {
           Điền ngay →
         </button>
       )}
-    </div>
+    </motion.div>
   );
 }
 
@@ -872,10 +897,15 @@ function MemberDetail({ member, onBack, canEdit }) {
 }
 
 // ── MemberCard ─────────────────────────────────────────────────────────────
-function MemberCard({ member, onClick }) {
+function MemberCard({ member, onClick, index }) {
   const rl = roleLabel(member.role);
   return (
-    <button onClick={onClick}
+    <motion.button 
+      layout
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: index * 0.03 }}
+      onClick={onClick}
       className="w-full flex items-center gap-3 p-3.5 bg-[#1a1a1a] border border-gray-800/60 rounded-2xl hover:bg-[#1e1e1e] hover:border-blue-500/30 transition-all text-left group">
       {member.avatarUrl
         ? <img src={member.avatarUrl} alt="" className="w-10 h-10 rounded-xl object-cover border border-gray-700 shrink-0"/>
@@ -889,7 +919,7 @@ function MemberCard({ member, onClick }) {
       </div>
       <span className={`text-[10px] font-bold px-2 py-1 rounded-lg shrink-0 ${rl.cls}`}>{rl.text}</span>
       <Eye className="w-4 h-4 text-gray-700 group-hover:text-blue-400 shrink-0 transition-colors"/>
-    </button>
+    </motion.button>
   );
 }
 
@@ -1012,9 +1042,11 @@ function MembersTab() {
           {filtered.length === 0 && (
             <div className="md:col-span-2 text-center py-8 text-gray-600 text-sm">Không tìm thấy thành viên nào.</div>
           )}
-          {filtered.map(m => (
-            <MemberCard key={m.id} member={m} onClick={()=>setSelectedMember(m)}/>
-          ))}
+          <AnimatePresence>
+            {filtered.map((m, i) => (
+              <MemberCard key={m.id} member={m} onClick={()=>setSelectedMember(m)} index={i}/>
+            ))}
+          </AnimatePresence>
         </div>
       </div>
     </div>
@@ -1126,29 +1158,39 @@ export default function Profile() {
       </div>
 
       <div className="p-6">
-        {activeTab === 'profile' && (
-          <ProfileForm
-            profile={profileState}
-            setProfile={setProfileState}
-            isEditing={isEditing}
-            isSuperAdmin={isSuperAdmin}
-            isOwnProfile={true}
-            onStartEdit={()=>setIsEditing(true)}
-          />
-        )}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            {activeTab === 'profile' && (
+              <ProfileForm
+                profile={profileState}
+                setProfile={setProfileState}
+                isEditing={isEditing}
+                isSuperAdmin={isSuperAdmin}
+                isOwnProfile={true}
+                onStartEdit={()=>setIsEditing(true)}
+              />
+            )}
 
-        {activeTab === 'grades' && (
-          <GradesTable
-            profile={currentUser}
-            grades={myGrades}
-            onSave={handleSaveGrades}
-            canEdit={true}
-          />
-        )}
+            {activeTab === 'grades' && (
+              <GradesTable
+                profile={currentUser}
+                grades={myGrades}
+                onSave={handleSaveGrades}
+                canEdit={true}
+              />
+            )}
 
-        {activeTab === 'members' && (isCore||isSuperAdmin) && (
-          <MembersTab/>
-        )}
+            {activeTab === 'members' && (isCore||isSuperAdmin) && (
+              <MembersTab/>
+            )}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   );
