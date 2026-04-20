@@ -684,6 +684,7 @@ function GradesTable({ profile, grades, onSave, canEdit }) {
 // ── System Settings Tab (Super Admin Only) ──────────────────────────────────
 function SystemSettings() {
   const { config, updateConfig } = useApp();
+  const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState({
     gemini_api_key: config?.gemini_api_key || '',
     maintenance_mode: config?.maintenance_mode || false,
@@ -698,8 +699,10 @@ function SystemSettings() {
     });
   }, [config]);
 
-  const handleSave = () => {
-    updateConfig(form);
+  const handleSave = async () => {
+    setIsSaving(true);
+    await updateConfig(form);
+    setIsSaving(false);
   };
 
   return (
@@ -772,12 +775,28 @@ function SystemSettings() {
              </div>
           </div>
 
-          <button 
-            onClick={handleSave}
-            className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 mt-4"
-          >
-            <Save className="w-4 h-4" /> LƯU CẤU HÌNH HỆ THỐNG
-          </button>
+          <div className="pt-2">
+            <button 
+              onClick={handleSave}
+              disabled={isSaving}
+              className="w-full py-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-black rounded-2xl transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2"
+            >
+              {isSaving ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ĐANG LƯU...
+                </div>
+              ) : (
+                <><Save className="w-4 h-4" /> LƯU CẤU HÌNH HỆ THỐNG</>
+              )}
+            </button>
+            
+            {config?.updatedAt && (
+              <p className="text-center text-[9px] text-gray-600 mt-3 uppercase tracking-widest">
+                Cập nhật lần cuối: {new Date(config.updatedAt).toLocaleString('vi-VN')} bởi {config.updatedBy || 'Admin'}
+              </p>
+            )}
+          </div>
         </div>
       </motion.div>
     </div>

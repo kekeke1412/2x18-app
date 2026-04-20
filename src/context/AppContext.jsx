@@ -819,14 +819,21 @@ export function AppProvider({ children }) {
 
   const updateConfig = useCallback(async (newConfig) => {
     try {
-      const merged = { ...state.config, ...newConfig };
+      const merged = { 
+        ...state.config, 
+        ...newConfig, 
+        updatedAt: new Date().toISOString(),
+        updatedBy: state.currentUser?.fullName || 'Admin'
+      };
       await set(ref(db, '2x18_config'), merged);
       toast('Đã cập nhật cấu hình hệ thống!', 'success');
+      return true;
     } catch (e) {
       console.error('[updateConfig]', e);
       toast('Lỗi khi cập nhật cấu hình.', 'error');
+      return false;
     }
-  }, [state.config, toast]);
+  }, [state.config, state.currentUser, toast]);
 
   const rejectUser = useCallback(async (memberId) => {
     try {

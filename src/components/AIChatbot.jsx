@@ -5,7 +5,7 @@ import { chatWithAI, getApiKey } from '../services/aiService';
 import { useApp } from '../context/AppContext';
 
 export default function AIChatbot() {
-  const { currentUser, myGrades, myTasks, calEvents, attendance, contributions, vocab, userVocab } = useApp();
+  const { currentUser, myGrades, myTasks, calEvents, attendance, contributions, vocab, userVocab, docs } = useApp();
 
   const firstName = currentUser?.fullName?.split(' ').filter(Boolean).slice(-1)[0] || 'bạn';
 
@@ -74,7 +74,9 @@ export default function AIChatbot() {
         vocabStats: {
           totalSets: Object.keys(vocab || {}).length,
           learnedWords: Object.values(userVocab[currentUser?.id] || {}).flat().length
-        }
+        },
+        detailedGrades: myGrades,
+        allDocuments:   docs
       };
 
       // Pass previous conversation as history for multi-turn awareness
@@ -112,7 +114,7 @@ export default function AIChatbot() {
   if (!isOpen) return (
     <button
       onClick={() => setIsOpen(true)}
-      className="fixed bottom-6 right-20 z-50 w-12 h-12 bg-blue-600 rounded-2xl shadow-2xl flex items-center justify-center text-white hover:scale-110 transition-all group"
+      className="fixed bottom-8 right-6 md:right-20 z-50 w-14 h-14 bg-blue-600 rounded-2xl shadow-[0_10px_40px_-10px_rgba(37,99,235,0.5)] flex items-center justify-center text-white hover:scale-110 transition-all group active:scale-95"
       title="Mở 2X18 Bot"
     >
       <MessageCircle className="w-6 h-6 group-hover:rotate-12 transition-transform"/>
@@ -123,8 +125,8 @@ export default function AIChatbot() {
   );
 
   return (
-    <div className={`fixed bottom-6 right-20 z-50 w-80 bg-[#1a1a1a] border border-gray-800 rounded-2xl shadow-2xl flex flex-col transition-all duration-300 overflow-hidden ${
-      isMinimized ? 'h-14' : 'h-[480px]'
+    <div className={`fixed bottom-8 right-6 md:right-20 z-50 w-[calc(100vw-48px)] max-w-[320px] bg-[#1a1a1a]/95 border border-gray-800/50 rounded-3xl shadow-[0_20px_50px_-20px_rgba(0,0,0,0.7)] flex flex-col transition-all duration-500 backdrop-blur-xl overflow-hidden ${
+      isMinimized ? 'h-16' : 'h-[520px] max-h-[80vh]'
     }`}>
 
       {/* ── Header ── */}
