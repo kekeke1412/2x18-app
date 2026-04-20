@@ -32,15 +32,15 @@ function timeAgo(iso) {
 }
 
 function NotifPermissionBanner() {
-  const perm = ('Notification' in window) ? Notification.permission : 'unsupported';
-  const [granted, setGranted] = React.useState(perm === 'granted');
-
-  const request = async () => {
-    if (!('Notification' in window)) return;
-    const r = await Notification.requestPermission();
-    setGranted(r === 'granted');
-    if (r === 'granted') {
-      new Notification('2X18 — Đã bật thông báo!', {
+    const perm = ('Notification' in window) ? window.Notification.permission : 'unsupported';
+    const [granted, setGranted] = useState(perm === 'granted');
+  
+    const request = async () => {
+      if (!('Notification' in window)) return;
+      const r = await window.Notification.requestPermission();
+      setGranted(r === 'granted');
+      if (r === 'granted') {
+        new window.Notification('2X18 — Đã bật thông báo!', {
         body: 'Bạn sẽ nhận thông báo khi có hoạt động mới.',
         icon: '/icon-192.png',
       });
@@ -81,7 +81,7 @@ function NotifPermissionBanner() {
 export default function Notifications() {
   const { notifications, markNotif, markAllRead, unreadCount } = useApp();
   const navigate = useNavigate();
-  const [filter, setFilter] = React.useState('all');
+  const [filter, setFilter] = useState('all');
 
   const handleClick = (n) => {
     markNotif(n.id);
@@ -93,51 +93,50 @@ export default function Notifications() {
     ['task','Task'], ['vote','Bình chọn'],
     ['calendar','Lịch họp'], ['sme','Tài liệu'], ['member','Thành viên'],
   ];
-
   const filtered = filter === 'all' ? notifications
     : filter === 'unread' ? notifications.filter(n => !n.read)
     : notifications.filter(n => n.type === filter);
 
   return (
-    <div className="h-full bg-[#121212] text-gray-200 flex flex-col overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-800/60 bg-[#141414] shrink-0">
-        <div className="flex items-center justify-between">
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.4 }}
+      className="h-full bg-[#121212] text-gray-200 flex flex-col overflow-hidden"
+    >
+      <div className="px-6 py-5 border-b border-gray-800/60 bg-[#1a1a1a] shrink-0">
+        <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-black text-white flex items-center gap-2">
-              <Bell className="w-5 h-5 text-blue-400"/> Thông báo
-              {unreadCount > 0 && (
-                <span className="text-xs font-bold bg-red-500 text-white px-2 py-0.5 rounded-full">{unreadCount}</span>
-              )}
+            <h1 className="text-2xl font-black text-white flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-600/20 rounded-xl flex items-center justify-center">
+                <Bell className="w-6 h-6 text-blue-400" />
+              </div>
+              Thông báo hệ thống
             </h1>
-            <p className="text-xs text-gray-500 mt-0.5">{notifications.length} thông báo · {unreadCount} chưa đọc</p>
-          </div>
-          {unreadCount > 0 && (
-            <button onClick={markAllRead}
-              className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 border border-blue-500/20 px-3 py-1.5 rounded-xl hover:bg-blue-500/10 transition-all font-bold">
-              <CheckCheck className="w-3.5 h-3.5"/> Đánh dấu tất cả đã đọc
-            </button>
-          )}
-        </div>
-        <div className="flex gap-1 mt-3 overflow-x-auto custom-scrollbar pb-1">
-          {typeFilters.map(([key, label]) => {
-            const count = key === 'all' ? notifications.length
-              : key === 'unread' ? notifications.filter(n => !n.read).length
-              : notifications.filter(n => n.type === key).length;
-            if (key !== 'all' && key !== 'unread' && count === 0) return null;
-            return (
-              <button key={key} onClick={() => setFilter(key)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold whitespace-nowrap transition-all ${
-                  filter === key ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-[#222]'
-                }`}>
-                {label}
-                {count > 0 && (
-                  <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${filter === key ? 'bg-white/20' : 'bg-gray-800'}`}>{count}</span>
-                )}
+            </div>
+            {unreadCount > 0 && (
+              <button 
+                onClick={markAllRead}
+                className="flex items-center gap-2 px-3 py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 rounded-lg text-xs font-bold transition-all btn-active border border-blue-500/20"
+              >
+                <CheckCheck className="w-3.5 h-3.5" />
+                Đánh dấu tất cả đã đọc
               </button>
-            );
-          })}
+            )}
+          </div>
+
+          <div className="flex bg-[#252525] p-1 rounded-xl mt-4 overflow-x-auto custom-scrollbar">
+            {typeFilters.map(([v, l]) => (
+              <button key={v} onClick={() => setFilter(v)}
+                className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                  filter === v ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-300'
+                }`}>
+                {l}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
 
       <NotifPermissionBanner/>
 
@@ -205,6 +204,6 @@ export default function Notifications() {
           )}
         </AnimatePresence>
       </div>
-    </div>
+    </motion.div>
   );
 }

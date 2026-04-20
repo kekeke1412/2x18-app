@@ -39,7 +39,13 @@ export default function Vocab() {
   };
 
   return (
-    <div className="h-full bg-[#121212] text-gray-200 flex flex-col overflow-hidden">
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.4 }}
+      className="h-full bg-[#121212] text-gray-200 flex flex-col overflow-hidden"
+    >
       {/* Header */}
       <div className="px-6 py-6 border-b border-gray-800/60 bg-[#1a1a1a] shrink-0">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -161,7 +167,7 @@ export default function Vocab() {
           </div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }
 

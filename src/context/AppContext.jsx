@@ -6,6 +6,7 @@ import {
   signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword,
   GoogleAuthProvider, signInWithPopup, onAuthStateChanged,
 } from 'firebase/auth';
+import { setApiKey } from '../services/aiService';
 
 export const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
 
@@ -52,6 +53,7 @@ const A = {
   DELETE_VOCAB_SET:'DELETE_VOCAB_SET',
   MARK_WORD_LEARNED:'MARK_WORD_LEARNED',
   ADD_QUIZ_RESULT:'ADD_QUIZ_RESULT',
+  ADD_VOCAB_SET:'ADD_VOCAB_SET', EDIT_VOCAB_SET:'EDIT_VOCAB_SET',
 };
 
 const init = {
@@ -60,7 +62,7 @@ const init = {
   calEvents:[], roadmap:[], votes:[], notifications:[],
   attendance:[], docs:{}, contributions:{},
   auditLogs:[], toasts:[], unreadCount:0, semesterLabels:{},
-  vocab:{}, userVocab:{}, quizHistory:{},
+  vocab:{}, userVocab:{}, quizHistory:{}, config: {}, trash: [],
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -401,7 +403,7 @@ export function AppProvider({ children }) {
       dispatch({ type:A.SET_LOADING, payload:true });
 
       const loadedNodes = new Set();
-      const nodesToLoad = 18; // Updated to include vocab, userVocab, and quizHistory
+      const nodesToLoad = 19; // Updated to include config
 
       const checkLoaded = (nodeKey) => {
         loadedNodes.add(nodeKey);
@@ -468,6 +470,7 @@ export function AppProvider({ children }) {
       listen('2x18_vocab', 'vocab', v => v || {});
       listen('2x18_user_vocab', 'userVocab', v => v || {});
       listen('2x18_quiz_history', 'quizHistory', v => v || {});
+      listen('2x18_config', 'config', v => v || {});
 
       // 3. Isolated Reports Listener
       const unsubReports = onValue(ref(db, '2x18_reports'), (snap) => {
@@ -493,7 +496,7 @@ export function AppProvider({ children }) {
           calEvents:[], roadmap:[], votes:[],
           notifications:[], attendance:[], contributions:{},
           docs:{}, auditLogs:[], subjectTasks:{}, subjectComments:{},
-          semesterLabels:{}, trash:[], reports:[],
+          semesterLabels:{}, trash: [], config: {}, toasts: [],
         }});
       }
     });
@@ -504,6 +507,13 @@ export function AppProvider({ children }) {
       unsubAuth(); 
     };
   }, []);
+
+  // ── Sync AI Key from Config ───────────────────────────────────────────────
+  useEffect(() => {
+    if (state.config?.gemini_api_key) {
+      setApiKey(state.config.gemini_api_key);
+    }
+  }, [state.config?.gemini_api_key]);
 
 
   // ── Sync currentUser from members ─────────────────────────────────────────
@@ -564,6 +574,7 @@ export function AppProvider({ children }) {
     fbSet('2x18_trash',            state.trash);
     fbSet('2x18_vocab',            state.vocab);
     fbSet('2x18_user_vocab',       state.userVocab);
+    fbSet('2x18_config',           state.config);
     // fbSet('2x18_quiz_history',     state.quizHistory); // Removed from global sync for reliability
     Object.entries(state.grades).forEach(([uid, g]) => {
       if (uid && g) fbSet(`${uid}_grades`, g);
@@ -573,7 +584,7 @@ export function AppProvider({ children }) {
     state.votes, state.notifications, state.contributions,
     state.docs, state.auditLogs, state.subjectTasks, state.subjectComments,
     state.semesterLabels, state.grades, state.attendance, state.trash,
-    state.vocab, state.userVocab, state.quizHistory, state.isLoading
+    state.vocab, state.userVocab, state.quizHistory, state.isLoading, state.config
   ]);
 
   // ── Toast auto-dismiss ────────────────────────────────────────────────────
@@ -801,6 +812,17 @@ export function AppProvider({ children }) {
     }
   }, [toast]);
 
+  const updateConfig = useCallback(async (newConfig) => {
+    try {
+      const merged = { ...state.config, ...newConfig };
+      await set(ref(db, '2x18_config'), merged);
+      toast('Đã cập nhật cấu hình hệ thống!', 'success');
+    } catch (e) {
+      console.error('[updateConfig]', e);
+      toast('Lỗi khi cập nhật cấu hình.', 'error');
+    }
+  }, [state.config, toast]);
+
   const rejectUser = useCallback(async (memberId) => {
     try {
       // FIX: Xóa thẳng nhánh của người đó
@@ -837,8 +859,14 @@ export function AppProvider({ children }) {
   }, [toast]);
   const updateGrade   = useCallback((userId, subjectId, field, value) =>
     dispatch({ type:A.UPDATE_GRADE,   payload:{ userId, subjectId, field, value } }), []);
-  const updateProgress = useCallback((userId, subjectId, value) =>
-    dispatch({ type:A.UPDATE_PROGRESS, payload:{ userId, subjectId, value } }), []);
+  const updateProgress = useCallback((userId, subjectId, value) => {
+    const prevValue = state.grades[userId]?.[subjectId]?.myProgress || 0;
+    dispatch({ type:A.UPDATE_PROGRESS, payload:{ userId, subjectId, value } });
+    if (value === 100 && prevValue < 100) {
+      dispatch({type:A.ADD_CONTRIBUTION, payload:{userId, points:3000}});
+      toast('Chúc mừng! Tiến độ môn học đạt 100%. +3000 điểm 🎓', 'success');
+    }
+  }, [state.grades, toast]);
 
   const addTask    = useCallback(t  => {
     dispatch({type:A.ADD_TASK,payload:{...t,id:uid(),done:false}});
@@ -848,7 +876,16 @@ export function AppProvider({ children }) {
   }, [addAudit, pushNotif, toast]);
   const editTask   = useCallback(t  => dispatch({type:A.EDIT_TASK,  payload:t}), []);
   const deleteTask = useCallback(id => { dispatch({ type:A.DELETE_TASK, payload:{ id, ...trashMeta() } }); toast('Đã chuyển vào thùng rác.', 'info'); }, [trashMeta, toast]);
-  const toggleTask = useCallback(id => dispatch({type:A.TOGGLE_TASK,payload:id}), []);
+  const toggleTask = useCallback(id => {
+    const task = state.tasks.find(t => t.id === id);
+    if (!task) return;
+    const nextDone = !task.done;
+    dispatch({type:A.TOGGLE_TASK,payload:id});
+    if (nextDone) {
+      dispatch({type:A.ADD_CONTRIBUTION, payload:{userId:state.currentUser?.id, points:1500}});
+      toast('Hoàn thành task! +1500 điểm 🎉', 'success');
+    }
+  }, [state.tasks, state.currentUser?.id, toast]);
 
   const addSubjectTask    = useCallback((sid,t) => { dispatch({type:A.ADD_SUBJECT_TASK,payload:{subjectId:sid,task:{...t,id:uid(),doneBy:{}}}}); toast('Thêm mục!','success'); }, [toast]);
   const editSubjectTask   = useCallback((sid,t) => dispatch({type:A.EDIT_SUBJECT_TASK,payload:{subjectId:sid,task:t}}), []);
@@ -881,7 +918,12 @@ export function AppProvider({ children }) {
     dispatch({type:A.ADD_VOTE, payload:{...v,id:uid()}});
     pushNotif(`🗳️ Bình chọn mới: "${v.title}"`, 'vote', '/voting');
   }, [pushNotif]);
-  const castVote      = useCallback(p  => dispatch({type:A.CAST_VOTE,     payload:p}), []);
+  const castVote      = useCallback(p => {
+    dispatch({type:A.CAST_VOTE, payload:p});
+    // Award 500 points for voting
+    dispatch({type:A.ADD_CONTRIBUTION, payload:{userId:state.currentUser?.id, points:500}});
+    toast('Đã ghi nhận bình chọn! +500 điểm 🎉', 'success');
+  }, [state.currentUser?.id, toast]);
   const closeVote     = useCallback(id => {
     dispatch({type:A.CLOSE_VOTE, payload:id});
     pushNotif('🔒 Một bình chọn vừa được đóng lại.', 'vote', '/voting');
@@ -907,7 +949,7 @@ export function AppProvider({ children }) {
     if (!sess) return;
     
     if (checked && !sess.present?.includes(userId))
-      dispatch({ type: A.ADD_CONTRIBUTION, payload: { userId, points: 10 } });
+      dispatch({ type: A.ADD_CONTRIBUTION, payload: { userId, points: 1000 } });
     
     dispatch({ type: A.CHECK_ATTENDANCE, payload: { sessionId, userId, checked } });
     
@@ -983,9 +1025,9 @@ export function AppProvider({ children }) {
     const full = {...doc,id:uid(),uploadedBy:state.currentUser?.id,uploadedByName:state.currentUser?.fullName,uploadedAt:new Date().toLocaleDateString('vi-VN'),ratings:{},avgRating:0};
     dispatch({type:A.ADD_DOC,payload:{subjectId,doc:full}});
     addAudit('Upload tài liệu',subjectId,doc.name);
-    dispatch({type:A.ADD_CONTRIBUTION,payload:{userId:state.currentUser?.id,points:20}});
+    dispatch({type:A.ADD_CONTRIBUTION,payload:{userId:state.currentUser?.id,points:2000}});
     pushNotif(`📄 Tài liệu mới: "${doc.name}" — môn ${subjectId}`, 'sme', '/subjects');
-    toast(`Thêm "${doc.name}"! +20 điểm`,'success');
+    toast(`Thêm "${doc.name}"! +2000 điểm`,'success');
   }, [addAudit, pushNotif, toast, state.currentUser]);
 
   const deleteDoc = useCallback((sid,did) => { dispatch({ type:A.DELETE_DOC, payload:{ subjectId:sid, docId:did, ...trashMeta() } }); toast('Đã chuyển vào thùng rác.', 'info'); }, [trashMeta, toast]);
@@ -995,7 +1037,7 @@ export function AppProvider({ children }) {
     if (stars===5) {
       const doc=(state.docs[sid]||[]).find(d=>d.id===did);
       if (doc?.uploadedBy && doc.uploadedBy!==state.currentUser?.id)
-        dispatch({type:A.ADD_CONTRIBUTION,payload:{userId:doc.uploadedBy,points:30}});
+        dispatch({type:A.ADD_CONTRIBUTION,payload:{userId:doc.uploadedBy,points:3000}});
     }
     toast(`Đánh giá ${stars} sao!`,'success');
   }, [state.currentUser?.id,state.docs,toast]);

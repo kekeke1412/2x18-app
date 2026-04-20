@@ -242,7 +242,8 @@ function NonVotersPanel({ vote, activeMembers }) {
 
 // ── Vote Card ──────────────────────────────────────────────────────────────
 function VoteCard({ vote, onDeleteRequest }) {
-  const { castVote, closeVote, addVoteOption, currentUser, isCore, getMemberById, activeMembers } = useApp();
+  const { castVote, closeVote, addVoteOption, currentUser, isCore, getMemberById, members } = useApp();
+  const activeMembers = useMemo(() => (members || []).filter(m => m.status !== 'pending'), [members]);
   const [newOption, setNewOption] = useState('');
   const [showAdd,   setShowAdd]   = useState(false);
 
@@ -429,7 +430,13 @@ export default function Voting() {
   };
 
   return (
-    <div className="h-full bg-[#121212] text-gray-200 flex flex-col overflow-hidden">
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.4 }}
+      className="h-full bg-[#121212] text-gray-200 flex flex-col overflow-hidden"
+    >
       <div className="px-6 py-4 border-b border-gray-800/60 bg-[#141414] shrink-0">
         <div className="flex items-center justify-between gap-4">
           <div>
@@ -485,6 +492,6 @@ export default function Voting() {
       <AnimatePresence>
         {delTarget   && <ConfirmDeleteModal title={delTarget.title} onConfirm={handleDeleteConfirm} onClose={()=>setDelTarget(null)}/>}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }

@@ -4,7 +4,8 @@ import {
   User, CreditCard, Calendar, Phone, MapPin,
   Save, Edit3, ChevronDown, ChevronUp, AlertTriangle, CheckCircle2,
   Download, Users, ChevronLeft, Search, Check, X,
-  Clock, Eye, BookOpen, Lock, CheckCircle, GraduationCap, XCircle, Trash2, Key
+  Clock, Eye, BookOpen, Lock, CheckCircle, GraduationCap, XCircle, Trash2, Key,
+  Shield, Settings, ShieldCheck, Zap, Database, Sparkles
 } from 'lucide-react';
 import { subjectDatabase, calculateHe10, getHe4, electiveLimits } from '../data';
 import { useApp } from '../context/AppContext';
@@ -679,6 +680,110 @@ function GradesTable({ profile, grades, onSave, canEdit }) {
     </div>
   );
 }
+
+// ── System Settings Tab (Super Admin Only) ──────────────────────────────────
+function SystemSettings() {
+  const { config, updateConfig } = useApp();
+  const [form, setForm] = useState({
+    gemini_api_key: config?.gemini_api_key || '',
+    maintenance_mode: config?.maintenance_mode || false,
+    announcement: config?.announcement || '',
+  });
+
+  useEffect(() => {
+    setForm({
+      gemini_api_key: config?.gemini_api_key || '',
+      maintenance_mode: config?.maintenance_mode || false,
+      announcement: config?.announcement || '',
+    });
+  }, [config]);
+
+  const handleSave = () => {
+    updateConfig(form);
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-6 pb-20">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-[#1a1a1a] border border-blue-500/20 rounded-2xl p-6 shadow-2xl"
+      >
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 bg-blue-600/20 rounded-xl flex items-center justify-center">
+            <ShieldCheck className="w-5 h-5 text-blue-400" />
+          </div>
+          <div>
+            <h3 className="text-lg font-black text-white">Cấu hình Hệ thống</h3>
+            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Dành riêng cho Super Admin</p>
+          </div>
+        </div>
+
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <label className="text-xs font-black text-gray-400 uppercase tracking-wider flex items-center gap-2">
+              <Key className="w-3 h-3 text-blue-400" /> GEMINI API KEY (AI RESTORATION)
+            </label>
+            <div className="relative">
+              <input 
+                type="password"
+                className="input-dark pr-12"
+                placeholder="Dán API Key của Gemini vào đây..."
+                value={form.gemini_api_key}
+                onChange={e => setForm({...form, gemini_api_key: e.target.value})}
+              />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                {config?.gemini_api_key ? (
+                  <CheckCircle2 className="w-5 h-5 text-green-500" />
+                ) : (
+                  <AlertTriangle className="w-5 h-5 text-amber-500" />
+                )}
+              </div>
+            </div>
+            <p className="text-[10px] text-gray-600 leading-relaxed italic">
+              Key này sẽ được đồng bộ ngay lập tức cho toàn bộ người dùng để khôi phục các tính năng AI.
+            </p>
+          </div>
+
+          <div className="h-px bg-gray-800 my-2"></div>
+
+          <div className="space-y-4">
+             <div className="flex items-center justify-between p-4 bg-[#121212] border border-gray-800 rounded-xl">
+                <div>
+                   <div className="text-sm font-bold text-gray-200">Chế độ bảo trì</div>
+                   <div className="text-[10px] text-gray-500">Khóa truy cập đối với thành viên thường</div>
+                </div>
+                <button 
+                  onClick={() => setForm({...form, maintenance_mode: !form.maintenance_mode})}
+                  className={`w-12 h-6 rounded-full transition-all relative ${form.maintenance_mode ? 'bg-red-600' : 'bg-gray-700'}`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${form.maintenance_mode ? 'left-7' : 'left-1'}`} />
+                </button>
+             </div>
+
+             <div className="space-y-2">
+                <label className="text-xs font-black text-gray-400 uppercase tracking-wider">Thông báo toàn hệ thống</label>
+                <textarea 
+                  className="input-dark min-h-[100px] resize-none"
+                  placeholder="Nội dung thông báo sẽ hiện ở Dashboard..."
+                  value={form.announcement}
+                  onChange={e => setForm({...form, announcement: e.target.value})}
+                />
+             </div>
+          </div>
+
+          <button 
+            onClick={handleSave}
+            className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 mt-4"
+          >
+            <Save className="w-4 h-4" /> LƯU CẤU HÌNH HỆ THỐNG
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfile, onStartEdit }) {
   const rl = roleLabel(profile.role);
   const loginEmail = profile.email || '';
@@ -1089,6 +1194,7 @@ export default function Profile() {
     { key:'profile', label:'Hồ sơ',      icon:User     },
     { key:'grades',  label:'Bảng điểm',  icon:BookOpen },
     ...(isCore||isSuperAdmin ? [{ key:'members', label:'Thành viên', icon:Users }] : []),
+    ...(isSuperAdmin ? [{ key:'system', label:'Hệ thống', icon:Settings }] : []),
   ];
 
   return (
@@ -1188,6 +1294,10 @@ export default function Profile() {
 
             {activeTab === 'members' && (isCore||isSuperAdmin) && (
               <MembersTab/>
+            )}
+
+            {activeTab === 'system' && isSuperAdmin && (
+              <SystemSettings/>
             )}
           </motion.div>
         </AnimatePresence>

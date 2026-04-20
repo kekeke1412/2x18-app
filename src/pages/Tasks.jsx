@@ -43,6 +43,7 @@ export default function Tasks() {
     deleteTask: ctxDeleteTask,
     addDoc:     ctxAddDoc,
     deleteDoc:  ctxDeleteDoc,
+    toast,
   } = useApp();
 
   const profile = currentUser || {};
@@ -102,6 +103,7 @@ export default function Tasks() {
       }
     } catch (err) {
       console.error(err);
+      toast(err.message || 'AI không phản hồi. Kiểm tra API Key trong Cài đặt.', 'error');
     } finally {
       setIsAiLoading(false);
     }

@@ -1,5 +1,5 @@
 // src/pages/Auth.jsx
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Clock, ChevronLeft, ShieldCheck } from 'lucide-react';
 import { useApp } from '../context/AppContext';
@@ -33,7 +33,7 @@ export default function Auth() {
     try {
       const result = await loginWithGoogle();
       if (result?.status === 'pending') {
-        setPendingInfo({ name: result.name, email: result.email });
+        setPendingInfo({ name: result?.name, email: result?.email });
       } else {
         navigate('/dashboard', { replace: true });
       }
@@ -45,42 +45,34 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen bg-[#080810] flex">
-      {/* ── Left panel (desktop only) ── */}
-      <div className="hidden lg:flex lg:w-[420px] xl:w-[500px] bg-gradient-to-br from-blue-950 via-[#0d0d20] to-[#080810] flex-col justify-between p-12 border-r border-white/5 shrink-0">
-        {/* Brand */}
-        <motion.div 
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="flex items-center gap-3"
-        >
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-black text-white text-lg shadow-lg shadow-blue-900/50">
-            2X
+    <div className="min-h-screen bg-[#0a0a0f] flex flex-col lg:flex-row overflow-hidden font-sans">
+      {/* ── Left panel: Info/Hero ── */}
+      <div className="flex-1 bg-[#0a0a0f] p-8 lg:p-16 flex flex-col justify-between border-r border-white/5 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-blue-600/5 to-transparent pointer-events-none"/>
+        
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-12">
+            <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center font-black text-white shadow-lg shadow-blue-600/30">2X</div>
+            <span className="text-xl font-black text-white tracking-tight">2X18 HUS K70</span>
           </div>
-          <div>
-            <div className="text-white font-black text-lg leading-none">2X18</div>
-            <div className="text-blue-400/60 text-xs mt-0.5">K70 CÔNG NGHỆ BÁN DẪN</div>
-          </div>
-        </motion.div>
 
-        {/* Feature highlights */}
-        <motion.div 
-          initial="hidden"
-          animate="show"
-          variants={{
-            show: { transition: { staggerChildren: 0.15, delayChildren: 0.2 } }
-          }}
-          className="space-y-8"
-        >
-          <motion.div variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}>
-            <h2 className="text-3xl font-black text-white leading-tight mb-3">
-              Quản lý nhóm học tập<br/>
-              <span className="text-blue-400">thông minh hơn</span>
-            </h2>
-            <p className="text-gray-400 text-sm leading-relaxed">
-              Theo dõi GPA, điểm danh, tài liệu và tiến độ học tập của các thành viên — tất cả trong một nơi.
-            </p>
-          </motion.div>
+          <motion.div 
+            initial="hidden"
+            animate="show"
+            variants={{
+              show: { transition: { staggerChildren: 0.15, delayChildren: 0.2 } }
+            }}
+            className="space-y-8"
+          >
+            <motion.div variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}>
+              <h2 className="text-3xl font-black text-white leading-tight mb-3">
+                Quản lý nhóm học tập<br/>
+                <span className="text-blue-400">thông minh hơn</span>
+              </h2>
+              <p className="text-gray-400 text-sm leading-relaxed">
+                Theo dõi GPA, điểm danh, tài liệu và tiến độ học tập của các thành viên — tất cả trong một nơi.
+              </p>
+            </motion.div>
 
           {[
             { icon:'📊', title:'Tracking GPA realtime', desc:'So sánh CPA cá nhân với nhóm theo từng học kỳ.' },
@@ -100,9 +92,10 @@ export default function Auth() {
             </motion.div>
           ))}
         </motion.div>
-
-        <div className="text-gray-700 text-xs">© 2X18 HUS K70 · Bán dẫn &amp; Công nghệ bán dẫn</div>
       </div>
+
+      <div className="text-gray-700 text-xs">© 2X18 HUS K70 · Bán dẫn &amp; Công nghệ bán dẫn</div>
+    </div>
 
       {/* ── Right panel ── */}
       <motion.div 
@@ -140,6 +133,7 @@ export default function Auth() {
       <AnimatePresence>
         {pendingInfo && (
           <div
+            key="pending-modal"
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
             onClick={() => setPendingInfo(null)}>
             <motion.div

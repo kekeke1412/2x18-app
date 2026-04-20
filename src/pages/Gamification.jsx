@@ -180,14 +180,14 @@ export default function Gamification() {
     return () => { u1(); u2(); u3(); };
   }, []);
 
-  const activeMembers = useMemo(() => members.filter(m => m.status !== 'pending'), [members]);
+  const activeMembers = useMemo(() => (members || []).filter(m => m.status !== 'pending'), [members]);
 
   const ranked = useMemo(() => activeMembers.map(m => ({
     ...m,
-    points:   Number(contributions[m.id]) || 0,
-    rankInfo: getRankInfo(Number(contributions[m.id]) || 0),
-    progress: getRankProgress(Number(contributions[m.id]) || 0),
-    myTitles: (awards[m.id] || []).map(tid => titles.find(t => t.id === tid)).filter(Boolean),
+    points:   Number(contributions?.[m.id]) || 0,
+    rankInfo: getRankInfo(Number(contributions?.[m.id]) || 0),
+    progress: getRankProgress(Number(contributions?.[m.id]) || 0),
+    myTitles: toArr(awards[m.id]).map(tid => titles.find(t => t.id === tid)).filter(Boolean),
   })).sort((a,b) => b.points - a.points), [activeMembers, contributions, awards, titles]);
 
   const me     = ranked.find(m => m.id === currentUser?.id);
@@ -213,7 +213,7 @@ export default function Gamification() {
     if (!newTitle.name.trim()) return;
     const t = { id:uid(), ...newTitle, createdAt:new Date().toISOString() };
     const map = {};
-    [...titles, t].forEach(x => { map[x.id] = x; });
+    [...titles, t].forEach(x => { if(x?.id) map[x.id] = x; });
     set(ref(db,'gamif_titles'), map);
     setNewTitle({ name:'', icon:'🏅', color:'#ffd700', desc:'' });
   };
@@ -224,30 +224,30 @@ export default function Gamification() {
   };
   const handleAward = () => {
     if (!awardForm.userId || !awardForm.titleId) return;
-    const cur = awards[awardForm.userId] || [];
+    const cur = toArr(awards[awardForm.userId]);
     if (cur.includes(awardForm.titleId)) return;
     set(ref(db, `gamif_awards/${awardForm.userId}`), [...cur, awardForm.titleId]);
     setAwardForm({ userId:'', titleId:'' });
   };
   const handleRevoke = (userId, titleId) => {
-    const cur = (awards[userId] || []).filter(id => id !== titleId);
+    const cur = toArr(awards[userId]).filter(id => id !== titleId);
     set(ref(db, `gamif_awards/${userId}`), cur.length ? cur : null);
   };
   const handleResetSeason = () => {
     if (!seasonName.trim()) return;
     const snapshot = {};
-    activeMembers.forEach(m => { snapshot[m.id] = Number(contributions[m.id]) || 0; });
+    activeMembers.forEach(m => { snapshot[m.id] = Number(contributions?.[m.id]) || 0; });
     const awardSnapshot = {};
-    Object.entries(awards).forEach(([id, tids]) => { awardSnapshot[id] = tids; });
+    Object.entries(awards || {}).forEach(([id, tids]) => { if(tids) awardSnapshot[id] = tids; });
     const titleSnapshot = {};
-    titles.forEach(t => { titleSnapshot[t.id] = t; });
+    titles.forEach(t => { if(t?.id) titleSnapshot[t.id] = t; });
     const season = {
       id: uid(), name:seasonName.trim(),
       createdAt:new Date().toISOString(), createdBy:currentUser?.fullName||'Admin',
       snapshot, awardSnapshot, titleSnapshot,
     };
     const seasonsMap = {};
-    seasons.forEach(s => { seasonsMap[s.id] = s; });
+    seasons.forEach(s => { if(s?.id) seasonsMap[s.id] = s; });
     seasonsMap[season.id] = season;
     set(ref(db,'gamif_seasons'), seasonsMap);
     const reset = {};
@@ -272,8 +272,14 @@ export default function Gamification() {
      RENDER
   ══════════════════════════════════════════════════════ */
   return (
-    <div style={{ height:'100%', display:'flex', flexDirection:'column', overflow:'hidden',
-      background:'#09090b', color:'#e4e4e7', fontFamily:"'Segoe UI', system-ui, sans-serif", position:'relative' }}>
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.4 }}
+      style={{ height:'100%', display:'flex', flexDirection:'column', overflow:'hidden',
+      background:'#09090b', color:'#e4e4e7', fontFamily:"'Segoe UI', system-ui, sans-serif", position:'relative' }}
+    >
 
       {/* ambient bg glow */}
       <div aria-hidden style={{ position:'absolute', inset:0, pointerEvents:'none', overflow:'hidden', zIndex:0 }}>
@@ -830,6 +836,6 @@ export default function Gamification() {
         </motion.div>
       )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }

@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   FileText, ExternalLink, Plus, X, Trash2, CheckCircle, 
   Clock, ShieldCheck, AlertCircle, BookOpen, Search, User,
-  XCircle, Eye, Sparkles, Loader2
+  Sparkles, Loader2
 } from 'lucide-react';
 import { uploadToDrive } from '../services/googleApi';
 import { reviewReport } from '../services/aiService';
@@ -115,7 +115,7 @@ function ReportCard({ r, getMemberById, isCore, isSuperAdmin, currentUser, appro
               </button>
             )}
             <button
-              onClick={() => { if (confirm('Xóa tài liệu này?')) deleteReport(r.id); }}
+              onClick={() => { if (window.confirm('Xóa tài liệu này?')) deleteReport(r.id); }}
               title="Xóa"
               className="p-1.5 bg-red-500/10 text-red-400 hover:bg-red-500/25 rounded-lg transition-colors btn-active"
             >
@@ -282,7 +282,13 @@ export default function Reports() {
   const cardProps = { getMemberById, isCore, isSuperAdmin, currentUser, approveReport, deleteReport };
 
   return (
-    <div className="h-full flex flex-col bg-[#121212] overflow-hidden">
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.4 }}
+      className="h-full flex flex-col bg-[#121212] overflow-hidden"
+    >
       {/* ── Header ── */}
       <div className="px-6 py-5 border-b border-gray-800/60 shrink-0 bg-[#1a1a1a]">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -442,8 +448,8 @@ export default function Reports() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   <AnimatePresence mode="popLayout">
-                    {approved.map((r, i) => (
-                      <ReportCard key={r.id} r={r} {...cardProps} index={i} />
+                    {approved.map((r) => (
+                      <ReportCard key={r.id} r={r} {...cardProps} />
                     ))}
                   </AnimatePresence>
                 </div>
@@ -570,6 +576,6 @@ export default function Reports() {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }

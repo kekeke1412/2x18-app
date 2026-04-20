@@ -17,7 +17,7 @@ export default function FlashcardSet() {
   const navigate = useNavigate();
   const { 
     vocab = {}, currentUser, editVocabSet, markWordLearned, 
-    userVocab = {}, addQuizResult, quizHistory = {} 
+    userVocab = {}, addQuizResult, quizHistory = {}, toast 
   } = useApp();
   
   const set = vocab[setId];
@@ -98,7 +98,12 @@ export default function FlashcardSet() {
         newCards[idx] = { ...newCards[idx], ...s };
         setCards(newCards);
       }
-    } catch (err) { console.error(err); } finally { setIsAiLoading(false); }
+    } catch (err) { 
+      console.error(err); 
+      toast(err.message || 'AI không phản hồi. Kiểm tra API Key.', 'error');
+    } finally { 
+      setIsAiLoading(false); 
+    }
   };
 
   const toggleLearned = (idx) => {
@@ -245,7 +250,13 @@ export default function FlashcardSet() {
   }, [activeTab, quizStarted, quizComplete, quizFeedback, quizIndex, quizQuestions]);
 
   return (
-    <div className="h-full bg-[#121212] text-gray-200 flex flex-col overflow-hidden">
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.4 }}
+      className="h-full bg-[#121212] text-gray-200 flex flex-col overflow-hidden"
+    >
       {/* Top Header */}
       <div className="px-6 py-4 border-b border-gray-800/60 bg-[#1a1a1a] shrink-0 flex items-center justify-between">
         <div className="flex items-center gap-2 md:gap-4 min-w-0">
@@ -268,61 +279,6 @@ export default function FlashcardSet() {
             <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600 hover:text-white px-4 py-2 rounded-xl text-xs font-black transition-all border border-indigo-500/30">
               <Edit3 className="w-3.5 h-3.5" /> CHỈNH SỬA
             </button>
-          )}
-
-          {/* ── HISTORY TAB ────────────────────────────────────────────────── */}
-          {activeTab === 'history' && (
-            <div className="space-y-8 pb-20">
-              <div className="bg-[#1a1a1a] border border-gray-800 rounded-3xl p-8 shadow-2xl">
-                <div className="flex items-center justify-between mb-8">
-                   <div>
-                     <h3 className="text-lg font-black text-white">Tiến trình học tập</h3>
-                     <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Sự thay đổi điểm số qua các lần kiểm tra</p>
-                   </div>
-                   <div className="text-right">
-                     <div className="text-3xl font-black text-indigo-400">
-                       {currentSetHistory.length > 0 ? `${Math.round(currentSetHistory.reduce((a,b)=>a+b.percentage,0)/currentSetHistory.length)}%` : '--'}
-                     </div>
-                     <div className="text-[9px] text-indigo-500/60 font-black uppercase tracking-wider">Tỉ lệ TB</div>
-                   </div>
-                </div>
-                
-                {currentSetHistory.length > 1 ? (
-                  <QuizHistoryChart data={currentSetHistory} />
-                ) : (
-                  <div className="h-40 flex flex-col items-center justify-center border-2 border-dashed border-gray-800 rounded-2xl text-gray-600 gap-2">
-                    <Trophy className="w-6 h-6 opacity-20" />
-                    <span className="text-xs font-bold">Cần hoàn thành ít nhất 2 lần kiểm tra để vẽ đồ thị</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-4">
-                <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] px-2">Lịch sử làm bài gần đây</h4>
-                {currentSetHistory.length > 0 ? (
-                  [...currentSetHistory].reverse().map((h, i) => (
-                    <div key={i} className="bg-[#1a1a1a] border border-gray-800 rounded-2xl p-5 flex items-center justify-between hover:border-gray-700 transition-colors">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-sm ${
-                          h.percentage >= 80 ? 'bg-green-500/20 text-green-500' :
-                          h.percentage >= 50 ? 'bg-yellow-500/20 text-yellow-500' :
-                          'bg-red-500/20 text-red-500'
-                        }`}>
-                          {h.percentage}%
-                        </div>
-                        <div>
-                          <div className="text-sm font-bold text-gray-200">Đúng {h.score}/{h.total} câu</div>
-                          <div className="text-[10px] text-gray-600 font-medium mt-0.5">{new Date(h.timestamp).toLocaleString('vi-VN')}</div>
-                        </div>
-                      </div>
-                      <div className="shrink-0 text-[10px] text-gray-600 font-black uppercase tracking-widest">#{currentSetHistory.length - i}</div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-10 text-gray-600 text-xs font-bold italic">Chưa có lịch sử làm bài nào cho học phần này.</div>
-                )}
-              </div>
-            </div>
           )}
         </div>
       </div>
@@ -894,7 +850,7 @@ export default function FlashcardSet() {
           background: #444;
         }
       `}} />
-    </div>
+    </motion.div>
   );
 }
 

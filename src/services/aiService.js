@@ -1,10 +1,16 @@
 // src/services/aiService.js
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // ── API Key Management ──────────────────────────────────────────────────────
+let runtimeApiKey = null;
+
+export function setApiKey(key) {
+  runtimeApiKey = key;
+}
+
 export function getApiKey() {
-  // Sử dụng Key từ biến môi trường (Vercel/Vite)
-  return import.meta.env.VITE_GEMINI_API_KEY || "";
+  // Ưu tiên Key từ runtime (Firebase config), sau đó mới đến biến môi trường
+  return runtimeApiKey || import.meta.env.VITE_GEMINI_API_KEY || "";
 }
 
 // ── Core AI Call (Gemini) ───────────────────────────────────────────────────
@@ -14,35 +20,41 @@ export async function callGemini(systemPrompt, userPrompt, { temperature = 0.7, 
     throw new Error("MISSING_API_KEY");
   }
 
-  const ai = new GoogleGenAI({ apiKey });
-
-  // Gemini 2.0+ SDK format
-  // Convert history to format: { role: 'user'|'model', parts: [{ text: '...' }] }
-  const contents = [
-    ...history.map(m => ({
-      role: m.role === 'user' ? 'user' : 'model',
-      parts: [{ text: m.text || m.content || "" }]
-    })),
-    { role: 'user', parts: [{ text: userPrompt }] }
-  ];
-
+  const genAI = new GoogleGenerativeAI(apiKey);
+  
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
-      systemInstruction: systemPrompt,
+    // Use gemini-1.5-flash for better stability and lower latency
+    const model = genAI.getGenerativeModel({ 
+      model: 'gemini-1.5-flash',
+      systemInstruction: systemPrompt
+    });
+
+    // Convert history to format: { role: 'user'|'model', parts: [{ text: '...' }] }
+    const contents = [
+      ...history.map(m => ({
+        role: m.role === 'user' ? 'user' : 'model',
+        parts: [{ text: m.text || m.content || "" }]
+      })),
+      { role: 'user', parts: [{ text: userPrompt }] }
+    ];
+
+    const result = await model.generateContent({
       contents,
-      config: {
+      generationConfig: {
         temperature,
-        maxOutputTokens: 1000,
+        maxOutputTokens: 2000,
         responseMimeType
       }
     });
 
-    if (!response.text) {
+    const response = result.response;
+    const text = response.text();
+
+    if (!text) {
       console.warn('[callGemini] Empty response text');
       return '';
     }
-    return response.text;
+    return text;
   } catch (err) {
     console.error('[callGemini Error]', err);
     throw err;

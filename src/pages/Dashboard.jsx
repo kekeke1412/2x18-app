@@ -543,7 +543,7 @@ export default function Dashboard() {
   const {
     currentUser, myGrades, myTasks, tasks, smeMap, members, auditLogs,
     contributions, grades: allGrades, isCore, isSuperAdmin, exportMembersCSV,
-    semesterLabels, updateSemesterLabel,
+    semesterLabels, updateSemesterLabel, attendance,
   } = useApp();
 
   const [semesterNames, updateSemesterName] = useSemesterNames(semesterLabels, updateSemesterLabel);
@@ -555,7 +555,7 @@ export default function Dashboard() {
     setIsAiAnalyzing(true);
     setAiAnalysis(null);
     try {
-      const res = await analyzeEarlyWarning(members, [], tasks);
+      const res = await analyzeEarlyWarning(members, attendance, tasks);
       setAiAnalysis(res);
     } catch (err) {
       console.error(err);
@@ -849,7 +849,6 @@ export default function Dashboard() {
                 </div>
               </motion.div>
             )}
-
             {activeTab === 'activity' && (
               <motion.div 
                 key="activity"
@@ -857,17 +856,17 @@ export default function Dashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.4 }}
-                className="p-6 max-w-4xl mx-auto"
+                className="p-6 space-y-6"
               >
-                <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl overflow-hidden shadow-sm">
+                <div className="bg-[#1a1a1a] border border-gray-800 rounded-2xl overflow-hidden">
                   <div className="px-5 py-4 border-b border-gray-800/60 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Activity className="w-4 h-4 text-blue-400"/>
                       <h3 className="font-bold text-white text-sm">Nhật ký hoạt động</h3>
                     </div>
-                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{auditLogs.length} sự kiện</span>
+                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Gần đây</span>
                   </div>
-                  <div className="divide-y divide-gray-800/40">
+                  <div className="divide-y divide-gray-800/40 max-h-[600px] overflow-y-auto custom-scrollbar">
                     {auditLogs.length > 0 ? (
                       auditLogs.slice(0, 30).map((log, i) => (
                         <motion.div 
