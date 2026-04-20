@@ -15,12 +15,15 @@ import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-mo
 export default function FlashcardSet() {
   const { setId } = useParams();
   const navigate = useNavigate();
-  const { vocab = {}, currentUser, editVocabSet, markWordLearned, userVocab = {} } = useApp();
+  const { 
+    vocab = {}, currentUser, editVocabSet, markWordLearned, 
+    userVocab = {}, addQuizResult, quizHistory = {} 
+  } = useApp();
   
   const set = vocab[setId];
   const progress = useMemo(() => userVocab[currentUser?.id]?.[setId] || [], [userVocab, currentUser, setId]);
   
-  const [activeTab, setActiveTab] = useState('list'); // 'list' | 'study' | 'quiz'
+  const [activeTab, setActiveTab] = useState('list'); // 'list' | 'study' | 'quiz' | 'history'
   const [cards, setCards] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -40,6 +43,11 @@ export default function FlashcardSet() {
   const [userAnswer, setUserAnswer] = useState('');
   const [quizFeedback, setQuizFeedback] = useState(null);
   const [isSpeaking, setIsSpeaking] = useState(null);
+  const [quizDetails, setQuizDetails] = useState([]); // { question, userAns, correctAns, isCorrect }
+  const myHistory = useMemo(() => quizHistory[currentUser?.id] || [], [quizHistory, currentUser]);
+  const currentSetHistory = useMemo(() => 
+    myHistory.filter(h => h.setId === setId).sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp)),
+  [myHistory, setId]);
 
   const speak = (text, lang = 'en') => {
     if (!text) return;
@@ -134,6 +142,7 @@ export default function FlashcardSet() {
     setQuizStarted(true);
     setQuizFeedback(null);
     setUserAnswer('');
+    setQuizDetails([]);
     setActiveTab('quiz');
   };
 
@@ -168,12 +177,32 @@ export default function FlashcardSet() {
     if (quizFeedback) return;
     const current = quizQuestions[quizIndex];
     const isCorrect = ans.toLowerCase().trim() === current.answer.toLowerCase().trim();
-    if (isCorrect) setQuizScore(prev => prev + 1);
     setQuizFeedback({ correct: isCorrect, message: isCorrect ? 'Chính xác! 🎉' : `Sai rồi! Đáp án: ${current.answer}` });
+    
+    // Ghi lại chi tiết
+    setQuizDetails(prev => [...prev, {
+      question: current.question,
+      userAns: ans,
+      correctAns: current.answer,
+      isCorrect
+    }]);
+
     setTimeout(() => {
       setQuizFeedback(null); setUserAnswer('');
-      if (quizIndex < quizQuestions.length - 1) setQuizIndex(quizIndex + 1);
-      else setQuizComplete(true);
+      if (quizIndex < quizQuestions.length - 1) {
+        setQuizIndex(quizIndex + 1);
+      } else {
+        const finalScore = isCorrect ? quizScore + 1 : quizScore;
+        const result = {
+          setId,
+          setTitle: set.title,
+          score: finalScore,
+          total: quizQuestions.length,
+          percentage: Math.round((finalScore / quizQuestions.length) * 100),
+        };
+        addQuizResult(result);
+        setQuizComplete(true);
+      }
     }, 1200);
   };
 
@@ -202,6 +231,61 @@ export default function FlashcardSet() {
               <Edit3 className="w-3.5 h-3.5" /> CHỈNH SỬA
             </button>
           )}
+
+          {/* ── HISTORY TAB ────────────────────────────────────────────────── */}
+          {activeTab === 'history' && (
+            <div className="space-y-8 pb-20">
+              <div className="bg-[#1a1a1a] border border-gray-800 rounded-3xl p-8 shadow-2xl">
+                <div className="flex items-center justify-between mb-8">
+                   <div>
+                     <h3 className="text-lg font-black text-white">Tiến trình học tập</h3>
+                     <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Sự thay đổi điểm số qua các lần kiểm tra</p>
+                   </div>
+                   <div className="text-right">
+                     <div className="text-3xl font-black text-indigo-400">
+                       {currentSetHistory.length > 0 ? `${Math.round(currentSetHistory.reduce((a,b)=>a+b.percentage,0)/currentSetHistory.length)}%` : '--'}
+                     </div>
+                     <div className="text-[9px] text-indigo-500/60 font-black uppercase tracking-wider">Tỉ lệ TB</div>
+                   </div>
+                </div>
+                
+                {currentSetHistory.length > 1 ? (
+                  <QuizHistoryChart data={currentSetHistory} />
+                ) : (
+                  <div className="h-40 flex flex-col items-center justify-center border-2 border-dashed border-gray-800 rounded-2xl text-gray-600 gap-2">
+                    <Trophy className="w-6 h-6 opacity-20" />
+                    <span className="text-xs font-bold">Cần hoàn thành ít nhất 2 lần kiểm tra để vẽ đồ thị</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] px-2">Lịch sử làm bài gần đây</h4>
+                {currentSetHistory.length > 0 ? (
+                  [...currentSetHistory].reverse().map((h, i) => (
+                    <div key={i} className="bg-[#1a1a1a] border border-gray-800 rounded-2xl p-5 flex items-center justify-between hover:border-gray-700 transition-colors">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-sm ${
+                          h.percentage >= 80 ? 'bg-green-500/20 text-green-500' :
+                          h.percentage >= 50 ? 'bg-yellow-500/20 text-yellow-500' :
+                          'bg-red-500/20 text-red-500'
+                        }`}>
+                          {h.percentage}%
+                        </div>
+                        <div>
+                          <div className="text-sm font-bold text-gray-200">Đúng {h.score}/{h.total} câu</div>
+                          <div className="text-[10px] text-gray-600 font-medium mt-0.5">{new Date(h.timestamp).toLocaleString('vi-VN')}</div>
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-[10px] text-gray-600 font-black uppercase tracking-widest">#{currentSetHistory.length - i}</div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-10 text-gray-600 text-xs font-bold italic">Chưa có lịch sử làm bài nào cho học phần này.</div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -212,6 +296,7 @@ export default function FlashcardSet() {
             { id: 'list', label: 'Danh sách', icon: Layers },
             { id: 'study', label: 'Học tập', icon: Zap },
             { id: 'quiz', label: 'Kiểm tra', icon: HelpCircle },
+            { id: 'history', label: 'Lịch sử', icon: Trophy },
           ].map(t => (
             <button 
               key={t.id} 
@@ -394,12 +479,46 @@ export default function FlashcardSet() {
                   <button onClick={startQuiz} className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl transition-all">BẮT ĐẦU</button>
                 </div>
               ) : quizComplete ? (
-                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center bg-[#1a1a1a] p-10 rounded-3xl border border-gray-800 shadow-2xl max-w-md w-full">
-                  <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-6" />
-                  <h2 className="text-2xl font-black text-white mb-2">Kết quả!</h2>
-                  <div className="text-5xl font-black text-indigo-400 mb-8">{Math.round((quizScore / quizQuestions.length) * 100)}%</div>
-                  <button onClick={startQuiz} className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl transition-all">LÀM LẠI</button>
-                </motion.div>
+                <div className="w-full max-w-2xl space-y-6">
+                  <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center bg-[#1a1a1a] p-10 rounded-3xl border border-gray-800 shadow-2xl w-full">
+                    <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-6" />
+                    <h2 className="text-2xl font-black text-white mb-2">Kết quả!</h2>
+                    <div className="text-5xl font-black text-indigo-400 mb-4">{Math.round((quizScore / quizQuestions.length) * 100)}%</div>
+                    <p className="text-gray-500 text-xs mb-8 font-bold uppercase tracking-widest">ĐÚNG {quizScore} / {quizQuestions.length} CÂU</p>
+                    <button onClick={startQuiz} className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl transition-all">LÀM LẠI</button>
+                  </motion.div>
+
+                  <div className="bg-[#1a1a1a] border border-gray-800 rounded-3xl overflow-hidden shadow-2xl">
+                    <div className="p-6 border-b border-gray-800 bg-black/20 flex items-center gap-2">
+                      <FileEdit className="w-4 h-4 text-indigo-400" />
+                      <span className="text-sm font-black uppercase tracking-widest text-white">Xem lại chi tiết</span>
+                    </div>
+                    <div className="divide-y divide-gray-800">
+                      {quizDetails.map((item, idx) => (
+                        <div key={idx} className="p-5 flex gap-4">
+                          <div className={`mt-1 shrink-0 p-1.5 rounded-lg ${item.isCorrect ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
+                            {item.isCorrect ? <CheckCircle className="w-4 h-4" /> : <X className="w-4 h-4" />}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-gray-200 mb-2">{item.question}</p>
+                            <div className="flex flex-col gap-1.5">
+                              <div className="text-[11px] flex items-center gap-2">
+                                <span className="text-gray-500 font-bold uppercase tracking-wider">Bạn chọn:</span>
+                                <span className={item.isCorrect ? 'text-green-400 font-medium' : 'text-red-400 font-medium line-through'}>{item.userAns || '(Trống)'}</span>
+                              </div>
+                              {!item.isCorrect && (
+                                <div className="text-[11px] flex items-center gap-2">
+                                  <span className="text-indigo-400 font-bold uppercase tracking-wider">Đáp án đúng:</span>
+                                  <span className="text-indigo-300 font-bold underline underline-offset-4">{item.correctAns}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               ) : (
                 <div className="w-full max-w-2xl bg-[#1a1a1a] border border-gray-800 rounded-3xl overflow-hidden shadow-2xl">
                   <div className="h-1 bg-gray-800 w-full relative">
@@ -434,6 +553,61 @@ export default function FlashcardSet() {
               )}
             </div>
           )}
+
+          {/* ── HISTORY TAB ────────────────────────────────────────────────── */}
+          {activeTab === 'history' && (
+            <div className="space-y-8 pb-20">
+              <div className="bg-[#1a1a1a] border border-gray-800 rounded-3xl p-8 shadow-2xl">
+                <div className="flex items-center justify-between mb-8">
+                   <div>
+                     <h3 className="text-lg font-black text-white">Tiến trình học tập</h3>
+                     <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Sự thay đổi điểm số qua các lần kiểm tra</p>
+                   </div>
+                   <div className="text-right">
+                     <div className="text-3xl font-black text-indigo-400">
+                       {currentSetHistory.length > 0 ? `${Math.round(currentSetHistory.reduce((a,b)=>a+b.percentage,0)/currentSetHistory.length)}%` : '--'}
+                     </div>
+                     <div className="text-[9px] text-indigo-500/60 font-black uppercase tracking-wider">Tỉ lệ TB</div>
+                   </div>
+                </div>
+                
+                {currentSetHistory.length > 1 ? (
+                  <QuizHistoryChart data={currentSetHistory} />
+                ) : (
+                  <div className="h-40 flex flex-col items-center justify-center border-2 border-dashed border-gray-800 rounded-2xl text-gray-600 gap-2">
+                    <Trophy className="w-6 h-6 opacity-20" />
+                    <span className="text-xs font-bold">Cần hoàn thành ít nhất 2 lần kiểm tra để vẽ đồ thị</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] px-2">Lịch sử làm bài gần đây</h4>
+                {currentSetHistory.length > 0 ? (
+                  [...currentSetHistory].reverse().map((h, i) => (
+                    <div key={i} className="bg-[#1a1a1a] border border-gray-800 rounded-2xl p-5 flex items-center justify-between hover:border-gray-700 transition-colors">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-sm ${
+                          h.percentage >= 80 ? 'bg-green-500/20 text-green-500' :
+                          h.percentage >= 50 ? 'bg-yellow-500/20 text-yellow-500' :
+                          'bg-red-500/20 text-red-500'
+                        }`}>
+                          {h.percentage}%
+                        </div>
+                        <div>
+                          <div className="text-sm font-bold text-gray-200">Đúng {h.score}/{h.total} câu</div>
+                          <div className="text-[10px] text-gray-600 font-medium mt-0.5">{new Date(h.timestamp).toLocaleString('vi-VN')}</div>
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-[10px] text-gray-600 font-black uppercase tracking-widest">#{currentSetHistory.length - i}</div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-10 text-gray-600 text-xs font-bold italic">Chưa có lịch sử làm bài nào cho học phần này.</div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -444,6 +618,71 @@ export default function FlashcardSet() {
         .rotate-y-180 { transform: rotateY(180deg); }
         .no-scrollbar::-webkit-scrollbar { display: none; }
       `}} />
+    </div>
+  );
+}
+
+function QuizHistoryChart({ data }) {
+  const height = 150;
+  const width = 500;
+  const padding = 20;
+  
+  const maxValue = 100;
+  const points = data.map((d, i) => {
+    const x = padding + (i / (data.length - 1)) * (width - padding * 2);
+    const y = height - padding - (d.percentage / maxValue) * (height - padding * 2);
+    return { x, y };
+  });
+
+  const linePath = points.map((p, i) => (i === 0 ? `M ${p.x},${p.y}` : `L ${p.x},${p.y}`)).join(' ');
+  const areaPath = `${linePath} L ${points[points.length-1].x},${height-padding} L ${points[0].x},${height-padding} Z`;
+
+  return (
+    <div className="w-full overflow-x-auto no-scrollbar">
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[400px] h-auto overflow-visible">
+        <defs>
+          <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#6366f1" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#6366f1" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#818cf8" />
+            <stop offset="100%" stopColor="#6366f1" />
+          </linearGradient>
+        </defs>
+
+        {/* Grid lines */}
+        {[0, 25, 50, 75, 100].map(v => {
+          const y = height - padding - (v / 100) * (height - padding * 2);
+          return (
+            <g key={v}>
+              <line x1={padding} y1={y} x2={width-padding} y2={y} stroke="#ffffff" strokeOpacity="0.05" strokeDasharray="4 4" />
+              <text x={0} y={y + 3} fontSize="8" fill="#4b5563" fontWeight="bold">{v}%</text>
+            </g>
+          );
+        })}
+
+        {/* Area */}
+        <motion.path 
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1 }}
+          d={areaPath} fill="url(#areaGrad)" 
+        />
+        
+        {/* Line */}
+        <motion.path 
+          initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1.5, ease: "easeInOut" }}
+          d={linePath} fill="none" stroke="url(#lineGrad)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" 
+        />
+
+        {/* Points */}
+        {points.map((p, i) => (
+          <motion.circle 
+            key={i} 
+            initial={{ r: 0 }} animate={{ r: 4 }} transition={{ delay: 1 + i * 0.1 }}
+            cx={p.x} cy={p.y} fill="#1a1a1a" stroke="#6366f1" strokeWidth="2" 
+          />
+        ))}
+      </svg>
     </div>
   );
 }

@@ -49,8 +49,9 @@ const A = {
   ADD_REPORT:'ADD_REPORT', APPROVE_REPORT:'APPROVE_REPORT', DELETE_REPORT:'DELETE_REPORT',
   SET_REPORTS:'SET_REPORTS',
   SET_GOOGLE_TOKEN:'SET_GOOGLE_TOKEN',
-  ADD_VOCAB_SET:'ADD_VOCAB_SET', EDIT_VOCAB_SET:'EDIT_VOCAB_SET', DELETE_VOCAB_SET:'DELETE_VOCAB_SET',
+  DELETE_VOCAB_SET:'DELETE_VOCAB_SET',
   MARK_WORD_LEARNED:'MARK_WORD_LEARNED',
+  ADD_QUIZ_RESULT:'ADD_QUIZ_RESULT',
 };
 
 const init = {
@@ -59,8 +60,7 @@ const init = {
   calEvents:[], roadmap:[], votes:[], notifications:[],
   attendance:[], docs:{}, contributions:{},
   auditLogs:[], toasts:[], unreadCount:0, semesterLabels:{},
-  trash:[], reports:[], googleToken:null,
-  vocab:{}, userVocab:{},
+  vocab:{}, userVocab:{}, quizHistory:{},
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -340,6 +340,11 @@ function reducer(s, { type, payload }) {
       const newProg = learned ? [...new Set([...setProg, wordIndex])] : setProg.filter(i => i !== wordIndex);
       return { ...s, userVocab:{...s.userVocab, [userId]:{...prev, [setId]:newProg}} };
     }
+    case A.ADD_QUIZ_RESULT: {
+      const { userId, result } = payload;
+      const prev = s.quizHistory[userId] || [];
+      return { ...s, quizHistory: { ...s.quizHistory, [userId]: [result, ...prev] } };
+    }
 
     default: return s;
   }
@@ -462,6 +467,7 @@ export function AppProvider({ children }) {
       listen('2x18_trash', 'trash', toArr);
       listen('2x18_vocab', 'vocab', v => v || {});
       listen('2x18_user_vocab', 'userVocab', v => v || {});
+      listen('2x18_quiz_history', 'quizHistory', v => v || {});
 
       // 3. Isolated Reports Listener
       const unsubReports = onValue(ref(db, '2x18_reports'), (snap) => {
@@ -558,6 +564,7 @@ export function AppProvider({ children }) {
     fbSet('2x18_trash',            state.trash);
     fbSet('2x18_vocab',            state.vocab);
     fbSet('2x18_user_vocab',       state.userVocab);
+    fbSet('2x18_quiz_history',     state.quizHistory);
     Object.entries(state.grades).forEach(([uid, g]) => {
       if (uid && g) fbSet(`${uid}_grades`, g);
     });
@@ -566,7 +573,7 @@ export function AppProvider({ children }) {
     state.votes, state.notifications, state.contributions,
     state.docs, state.auditLogs, state.subjectTasks, state.subjectComments,
     state.semesterLabels, state.grades, state.attendance, state.trash,
-    state.vocab, state.userVocab
+    state.vocab, state.userVocab, state.quizHistory
   ]);
 
   // ── Toast auto-dismiss ────────────────────────────────────────────────────
@@ -1024,6 +1031,12 @@ export function AppProvider({ children }) {
     dispatch({ type: A.MARK_WORD_LEARNED, payload: { setId, wordIndex, userId: state.currentUser.id, learned } });
   }, [state.currentUser]);
 
+  const addQuizResult = useCallback((result) => {
+    if (!state.currentUser?.id) return;
+    const fullResult = { ...result, id: uid(), timestamp: new Date().toISOString() };
+    dispatch({ type: A.ADD_QUIZ_RESULT, payload: { userId: state.currentUser.id, result: fullResult } });
+  }, [state.currentUser]);
+
 
 
   const restoreFromTrash = useCallback(async (id) => {
@@ -1111,7 +1124,7 @@ export function AppProvider({ children }) {
     addAttendanceSession, checkAttendance, deleteAttendanceSession, editAttendanceSession,
     addDoc, deleteDoc, rateDoc,
     updateRole, addContribution, updateSemesterLabel,
-    addVocabSet, editVocabSet, deleteVocabSet, markWordLearned,
+    addVocabSet, editVocabSet, deleteVocabSet, markWordLearned, addQuizResult,
     restoreFromTrash, permanentDeleteTrash, emptyTrash,
     addReport, approveReport, deleteReport,
     getMemberById, getSmeMember, isProfileComplete, exportMembersCSV,
