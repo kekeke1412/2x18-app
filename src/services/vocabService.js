@@ -8,10 +8,15 @@ import { callGemini, safeJson } from './aiService';
 export const suggestDefinitions = async (words) => {
   if (!words || words.length === 0) return [];
   
-  const system = `You are a professional English teacher for Vietnamese students. 
-Return valid JSON representing an array of word definitions.`;
+  const system = `You are a professional IELTS instructor and an expert in Technical English (Electronics & Semiconductors). 
+Return valid JSON representing an array of high-quality word definitions.`;
 
-  const user = `For the following English words, provide their Vietnamese definition, IPA pronunciation, Part of Speech (noun, verb, adj, etc.), and an example sentence with its translation.
+  const user = `For the following English words, provide professional definitions and academic examples.
+  
+STRICT REQUIREMENTS:
+1. Topic Preference: Use examples related to Electronics, Semiconductors, IC Design, or Physics research.
+2. Word Types: Accurate IELTS classification (n, v, adj, adv, phr v, idiom, collocation).
+3. Example: Must be high-level academic English (IELTS Band 7.0+ style).
 
 Words: ${words.join(', ')}
 
@@ -19,11 +24,11 @@ Required JSON structure:
 [
   {
     "word": "...",
-    "definition": "...",
-    "type": "noun/verb/adj/...",
-    "ipa": "...",
-    "example": "...",
-    "exampleVi": "..."
+    "definition": "Nghĩa tiếng Việt súc tích",
+    "type": "n/v/adj/adv/phr v/idiom/collocation",
+    "ipa": "phiên âm chuẩn",
+    "example": "Academic sentence related to Electronics/Semiconductors",
+    "exampleVi": "Dịch nghĩa ví dụ sang tiếng Việt"
   }
 ]`;
 

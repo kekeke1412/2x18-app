@@ -83,7 +83,7 @@ export default function FlashcardSet() {
   if (!set) return <div className="p-10 text-center text-gray-500 font-bold">Học phần không tồn tại.</div>;
 
   const handleSave = () => { editVocabSet({ ...set, terms: cards }); setIsEditing(false); };
-  const handleAddCard = () => { setCards([...cards, { word: '', definition: '', type: '', ipa: '', example: '', exampleVi: '' }]); };
+  const handleAddCard = () => { setCards([...cards, { word: '', definition: '', type: 'n', ipa: '', example: '', exampleVi: '' }]); };
   const handleRemoveCard = (idx) => { setCards(cards.filter((_, i) => i !== idx)); };
 
   const handleAiSuggest = async (idx) => {
@@ -342,7 +342,9 @@ export default function FlashcardSet() {
                               <option value="v">v</option>
                               <option value="adj">adj</option>
                               <option value="adv">adv</option>
-                              <option value="phrase">phrase</option>
+                              <option value="phr v">phr v</option>
+                              <option value="idiom">idiom</option>
+                              <option value="colloc">colloc</option>
                             </select>
                           </div>
                           <input 
