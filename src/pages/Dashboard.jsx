@@ -600,12 +600,32 @@ export default function Dashboard() {
             <h1 className="text-xl font-black text-white">Dashboard</h1>
             <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Chào buổi tối, {currentUser?.fullName?.split(' ').pop()}!</p>
           </div>
-          <div className="flex items-center gap-2">
+            {/* Tabs */}
+            <div className="flex items-center gap-1 bg-[#1a1a1a] p-1 rounded-xl border border-gray-800">
+              {[
+                { id: 'overview',  label: 'Tổng quan', icon: BarChart2 },
+                { id: 'analytics', label: 'Phân tích', icon: Sparkles },
+                { id: 'activity',  label: 'Hoạt động', icon: Activity },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                    activeTab === tab.id 
+                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' 
+                      : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
+                  }`}
+                >
+                  <tab.icon className="w-3.5 h-3.5" />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
             <div className="text-right hidden sm:block pr-3 border-r border-gray-800">
               <div className="text-xs font-black text-blue-400">{myStats.credits} <span className="text-gray-600 font-normal">TC đạt</span></div>
               <div className="text-[10px] text-gray-500 font-bold uppercase tracking-tighter">Tổng tích lũy</div>
             </div>
-          </div>
         </div>
       </div>
 
