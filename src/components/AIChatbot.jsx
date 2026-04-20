@@ -5,7 +5,7 @@ import { chatWithAI, getApiKey } from '../services/aiService';
 import { useApp } from '../context/AppContext';
 
 export default function AIChatbot() {
-  const { currentUser, myGrades, myTasks, calEvents, attendance } = useApp();
+  const { currentUser, myGrades, myTasks, calEvents, attendance, contributions, vocab, userVocab } = useApp();
 
   const firstName = currentUser?.fullName?.split(' ').filter(Boolean).slice(-1)[0] || 'bạn';
 
@@ -56,16 +56,25 @@ export default function AIChatbot() {
       const context = {
         userName:         currentUser?.fullName,
         userRole:         currentUser?.role,
+        mssv:             currentUser?.mssv,
+        personalInfo:     {
+          gender: currentUser?.gender,
+          dob: currentUser?.dob,
+          pob: currentUser?.pob,
+          phone: currentUser?.phone,
+        },
+        points:           contributions[currentUser?.id] || 0,
         upcomingEvents:   (calEvents || [])
           .filter(e => new Date(e.date) >= new Date())
-          .slice(0, 3),
-        pendingTasks:     (myTasks || [])
-          .filter(t => !t.done)
           .slice(0, 5),
-        recentAttendance: (attendance || [])
-          .slice(0, 3)
-          .map(s => `${s.sessionTitle || s.title || 'Buổi họp'}: ${(s.present || []).includes(currentUser?.id) ? 'Có mặt' : 'Vắng'}`)
-          .join(', '),
+        pendingTasks:     (myTasks || [])
+          .filter(t => !t.done),
+        completedTasksCount: (myTasks || []).filter(t => t.done).length,
+        attendanceRate:   attendance?.length ? Math.round(((attendance.filter(s => (s.present || []).includes(currentUser?.id)).length) / attendance.length) * 100) : 100,
+        vocabStats: {
+          totalSets: Object.keys(vocab || {}).length,
+          learnedWords: Object.values(userVocab[currentUser?.id] || {}).flat().length
+        }
       };
 
       // Pass previous conversation as history for multi-turn awareness

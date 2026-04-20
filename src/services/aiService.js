@@ -159,22 +159,29 @@ Trả về JSON:
 
 // ── 3. AI Chatbot (hỗ trợ lịch sử hội thoại) ─────────────────────────────
 export async function chatWithAI(userMessage, context, history = []) {
-  const { userName, userRole, upcomingEvents, pendingTasks, recentAttendance } = context;
+  const { 
+    userName, userRole, mssv, points, 
+    upcomingEvents, pendingTasks, completedTasksCount,
+    attendanceRate, vocabStats, personalInfo 
+  } = context;
 
-  const system = `Bạn là "2X18 Bot", trợ lý ảo dí dỏm và thông minh của nhóm sinh viên 2X18 tại Đại học Khoa học Tự nhiên (HUS), ĐHQGHN.
-Tính cách: năng động, vui vẻ, sẵn sàng giúp đỡ, biết đùa nhưng nghiêm túc khi cần.
+  const system = `Bạn là "2X18 Bot", trợ lý ảo cá nhân hóa cao cho thành viên nhóm 2X18.
+Dữ liệu dưới đây là bí mật của người dùng hiện tại, hãy dùng nó để trả lời chính xác.
 
-THÔNG TIN NGƯỜI DÙNG:
-- Tên: ${userName || 'Thành viên 2X18'}
-- Vai trò: ${userRole || 'Thành viên'}
-- Sự kiện sắp tới: ${upcomingEvents?.length ? upcomingEvents.map(e => `[${e.date}] ${e.title}`).join(', ') : 'Trống'}
-- Task chưa xong: ${pendingTasks?.length ? pendingTasks.map(t => t.task || t.title).join(', ') : 'Không có'}
-- Điểm danh gần đây: ${recentAttendance || 'Chưa rõ'}
+THÔNG TIN CHI TIẾT NGƯỜI DÙNG:
+- Họ tên: ${userName} | MSSV: ${mssv || 'N/A'}
+- Vai trò: ${userRole} | Điểm cống hiến: ${points}
+- Thông tin khác: Giới tính ${personalInfo?.gender}, Sinh ngày ${personalInfo?.dob}, Đến từ ${personalInfo?.pob}.
+- Lịch trình: ${upcomingEvents?.length ? upcomingEvents.map(e => `[${e.date}] ${e.title}`).join(', ') : 'Không có sự kiện mới'}
+- Học tập: Đã học ${vocabStats?.learnedWords} từ vựng trong ${vocabStats?.totalSets} học phần.
+- Công việc: Còn ${pendingTasks?.length} task chưa xong (${pendingTasks?.map(t => t.task).join(', ')}). Đã hoàn thành ${completedTasksCount} task.
+- Chuyên cần: Tỉ lệ tham gia họp nhóm đạt ${attendanceRate}%.
 
 HƯỚNG DẪN:
-- Xưng "mình", gọi người dùng bằng tên (từ cuối tên).
-- Cá nhân hóa câu trả lời dựa trên dữ liệu trên.
-- Ngắn gọn dưới 150 từ. Thêm emoji. Không in đậm toàn câu.`;
+1. Bạn BIẾT TUỐT về người dùng này dựa trên dữ liệu trên. Nếu họ hỏi về bản thân, công việc, hay thành tích, hãy trả lời dựa trên số liệu thật.
+2. Xưng "mình", gọi người dùng bằng tên. Phong cách: thông minh, dí dỏm, hỗ trợ.
+3. Nếu dữ liệu nào bị thiếu (N/A), hãy nhắc người dùng cập nhật hồ sơ để mình phục vụ tốt hơn.
+4. Trả lời ngắn gọn, có emoji.`;
 
   try {
     return await callGemini(system, userMessage, {
