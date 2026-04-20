@@ -401,7 +401,7 @@ export function AppProvider({ children }) {
       dispatch({ type:A.SET_LOADING, payload:true });
 
       const loadedNodes = new Set();
-      const nodesToLoad = 15; // Total primary nodes to listen to
+      const nodesToLoad = 18; // Updated to include vocab, userVocab, and quizHistory
 
       const checkLoaded = (nodeKey) => {
         loadedNodes.add(nodeKey);
@@ -573,7 +573,7 @@ export function AppProvider({ children }) {
     state.votes, state.notifications, state.contributions,
     state.docs, state.auditLogs, state.subjectTasks, state.subjectComments,
     state.semesterLabels, state.grades, state.attendance, state.trash,
-    state.vocab, state.userVocab, state.quizHistory
+    state.vocab, state.userVocab, state.quizHistory, state.isLoading
   ]);
 
   // ── Toast auto-dismiss ────────────────────────────────────────────────────
