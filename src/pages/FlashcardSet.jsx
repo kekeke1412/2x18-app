@@ -177,6 +177,7 @@ export default function FlashcardSet() {
     if (quizFeedback) return;
     const current = quizQuestions[quizIndex];
     const isCorrect = ans.toLowerCase().trim() === current.answer.toLowerCase().trim();
+    if (isCorrect) setQuizScore(prev => prev + 1);
     setQuizFeedback({ correct: isCorrect, message: isCorrect ? 'Chính xác! 🎉' : `Sai rồi! Đáp án: ${current.answer}` });
     
     // Ghi lại chi tiết
