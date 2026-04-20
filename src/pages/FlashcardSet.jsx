@@ -43,6 +43,7 @@ export default function FlashcardSet() {
   const [userAnswer, setUserAnswer] = useState('');
   const [quizFeedback, setQuizFeedback] = useState(null);
   const [isSpeaking, setIsSpeaking] = useState(null);
+  const [isChecking, setIsChecking] = useState(false);
   const [quizDetails, setQuizDetails] = useState([]); // { question, userAns, correctAns, isCorrect }
   const myHistory = useMemo(() => quizHistory[currentUser?.id] || [], [quizHistory, currentUser]);
   const currentSetHistory = useMemo(() => 
@@ -174,7 +175,8 @@ export default function FlashcardSet() {
   };
 
   const handleQuizAnswer = (ans) => {
-    if (quizFeedback) return;
+    if (quizFeedback || isChecking) return;
+    setIsChecking(true);
     const current = quizQuestions[quizIndex];
     const isCorrect = ans.toLowerCase().trim() === current.answer.toLowerCase().trim();
     if (isCorrect) setQuizScore(prev => prev + 1);
@@ -204,6 +206,7 @@ export default function FlashcardSet() {
         addQuizResult(result);
         setQuizComplete(true);
       }
+      setIsChecking(false);
     }, 1200);
   };
 
@@ -560,8 +563,34 @@ export default function FlashcardSet() {
                     )}
                     {(quizQuestions[quizIndex].type === 'written' || quizQuestions[quizIndex].type === 'fill') && (
                       <div className="space-y-4">
-                        <input autoFocus placeholder="Trả lời..." value={userAnswer} onChange={e => setUserAnswer(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleQuizAnswer(userAnswer)} className="w-full bg-[#121212] border border-gray-800 rounded-2xl p-5 text-lg font-bold outline-none focus:border-indigo-500" />
-                        <button onClick={() => handleQuizAnswer(userAnswer)} className="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl">KIỂM TRA</button>
+                        <input 
+                          autoFocus 
+                          placeholder="Trả lời..." 
+                          value={userAnswer} 
+                          onChange={e => setUserAnswer(e.target.value)} 
+                          onKeyDown={e => e.key === 'Enter' && handleQuizAnswer(userAnswer)} 
+                          disabled={isChecking || quizFeedback}
+                          className={`w-full bg-[#121212] border rounded-2xl p-5 text-lg font-bold outline-none transition-all ${
+                            quizFeedback ? (quizFeedback.correct ? 'border-green-500 bg-green-500/5' : 'border-red-500 bg-red-500/5') : 'border-gray-800 focus:border-indigo-500'
+                          }`} 
+                        />
+                        <button 
+                          onClick={() => handleQuizAnswer(userAnswer)} 
+                          disabled={isChecking || quizFeedback}
+                          className={`w-full py-4 font-black rounded-2xl transition-all flex items-center justify-center gap-3 ${
+                            quizFeedback 
+                              ? (quizFeedback.correct ? 'bg-green-600' : 'bg-red-600') 
+                              : 'bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98]'
+                          } text-white`}
+                        >
+                          {isChecking ? (
+                            <><Loader2 className="w-5 h-5 animate-spin" /> ĐANG KIỂM TRA...</>
+                          ) : quizFeedback ? (
+                            quizFeedback.correct ? 'CHÍNH XÁC!' : 'CHƯA ĐÚNG!'
+                          ) : (
+                            'KIỂM TRA KẾT QUẢ'
+                          )}
+                        </button>
                       </div>
                     )}
                   </div>
