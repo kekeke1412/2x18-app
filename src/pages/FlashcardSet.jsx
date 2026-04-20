@@ -39,6 +39,14 @@ export default function FlashcardSet() {
   const [quizComplete, setQuizComplete] = useState(false);
   const [userAnswer, setUserAnswer] = useState('');
   const [quizFeedback, setQuizFeedback] = useState(null);
+  const [isSpeaking, setIsSpeaking] = useState(null);
+
+  const speak = (text, lang = 'en') => {
+    if (!text) return;
+    setIsSpeaking(text);
+    const utterance = new Audio(`https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${lang}&client=tw-ob`);
+    utterance.play().finally(() => setIsSpeaking(null));
+  };
 
   useEffect(() => {
     if (set) {
@@ -260,6 +268,12 @@ export default function FlashcardSet() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-3 mb-1">
                             <h4 className="text-lg font-black text-indigo-400">{card.word}</h4>
+                            <button 
+                              onClick={() => speak(card.word)} 
+                              className={`p-1.5 rounded-lg transition-all ${isSpeaking === card.word ? 'text-indigo-400 bg-indigo-500/20' : 'text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10'}`}
+                            >
+                              <Volume2 className={`w-4 h-4 ${isSpeaking === card.word ? 'animate-pulse' : ''}`} />
+                            </button>
                             <span className="text-[10px] bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded-md font-black uppercase tracking-wider border border-indigo-500/20">{card.type || 'n/a'}</span>
                             <span className="text-xs text-gray-500 font-mono italic">{card.ipa}</span>
                           </div>
@@ -328,6 +342,8 @@ export default function FlashcardSet() {
                         isFlipped={isFlipped}
                         onFlip={() => setIsFlipped(!isFlipped)}
                         onSwipe={handleSwipeAction}
+                        onSpeak={speak}
+                        isSpeaking={isSpeaking}
                       />
                     </AnimatePresence>
                   </div>
@@ -413,7 +429,7 @@ export default function FlashcardSet() {
   );
 }
 
-function StudyCard({ card, isFlipped, onFlip, onSwipe }) {
+function StudyCard({ card, isFlipped, onFlip, onSwipe, onSpeak, isSpeaking }) {
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-25, 25]);
   const opacity = useTransform(x, [-200, -150, 0, 150, 200], [0, 1, 1, 1, 0]);
@@ -442,6 +458,12 @@ function StudyCard({ card, isFlipped, onFlip, onSwipe }) {
           <div className="absolute top-8 left-8 text-[10px] font-black text-gray-500 uppercase tracking-widest">Thuật ngữ</div>
           <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight leading-tight">{card.word}</h2>
           <div className="flex items-center gap-3 mt-4">
+            <button 
+              onClick={(e) => { e.stopPropagation(); onSpeak(card.word); }} 
+              className={`p-3 rounded-2xl transition-all ${isSpeaking === card.word ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50' : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'}`}
+            >
+              <Volume2 className={`w-6 h-6 ${isSpeaking === card.word ? 'animate-pulse' : ''}`} />
+            </button>
             <span className="text-[10px] bg-white/10 text-white/60 px-2 py-0.5 rounded-md font-black uppercase tracking-wider border border-white/10">{card.type || 'n/a'}</span>
             <span className="text-sm text-indigo-400 font-mono italic bg-indigo-500/10 px-4 py-1.5 rounded-full border border-indigo-500/20">{card.ipa}</span>
           </div>
