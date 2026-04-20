@@ -23,7 +23,7 @@ export default function FlashcardSet() {
   const set = vocab[setId];
   const progress = useMemo(() => userVocab[currentUser?.id]?.[setId] || [], [userVocab, currentUser, setId]);
   
-  const [activeTab, setActiveTab] = useState('list'); // 'list' | 'study' | 'quiz' | 'history'
+  const [activeTab, setActiveTab] = useState('list'); // 'list' | 'study' | 'quiz'
   const [cards, setCards] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -296,7 +296,6 @@ export default function FlashcardSet() {
             { id: 'list', label: 'Danh sách', icon: Layers },
             { id: 'study', label: 'Học tập', icon: Zap },
             { id: 'quiz', label: 'Kiểm tra', icon: HelpCircle },
-            { id: 'history', label: 'Lịch sử', icon: Trophy },
           ].map(t => (
             <button 
               key={t.id} 
@@ -469,23 +468,34 @@ export default function FlashcardSet() {
             </div>
           )}
 
-          {/* ── QUIZ MODE ──────────────────────────────────────────────────── */}
+          {/* ── QUIZ & HISTORY MODE ────────────────────────────────────────── */}
           {activeTab === 'quiz' && (
-            <div className="flex flex-col items-center justify-center h-full">
+            <div className="flex flex-col items-center gap-8 h-full">
               {!quizStarted ? (
-                <div className="text-center bg-[#1a1a1a] p-10 rounded-3xl border border-gray-800 shadow-2xl max-w-md w-full">
-                  <Zap className="w-16 h-16 text-indigo-500 mx-auto mb-6" />
-                  <h2 className="text-2xl font-black text-white mb-2">Kiểm tra năng lực</h2>
-                  <button onClick={startQuiz} className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl transition-all">BẮT ĐẦU</button>
-                </div>
+                <>
+                  <div className="text-center bg-[#1a1a1a] p-10 rounded-3xl border border-gray-800 shadow-2xl max-w-md w-full">
+                    <Zap className="w-16 h-16 text-indigo-500 mx-auto mb-6" />
+                    <h2 className="text-2xl font-black text-white mb-2">Kiểm tra năng lực</h2>
+                    <p className="text-gray-500 text-xs mb-8 font-bold uppercase tracking-widest">Sẵn sàng để thử thách kiến thức?</p>
+                    <button onClick={startQuiz} className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl transition-all">BẮT ĐẦU</button>
+                  </div>
+                  
+                  {/* Dashboard lịch sử mini */}
+                  <div className="w-full max-w-2xl space-y-6">
+                    <HistoryDashboard history={currentSetHistory} />
+                  </div>
+                </>
               ) : quizComplete ? (
-                <div className="w-full max-w-2xl space-y-6">
+                <div className="w-full max-w-2xl space-y-8">
                   <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center bg-[#1a1a1a] p-10 rounded-3xl border border-gray-800 shadow-2xl w-full">
                     <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-6" />
                     <h2 className="text-2xl font-black text-white mb-2">Kết quả!</h2>
                     <div className="text-5xl font-black text-indigo-400 mb-4">{Math.round((quizScore / quizQuestions.length) * 100)}%</div>
                     <p className="text-gray-500 text-xs mb-8 font-bold uppercase tracking-widest">ĐÚNG {quizScore} / {quizQuestions.length} CÂU</p>
-                    <button onClick={startQuiz} className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl transition-all">LÀM LẠI</button>
+                    <div className="flex gap-4">
+                      <button onClick={startQuiz} className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl transition-all">LÀM LẠI</button>
+                      <button onClick={() => setQuizStarted(false)} className="px-6 py-4 bg-gray-800 hover:bg-gray-700 text-white font-black rounded-2xl transition-all">XONG</button>
+                    </div>
                   </motion.div>
 
                   <div className="bg-[#1a1a1a] border border-gray-800 rounded-3xl overflow-hidden shadow-2xl">
@@ -493,7 +503,7 @@ export default function FlashcardSet() {
                       <FileEdit className="w-4 h-4 text-indigo-400" />
                       <span className="text-sm font-black uppercase tracking-widest text-white">Xem lại chi tiết</span>
                     </div>
-                    <div className="divide-y divide-gray-800">
+                    <div className="divide-y divide-gray-800 max-h-[400px] overflow-y-auto custom-scrollbar">
                       {quizDetails.map((item, idx) => (
                         <div key={idx} className="p-5 flex gap-4">
                           <div className={`mt-1 shrink-0 p-1.5 rounded-lg ${item.isCorrect ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
@@ -517,6 +527,11 @@ export default function FlashcardSet() {
                         </div>
                       ))}
                     </div>
+                  </div>
+
+                  <div className="pt-4">
+                    <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] px-2 mb-6">Cập nhật tiến trình của bạn</h4>
+                    <HistoryDashboard history={currentSetHistory} />
                   </div>
                 </div>
               ) : (
@@ -551,61 +566,6 @@ export default function FlashcardSet() {
                   </div>
                 </div>
               )}
-            </div>
-          )}
-
-          {/* ── HISTORY TAB ────────────────────────────────────────────────── */}
-          {activeTab === 'history' && (
-            <div className="space-y-8 pb-20">
-              <div className="bg-[#1a1a1a] border border-gray-800 rounded-3xl p-8 shadow-2xl">
-                <div className="flex items-center justify-between mb-8">
-                   <div>
-                     <h3 className="text-lg font-black text-white">Tiến trình học tập</h3>
-                     <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Sự thay đổi điểm số qua các lần kiểm tra</p>
-                   </div>
-                   <div className="text-right">
-                     <div className="text-3xl font-black text-indigo-400">
-                       {currentSetHistory.length > 0 ? `${Math.round(currentSetHistory.reduce((a,b)=>a+b.percentage,0)/currentSetHistory.length)}%` : '--'}
-                     </div>
-                     <div className="text-[9px] text-indigo-500/60 font-black uppercase tracking-wider">Tỉ lệ TB</div>
-                   </div>
-                </div>
-                
-                {currentSetHistory.length > 1 ? (
-                  <QuizHistoryChart data={currentSetHistory} />
-                ) : (
-                  <div className="h-40 flex flex-col items-center justify-center border-2 border-dashed border-gray-800 rounded-2xl text-gray-600 gap-2">
-                    <Trophy className="w-6 h-6 opacity-20" />
-                    <span className="text-xs font-bold">Cần hoàn thành ít nhất 2 lần kiểm tra để vẽ đồ thị</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-4">
-                <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] px-2">Lịch sử làm bài gần đây</h4>
-                {currentSetHistory.length > 0 ? (
-                  [...currentSetHistory].reverse().map((h, i) => (
-                    <div key={i} className="bg-[#1a1a1a] border border-gray-800 rounded-2xl p-5 flex items-center justify-between hover:border-gray-700 transition-colors">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-sm ${
-                          h.percentage >= 80 ? 'bg-green-500/20 text-green-500' :
-                          h.percentage >= 50 ? 'bg-yellow-500/20 text-yellow-500' :
-                          'bg-red-500/20 text-red-500'
-                        }`}>
-                          {h.percentage}%
-                        </div>
-                        <div>
-                          <div className="text-sm font-bold text-gray-200">Đúng {h.score}/{h.total} câu</div>
-                          <div className="text-[10px] text-gray-600 font-medium mt-0.5">{new Date(h.timestamp).toLocaleString('vi-VN')}</div>
-                        </div>
-                      </div>
-                      <div className="shrink-0 text-[10px] text-gray-600 font-black uppercase tracking-widest">#{currentSetHistory.length - i}</div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-10 text-gray-600 text-xs font-bold italic">Chưa có lịch sử làm bài nào cho học phần này.</div>
-                )}
-              </div>
             </div>
           )}
         </div>
@@ -684,6 +644,62 @@ function QuizHistoryChart({ data }) {
         ))}
       </svg>
     </div>
+  );
+}
+
+function HistoryDashboard({ history }) {
+  return (
+    <>
+      <div className="bg-[#1a1a1a] border border-gray-800 rounded-3xl p-8 shadow-2xl w-full">
+        <div className="flex items-center justify-between mb-8">
+           <div>
+             <h3 className="text-lg font-black text-white">Tiến trình học tập</h3>
+             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Sự thay đổi điểm số qua các lần kiểm tra</p>
+           </div>
+           <div className="text-right">
+             <div className="text-3xl font-black text-indigo-400">
+               {history.length > 0 ? `${Math.round(history.reduce((a,b)=>a+b.percentage,0)/history.length)}%` : '--'}
+             </div>
+             <div className="text-[9px] text-indigo-500/60 font-black uppercase tracking-wider">Tỉ lệ TB</div>
+           </div>
+        </div>
+        
+        {history.length > 1 ? (
+          <QuizHistoryChart data={history} />
+        ) : (
+          <div className="h-40 flex flex-col items-center justify-center border-2 border-dashed border-gray-800 rounded-2xl text-gray-600 gap-2">
+            <Trophy className="w-6 h-6 opacity-20" />
+            <span className="text-xs font-bold">Cần hoàn thành ít nhất 2 lần kiểm tra để vẽ đồ thị</span>
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-4 w-full">
+        <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] px-2">Lịch sử làm bài gần đây</h4>
+        {history.length > 0 ? (
+          [...history].reverse().slice(0, 5).map((h, i) => (
+            <div key={i} className="bg-[#1a1a1a] border border-gray-800 rounded-2xl p-5 flex items-center justify-between hover:border-gray-700 transition-colors">
+              <div className="flex items-center gap-4">
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-sm ${
+                  h.percentage >= 80 ? 'bg-green-500/20 text-green-500' :
+                  h.percentage >= 50 ? 'bg-yellow-500/20 text-yellow-500' :
+                  'bg-red-500/20 text-red-500'
+                }`}>
+                  {h.percentage}%
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-gray-200">Đúng {h.score}/{h.total} câu</div>
+                  <div className="text-[10px] text-gray-600 font-medium mt-0.5">{new Date(h.timestamp).toLocaleString('vi-VN')}</div>
+                </div>
+              </div>
+              <div className="shrink-0 text-[10px] text-gray-600 font-black uppercase tracking-widest">#{history.length - i}</div>
+            </div>
+          ))
+        ) : (
+          <div className="text-center py-10 text-gray-600 text-xs font-bold italic">Chưa có lịch sử làm bài nào cho học phần này.</div>
+        )}
+      </div>
+    </>
   );
 }
 
