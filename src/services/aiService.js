@@ -25,7 +25,7 @@ export async function callGemini(systemPrompt, userPrompt, { temperature = 0.7, 
   try {
     // Use gemini-1.5-flash for better stability and lower latency
     const model = genAI.getGenerativeModel({ 
-      model: 'gemini-1.5-flash',
+      model: 'gemini-1.5-flash-latest',
       systemInstruction: systemPrompt
     });
 
@@ -56,7 +56,11 @@ export async function callGemini(systemPrompt, userPrompt, { temperature = 0.7, 
     }
     return text;
   } catch (err) {
-    console.error('[callGemini Error]', err);
+    console.error('[Gemini API Error Detail]:', {
+      message: err.message,
+      status: err.status,
+      name: err.name
+    });
     throw err;
   }
 }
