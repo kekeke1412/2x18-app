@@ -11,7 +11,7 @@ export default function AIChatbot() {
 
   const [isOpen,      setIsOpen]      = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [hasApiKey,   setHasApiKey]   = useState(true);
+  const [hasApiKey,   setHasApiKey]   = useState(false);
   const [messages,    setMessages]    = useState([
     {
       role: 'assistant',
@@ -130,7 +130,7 @@ export default function AIChatbot() {
             </div>
             <div className={`text-[10px] flex items-center gap-1 font-bold ${hasApiKey ? 'text-green-400' : 'text-amber-500'}`}>
               <span className={`w-1.5 h-1.5 rounded-full inline-block ${hasApiKey ? 'bg-green-400' : 'bg-amber-500 animate-pulse'}`}/>
-              {hasApiKey ? 'Sẵn sàng' : 'Chưa cấu hình API Key'}
+              {hasApiKey ? 'Sẵn sàng' : 'Yêu cầu API Key'}
             </div>
           </div>
         </div>
