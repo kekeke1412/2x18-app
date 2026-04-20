@@ -4,8 +4,8 @@ const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png',
+  '/icon-192.jpg',
+  '/icon-512.jpg',
 ];
 
 // ── Install: pre-cache static shell ───────────────────────────────────────
@@ -49,8 +49,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || '2X18 — Thông báo mới';
   const options = {
     body:  data.body  || 'Có hoạt động mới trong nhóm.',
-    icon:  '/icon-192.png',
-    badge: '/icon-192.png',
+    icon:  '/icon-192.jpg',
+    badge: '/icon-192.jpg',
     tag:   data.tag   || 'notif',
     data:  { url: data.url || '/' },
     vibrate: [100, 50, 100],
