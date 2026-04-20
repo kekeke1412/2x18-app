@@ -795,6 +795,37 @@ function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfil
         <ProfileCompletionBanner profile={profile} isEditing={isEditing} onStartEdit={onStartEdit}/>
       )}
 
+      <Section icon={Sparkles} title="Cấu hình AI cá nhân" badge="New">
+        <div className="space-y-4">
+          <div className="flex flex-col gap-2">
+            <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
+              <Key className="w-3 h-3" /> Gemini API Key của bạn
+            </label>
+            <div className="relative">
+              <input 
+                type={isEditing ? "text" : "password"}
+                value={profile.personalApiKey || ''}
+                onChange={e => setProfile(p => ({ ...p, personalApiKey: e.target.value }))}
+                disabled={!isEditing}
+                placeholder="Dán Key cá nhân để dùng riêng (ghi đè Key của nhóm)..."
+                className={`w-full text-sm px-4 py-3 rounded-xl outline-none transition-all
+                  ${!isEditing ? 'bg-transparent text-gray-400 border-transparent italic cursor-default' 
+                             : 'bg-[#252525] border border-gray-700 text-white focus:border-indigo-500 shadow-inner'}`}
+              />
+              {!isEditing && profile.personalApiKey && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                   <CheckCircle className="w-4 h-4 text-green-500" />
+                </div>
+              )}
+            </div>
+            <p className="text-[10px] text-gray-600 leading-relaxed italic">
+              * Khi bạn nhập Key ở đây, 2X18 sẽ ưu tiên dùng "tài nguyên" của bạn để xử lý AI. 
+              Giúp tiết kiệm lượt dùng cho Key chung của nhóm.
+            </p>
+          </div>
+        </div>
+      </Section>
+
       <Section icon={User} title="Nhận diện">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="flex flex-col gap-2 md:col-span-1">

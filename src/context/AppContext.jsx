@@ -508,12 +508,17 @@ export function AppProvider({ children }) {
     };
   }, []);
 
-  // ── Sync AI Key from Config ───────────────────────────────────────────────
+  // ── Sync AI Key (Ưu tiên: Cá nhân > Hệ thống > ENV) ───────────────────────
   useEffect(() => {
-    if (state.config?.gemini_api_key) {
-      setApiKey(state.config.gemini_api_key);
+    const personal = state.currentUser?.personalApiKey;
+    const global = state.config?.gemini_api_key;
+    
+    if (personal) {
+      setApiKey(personal);
+    } else if (global) {
+      setApiKey(global);
     }
-  }, [state.config?.gemini_api_key]);
+  }, [state.currentUser?.personalApiKey, state.config?.gemini_api_key]);
 
 
   // ── Sync currentUser from members ─────────────────────────────────────────
