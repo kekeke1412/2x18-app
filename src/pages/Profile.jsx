@@ -666,7 +666,7 @@ function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfil
       )}
 
       <Section icon={User} title="Nhận diện">
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="flex flex-col gap-2 md:col-span-1">
             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Ảnh đại diện</label>
             {isEditing ? (
@@ -695,7 +695,7 @@ function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfil
       </Section>
 
       <Section icon={User} title="Thông tin cơ bản">
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Field label="STT"        value={profile.stt}      onChange={v=>setProfile(p=>({...p,stt:v}))}      disabled={!isEditing || !isSuperAdmin}/>
           <Field label="MSV" required value={profile.mssv||profile.msv} onChange={v=>setProfile(p=>({...p,mssv:v,msv:v}))} disabled={!isEditing}/>
 
@@ -738,7 +738,7 @@ function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfil
       </Section>
 
       <Section icon={Phone} title="Liên hệ">
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Field label="SĐT" required          value={profile.phone}        onChange={v=>setProfile(p=>({...p,phone:v}))}        type="tel"   disabled={!isEditing}/>
           <Field label="SĐT người thân"        value={profile.phoneFamily}  onChange={v=>setProfile(p=>({...p,phoneFamily:v}))}  type="tel"   disabled={!isEditing}/>
           <Field label="Mail HUS" required     value={profile.mailSchool}   onChange={v=>setProfile(p=>({...p,mailSchool:v}))}   type="email" disabled={!isEditing}/>
@@ -797,23 +797,23 @@ function MemberDetail({ member, onBack, canEdit }) {
 
   return (
     <div className="h-full overflow-y-auto custom-scrollbar">
-      <div className="flex items-center gap-4 p-6 border-b border-gray-800/60 bg-[#1a1a1a] sticky top-0 z-10">
+      <div className="flex flex-wrap items-center gap-3 md:gap-4 p-4 md:p-6 border-b border-gray-800/60 bg-[#1a1a1a] sticky top-0 z-10">
         <button onClick={onBack}
-          className="p-2 rounded-xl hover:bg-[#252525] text-gray-400 hover:text-white transition-colors">
+          className="p-2 rounded-xl hover:bg-[#252525] text-gray-400 hover:text-white transition-colors shrink-0">
           <ChevronLeft className="w-5 h-5"/>
         </button>
         <div className="flex items-center gap-3 flex-1 min-w-0">
           {member.avatarUrl
-            ? <img src={member.avatarUrl} alt="" className="w-10 h-10 rounded-xl object-cover border border-gray-700"/>
+            ? <img src={member.avatarUrl} alt="" className="w-10 h-10 rounded-xl object-cover border border-gray-700 shrink-0"/>
             : <div className="w-10 h-10 bg-blue-600/20 border border-blue-500/30 rounded-xl flex items-center justify-center text-blue-400 font-bold text-sm shrink-0">{initials}</div>
           }
-          <div className="min-w-0">
-            <div className="font-bold text-white truncate">{member.fullName||'—'}</div>
-            <div className="text-xs text-gray-500">{member.mssv||member.msv||'MSSV chưa cập nhật'}</div>
+          <div className="min-w-0 flex-1">
+            <div className="font-bold text-white truncate text-sm md:text-base">{member.fullName||'—'}</div>
+            <div className="text-[10px] md:text-xs text-gray-500 truncate">{member.mssv||member.msv||'MSSV chưa cập nhật'}</div>
           </div>
-          <span className={`text-xs font-bold px-2.5 py-1 rounded-xl shrink-0 ${rl.cls}`}>{rl.text}</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full md:w-auto md:justify-end border-t md:border-none border-gray-800 pt-3 md:pt-0 mt-1 md:mt-0">
+          <span className={`text-[10px] md:text-xs font-bold px-2.5 py-1 rounded-xl shrink-0 ${rl.cls}`}>{rl.text}</span>
           {isSuperAdmin && !isEditing && (
             <button onClick={() => {
               if (window.confirm(`Bạn có chắc chắn muốn XÓA TOÀN BỘ dữ liệu của ${member.fullName}? Hành động này KHÔNG THỂ hoàn tác!`)) {
