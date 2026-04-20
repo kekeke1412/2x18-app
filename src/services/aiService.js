@@ -10,7 +10,8 @@ export function setApiKey(key) {
 
 export function getApiKey() {
   // Ưu tiên Key từ runtime (Firebase config), sau đó mới đến biến môi trường
-  return runtimeApiKey || import.meta.env.VITE_GEMINI_API_KEY || "";
+  const key = runtimeApiKey || import.meta.env.VITE_GEMINI_API_KEY || "";
+  return key.trim();
 }
 
 // ── Core AI Call (Gemini) ───────────────────────────────────────────────────
@@ -25,7 +26,7 @@ export async function callGemini(systemPrompt, userPrompt, { temperature = 0.7, 
   try {
     // Use gemini-1.5-flash for better stability and lower latency
     const model = genAI.getGenerativeModel({ 
-      model: 'gemini-1.5-flash-latest',
+      model: 'gemini-1.5-flash',
       systemInstruction: systemPrompt
     });
 
