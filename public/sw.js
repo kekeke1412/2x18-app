@@ -1,5 +1,5 @@
 // public/sw.js — Service Worker cho 2X18 PWA
-const CACHE_NAME = '2x18-v1';
+const CACHE_NAME = '2x18-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
