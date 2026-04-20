@@ -564,7 +564,7 @@ export function AppProvider({ children }) {
     fbSet('2x18_trash',            state.trash);
     fbSet('2x18_vocab',            state.vocab);
     fbSet('2x18_user_vocab',       state.userVocab);
-    fbSet('2x18_quiz_history',     state.quizHistory);
+    // fbSet('2x18_quiz_history',     state.quizHistory); // Removed from global sync for reliability
     Object.entries(state.grades).forEach(([uid, g]) => {
       if (uid && g) fbSet(`${uid}_grades`, g);
     });
@@ -1033,9 +1033,25 @@ export function AppProvider({ children }) {
 
   const addQuizResult = useCallback((result) => {
     if (!state.currentUser?.id) return;
+    const userId = state.currentUser.id;
     const fullResult = { ...result, id: uid(), timestamp: new Date().toISOString() };
-    dispatch({ type: A.ADD_QUIZ_RESULT, payload: { userId: state.currentUser.id, result: fullResult } });
-  }, [state.currentUser]);
+    
+    // Ghi trực tiếp lên Firebase để đảm bảo không bị mất
+    const historyRef = ref(db, `2x18_quiz_history/${userId}`);
+    onValue(historyRef, (snapshot) => {
+      // Chỉ lấy 1 lần duy nhất để update
+    }, { onlyOnce: true });
+
+    // Cách an toàn hơn: dùng push hoặc ghi đè node con
+    const existingHistory = state.quizHistory[userId] || [];
+    const newHistory = [fullResult, ...existingHistory];
+    
+    // Cập nhật local trước cho nhanh
+    dispatch({ type: A.ADD_QUIZ_RESULT, payload: { userId, result: fullResult } });
+    
+    // Sau đó đẩy lên Firebase
+    fbSet(`2x18_quiz_history/${userId}`, newHistory);
+  }, [state.currentUser, state.quizHistory]);
 
 
 
