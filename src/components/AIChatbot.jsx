@@ -138,6 +138,7 @@ export default function AIChatbot() {
           <div>
             <div className="text-sm font-bold text-white flex items-center gap-1">
               2X18 Bot <Sparkles className="w-3 h-3 text-blue-400"/>
+              <span className="text-[8px] bg-blue-500/20 text-blue-400 px-1 rounded border border-blue-500/30 ml-1">PRO</span>
             </div>
             <div className={`text-[10px] flex items-center gap-1 font-bold ${hasApiKey ? 'text-green-400' : 'text-amber-500'}`}>
               <span className={`w-1.5 h-1.5 rounded-full inline-block ${hasApiKey ? 'bg-green-400' : 'bg-amber-500 animate-pulse'}`}/>
@@ -202,6 +203,23 @@ export default function AIChatbot() {
               </div>
             )}
             <div ref={chatEndRef}/>
+          </div>
+
+          {/* ── Quick Actions ── */}
+          <div className="px-3 py-2 flex gap-2 bg-[#0f0f0f] border-t border-gray-800/50 overflow-x-auto no-scrollbar shrink-0">
+             {[
+               { id: 'tasks',  icon: <Clock className="w-3.5 h-3.5"/>,  label: 'Gợi ý task', prompt: 'Dựa vào Roadmap, hãy gợi ý cho mình 3 việc cần làm tiếp theo?' },
+               { id: 'grades', icon: <BookOpen className="w-3.5 h-3.5"/>, label: 'Phân tích học tập', prompt: 'Phân tích bảng điểm của mình và cho biết mình cần chú ý môn nào?' },
+               { id: 'moto',   icon: <Star className="w-3.5 h-3.5"/>,     label: 'Động lực', prompt: 'Hãy cho mình một lời khuyên hoặc câu nói truyền cảm hứng dựa trên tiến độ của mình!' },
+             ].map(act => (
+               <button 
+                 key={act.id}
+                 onClick={() => { setInput(act.prompt); }}
+                 className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1a1a1a] hover:bg-[#252525] border border-gray-800 rounded-xl text-[10px] font-bold text-gray-400 whitespace-nowrap transition-all"
+               >
+                 {act.icon} {act.label}
+               </button>
+             ))}
           </div>
 
           {/* ── Suggested prompts (only when empty) ── */}
