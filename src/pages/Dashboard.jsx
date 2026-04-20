@@ -8,6 +8,7 @@ import { subjectDatabase, getHe4, calculateHe10 } from '../data';
 import { useApp } from '../context/AppContext';
 import { analyzeEarlyWarning } from '../services/aiService';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Link } from 'react-router-dom';
 
 // ── Semester names — persisted via AppContext ──────────────────────────────
 const DEFAULT_SEM_NAMES = {
@@ -649,10 +650,10 @@ export default function Dashboard() {
                   animate="show"
                   className="grid grid-cols-2 lg:grid-cols-4 gap-4"
                 >
-                  <StatCard icon={TrendingUp} label="CPA Hiện tại" value={myStats.cpa} valueClass={cpaColor(myStats.cpa)} sub="Hệ 4.0" color="green"/>
-                  <StatCard icon={CheckCircle2} label="Tín chỉ" value={myStats.credits} sub="/ 133 TC" color="blue"/>
-                  <StatCard icon={BookOpen} label="Đang học" value={myStats.learning} sub="Môn học" color="purple"/>
-                  <StatCard icon={AlertCircle} label="Task chờ" value={myTasks.filter(t=>!t.done).length} sub="Cần xử lý" color="red"/>
+                  <StatCard icon={TrendingUp} label="CPA Hiện tại" value={myStats.cpa} valueClass={cpaColor(myStats.cpa)} sub="Hệ 4.0" color="green" to="/profile"/>
+                  <StatCard icon={CheckCircle2} label="Tín chỉ" value={myStats.credits} sub="/ 133 TC" color="blue" to="/roadmap"/>
+                  <StatCard icon={BookOpen} label="Đang học" value={myStats.learning} sub="Môn học" color="purple" to="/subjects"/>
+                  <StatCard icon={AlertCircle} label="Task chờ" value={myTasks.filter(t=>!t.done).length} sub="Cần xử lý" color="red" to="/tasks"/>
                 </motion.div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -910,21 +911,16 @@ export default function Dashboard() {
 
 
 // ── Stat Card ──────────────────────────────────────────────────────────────
-function StatCard({ icon: Icon, label, value, sub, color, valueClass }) {
+function StatCard({ icon: Icon, label, value, sub, color, valueClass, to }) {
   const colors = {
     green:  'bg-green-500/10 text-green-400',
     blue:   'bg-blue-500/10  text-blue-400',
     purple: 'bg-purple-500/10 text-purple-400',
     red:    'bg-red-500/10   text-red-400',
   };
-  return (
-    <motion.div 
-      variants={{
-        hidden: { opacity: 0, scale: 0.9 },
-        show: { opacity: 1, scale: 1 }
-      }}
-      className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl p-4 flex items-center gap-4 card-hover"
-    >
+  
+  const content = (
+    <>
       <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${colors[color]}`}>
         <Icon className="w-5 h-5"/>
       </div>
@@ -933,6 +929,26 @@ function StatCard({ icon: Icon, label, value, sub, color, valueClass }) {
         <div className={`text-2xl font-black ${valueClass || 'text-white'}`}>{value}</div>
         <div className="text-[10px] text-gray-600">{sub}</div>
       </div>
+    </>
+  );
+
+  return (
+    <motion.div 
+      variants={{
+        hidden: { opacity: 0, scale: 0.9 },
+        show: { opacity: 1, scale: 1 }
+      }}
+      className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl overflow-hidden shadow-sm hover:border-gray-700 transition-all"
+    >
+      {to ? (
+        <Link to={to} className="flex items-center gap-4 p-4 hover:bg-[#222] transition-colors w-full h-full">
+          {content}
+        </Link>
+      ) : (
+        <div className="flex items-center gap-4 p-4">
+          {content}
+        </div>
+      )}
     </motion.div>
   );
 }
