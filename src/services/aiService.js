@@ -26,7 +26,7 @@ export async function callGemini(systemPrompt, userPrompt, { temperature = 0.7, 
   try {
     // Use gemini-1.5-flash for better stability and lower latency
     const model = genAI.getGenerativeModel({
-      model: 'gemini-3.0-flash',
+      model: 'gemini-flash-latest',
       systemInstruction: systemPrompt
     });
 
