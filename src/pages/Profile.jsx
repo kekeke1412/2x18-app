@@ -699,10 +699,11 @@ function SystemSettings() {
     });
   }, [config]);
 
-  const handleSave = async () => {
+  const handleSave = () => {
     setIsSaving(true);
-    await updateConfig(form);
-    setIsSaving(false);
+    updateConfig(form);
+    // Tạo cảm giác lưu tức thì, không bắt người dùng đợi lâu
+    setTimeout(() => setIsSaving(false), 600);
   };
 
   return (

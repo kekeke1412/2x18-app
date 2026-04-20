@@ -817,7 +817,7 @@ export function AppProvider({ children }) {
     }
   }, [toast]);
 
-  const updateConfig = useCallback(async (newConfig) => {
+  const updateConfig = useCallback((newConfig) => {
     try {
       const merged = { 
         ...state.config, 
@@ -825,12 +825,13 @@ export function AppProvider({ children }) {
         updatedAt: new Date().toISOString(),
         updatedBy: state.currentUser?.fullName || 'Admin'
       };
-      await set(ref(db, '2x18_config'), merged);
-      toast('Đã cập nhật cấu hình hệ thống!', 'success');
+      // Lưu ngầm, không await để tránh làm chậm UI
+      set(ref(db, '2x18_config'), merged);
+      toast('Đã gửi yêu cầu lưu cấu hình!', 'success');
       return true;
     } catch (e) {
       console.error('[updateConfig]', e);
-      toast('Lỗi khi cập nhật cấu hình.', 'error');
+      toast('Lỗi khi gửi cấu hình.', 'error');
       return false;
     }
   }, [state.config, state.currentUser, toast]);
