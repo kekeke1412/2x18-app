@@ -603,7 +603,13 @@ export default function Dashboard() {
           <div className="flex items-center gap-2">
             <div className="text-right hidden sm:block pr-3 border-r border-gray-800">
               <div className="text-xs font-black text-blue-400">{myStats.credits} <span className="text-gray-600 font-normal">TC đạt</span></div>
-              <div className="text-[10px] text-gray-500">T        <div className="flex-1 overflow-y-auto custom-scrollbar">
+              <div className="text-[10px] text-gray-500 font-bold uppercase tracking-tighter">Tổng tích lũy</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
           <AnimatePresence mode="wait">
             {activeTab === 'overview' && (
               <motion.div 
@@ -841,63 +847,42 @@ export default function Dashboard() {
                     <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{auditLogs.length} sự kiện</span>
                   </div>
                   <div className="divide-y divide-gray-800/40">
-                    {auditLogs.length > 0 ? auditLogs.slice(0, 30).map((log, i) => (
-                      <motion.div 
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.05 }}
-                        key={log.id} 
-                        className="flex items-start gap-4 px-6 py-4 hover:bg-[#1e1e1e] transition-colors"
-                      >
-                        <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                          <Zap className="w-4 h-4 text-blue-400"/>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-4 mb-1">
-                            <span className="text-sm font-bold text-gray-200">{log.action}</span>
-                            <span className="text-[10px] text-gray-600 whitespace-nowrap">
-                              {new Date(log.time).toLocaleTimeString('vi', { hour:'2-digit', minute:'2-digit' })} · {new Date(log.time).toLocaleDateString('vi')}
-                            </span>
+                    {auditLogs.length > 0 ? (
+                      auditLogs.slice(0, 30).map((log, i) => (
+                        <motion.div 
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: i * 0.05 }}
+                          key={log.id} 
+                          className="flex items-start gap-4 px-6 py-4 hover:bg-[#1e1e1e] transition-colors"
+                        >
+                          <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 mt-0.5">
+                            <Zap className="w-4 h-4 text-blue-400"/>
                           </div>
-                          <div className="text-xs text-gray-500">
-                            {log.target && <span className="text-blue-400 font-semibold">{log.target}</span>}
-                            {log.detail && <span> — {log.detail}</span>}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-4 mb-1">
+                              <span className="text-sm font-bold text-gray-200">{log.action}</span>
+                              <span className="text-[10px] text-gray-600 whitespace-nowrap">
+                                {new Date(log.time).toLocaleTimeString('vi', { hour:'2-digit', minute:'2-digit' })} · {new Date(log.time).toLocaleDateString('vi')}
+                              </span>
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {log.target && <span className="text-blue-400 font-semibold">{log.target}</span>}
+                              {log.detail && <span> — {log.detail}</span>}
+                            </div>
                           </div>
-                        </div>
-                      </motion.div>
-                    ))}
+                        </motion.div>
+                      ))
+                    ) : (
+                      <div className="px-5 py-20 text-center text-gray-600">
+                        Chưa có hoạt động nào được ghi lại.
+                      </div>
+                    )}
                   </div>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
-1e] transition-colors">
-                    <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <Zap className="w-4 h-4 text-blue-500"/>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-4 mb-1">
-                        <span className="text-sm font-bold text-gray-200">{log.action}</span>
-                        <span className="text-[10px] text-gray-600 whitespace-nowrap">
-                          {new Date(log.time).toLocaleTimeString('vi', { hour:'2-digit', minute:'2-digit' })} · {new Date(log.time).toLocaleDateString('vi')}
-                        </span>
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {log.target && <span className="text-blue-400 font-semibold">{log.target}</span>}
-                        {log.detail && <span> — {log.detail}</span>}
-                      </div>
-                    </div>
-                  </div>
-                )) : (
-                  <div className="px-5 py-20 text-center text-gray-600">
-                    Chưa có hoạt động nào được ghi lại.
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

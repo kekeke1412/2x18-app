@@ -729,6 +729,18 @@ export default function Subjects() {
             </AnimatePresence>
           </div>
         ) : (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex flex-col items-center justify-center py-20 bg-[#1a1a1a] border border-dashed border-gray-800 rounded-2xl"
+          >
+            <BookOpen className="w-14 h-14 text-gray-700 mb-3"/>
+            <p className="text-gray-500 font-medium">Không tìm thấy môn học nào</p>
+            <p className="text-xs text-gray-600 mt-1">
+              {filterType==='done'    ?'Chưa có môn nào được đánh dấu "Đã học" trong bảng điểm.' :
+               filterType==='learning'?'Vào Hồ sơ & GPA để đăng ký trạng thái "Đang học".' :
+               filterType==='sme'     ?'Bạn chưa được gán phụ trách môn nào.' :
+               'Không có môn nào khớp với tìm kiếm.'}
             </p>
           </motion.div>
         )}
