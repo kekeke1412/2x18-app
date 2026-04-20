@@ -817,7 +817,7 @@ export function AppProvider({ children }) {
     }
   }, [toast]);
 
-  const updateConfig = useCallback((newConfig) => {
+  const updateConfig = useCallback(async (newConfig) => {
     try {
       const merged = { 
         ...state.config, 
@@ -825,13 +825,18 @@ export function AppProvider({ children }) {
         updatedAt: new Date().toISOString(),
         updatedBy: state.currentUser?.fullName || 'Admin'
       };
-      // Lưu ngầm, không await để tránh làm chậm UI
-      set(ref(db, '2x18_config'), merged);
-      toast('Đã gửi yêu cầu lưu cấu hình!', 'success');
+      
+      // Optimistic update: Update local state immediately
+      dispatch({ type: A.INIT_DATA, payload: { config: merged } });
+      
+      // Persist to Firebase
+      await set(ref(db, '2x18_config'), merged);
+      
+      toast('Đã lưu cấu hình hệ thống! ✓', 'success');
       return true;
     } catch (e) {
       console.error('[updateConfig]', e);
-      toast('Lỗi khi gửi cấu hình.', 'error');
+      toast('Lỗi khi lưu cấu hình. Kiểm tra quyền Admin.', 'error');
       return false;
     }
   }, [state.config, state.currentUser, toast]);
