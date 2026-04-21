@@ -901,7 +901,20 @@ function MemberDetail({ member, onBack, canEdit }) {
 
 // ── MemberCard ─────────────────────────────────────────────────────────────
 function MemberCard({ member, onClick, index }) {
+  const { userVocab, quizHistory, isCore, isSuperAdmin } = useApp();
   const rl = roleLabel(member.role);
+  
+  // Calculate Learning Stats
+  const memberVocab = userVocab[member.id] || {};
+  const totalLearned = Object.values(memberVocab).reduce((sum, set) => {
+    return sum + Object.values(set).filter(lv => lv >= 3).length;
+  }, 0);
+  
+  const history = quizHistory[member.id] || [];
+  const avgScore = history.length > 0 
+    ? Math.round(history.reduce((a, b) => a + b.percentage, 0) / history.length) 
+    : 0;
+
   return (
     <motion.button 
       layout
@@ -909,19 +922,35 @@ function MemberCard({ member, onClick, index }) {
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.03 }}
       onClick={onClick}
-      className="w-full flex items-center gap-3 p-3.5 bg-[#1a1a1a] border border-gray-800/60 rounded-2xl hover:bg-[#1e1e1e] hover:border-blue-500/30 transition-all text-left group">
-      {member.avatarUrl
-        ? <img src={member.avatarUrl} alt="" className="w-10 h-10 rounded-xl object-cover border border-gray-700 shrink-0"/>
-        : <div className="w-10 h-10 bg-blue-600/20 border border-blue-500/30 rounded-xl flex items-center justify-center text-blue-400 font-bold text-sm shrink-0">
-            {getInitials(member.fullName)}
-          </div>
-      }
-      <div className="flex-1 min-w-0">
-        <div className="font-semibold text-gray-200 text-sm truncate group-hover:text-white">{member.fullName||'—'}</div>
-        <div className="text-xs text-gray-600 truncate">{member.mssv||member.msv||'Chưa cập nhật MSSV'}</div>
+      className="w-full flex flex-col gap-3 p-4 bg-[#1a1a1a] border border-gray-800/60 rounded-2xl hover:bg-[#1e1e1e] hover:border-blue-500/30 transition-all text-left group">
+      
+      <div className="flex items-center gap-3 w-full">
+        {member.avatarUrl
+          ? <img src={member.avatarUrl} alt="" className="w-10 h-10 rounded-xl object-cover border border-gray-700 shrink-0"/>
+          : <div className="w-10 h-10 bg-blue-600/20 border border-blue-500/30 rounded-xl flex items-center justify-center text-blue-400 font-bold text-sm shrink-0">
+              {getInitials(member.fullName)}
+            </div>
+        }
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold text-gray-200 text-sm truncate group-hover:text-white">{member.fullName||'—'}</div>
+          <div className="text-xs text-gray-600 truncate">{member.mssv||member.msv||'Chưa cập nhật MSSV'}</div>
+        </div>
+        <span className={`text-[10px] font-bold px-2 py-1 rounded-lg shrink-0 ${rl.cls}`}>{rl.text}</span>
+        <Eye className="w-4 h-4 text-gray-700 group-hover:text-blue-400 shrink-0 transition-colors"/>
       </div>
-      <span className={`text-[10px] font-bold px-2 py-1 rounded-lg shrink-0 ${rl.cls}`}>{rl.text}</span>
-      <Eye className="w-4 h-4 text-gray-700 group-hover:text-blue-400 shrink-0 transition-colors"/>
+
+      {(isCore || isSuperAdmin) && (
+        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-800/40">
+          <div className="bg-blue-600/5 border border-blue-500/10 rounded-xl px-3 py-2 flex flex-col">
+            <span className="text-[8px] font-black text-blue-500 uppercase tracking-widest">Từ vựng</span>
+            <span className="text-xs font-black text-gray-300">Đã học {totalLearned} từ</span>
+          </div>
+          <div className="bg-purple-600/5 border border-purple-500/10 rounded-xl px-3 py-2 flex flex-col">
+            <span className="text-[8px] font-black text-purple-500 uppercase tracking-widest">Quiz TB</span>
+            <span className="text-xs font-black text-gray-300">{avgScore}% chính xác</span>
+          </div>
+        </div>
+      )}
     </motion.button>
   );
 }

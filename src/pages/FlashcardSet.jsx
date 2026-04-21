@@ -111,10 +111,7 @@ export default function FlashcardSet() {
     }
   };
 
-  const toggleLearned = (idx) => {
-    const isLearned = progress.some(p => Number(p) === idx);
-    markWordLearned(setId, idx, !isLearned);
-  };
+  const currentLevels = (userVocab[currentUser?.id] || {})[setId] || {};
 
   // ── STUDY LOGIC (Combined Flip + Swipe) ──────────────────────────────────
   const startStudy = () => {
@@ -129,7 +126,6 @@ export default function FlashcardSet() {
     const isRight = direction === 'right';
     if (isRight) {
       setStudyResults(prev => ({ ...prev, remembered: prev.remembered + 1 }));
-      markWordLearned(setId, studyIndex, true);
     } else {
       setStudyResults(prev => ({ ...prev, forgotten: prev.forgotten + 1 }));
     }
