@@ -210,8 +210,8 @@ export default function Vocab() {
                               <td className="px-6 py-4">
                                 <div className="flex items-center gap-3">
                                   <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-[10px] font-black text-gray-400 overflow-hidden border border-gray-700">
-                                    {m.avatar ? (
-                                      <img src={m.avatar} alt={m.fullName} className="w-full h-full object-cover" />
+                                    {m.avatarUrl ? (
+                                      <img src={m.avatarUrl} alt={m.fullName} className="w-full h-full object-cover" />
                                     ) : (
                                       <span>{m.fullName?.slice(0,2).toUpperCase()}</span>
                                     )}
@@ -344,10 +344,11 @@ export default function Vocab() {
 }
 
 function VocabSetCard({ set, onDelete, isOwner, progress = {} }) {
+  const { getMemberById } = useApp();
   const termCount = toArr(set.terms).length;
-  // progress is now an object { wordIndex: level }
   const masteredCount = Object.values(progress).filter(lv => Number(lv) === 6).length;
   const pct = termCount > 0 ? Math.round((masteredCount / termCount) * 100) : 0;
+  const author = getMemberById(set.authorId);
 
   return (
     <motion.div 
@@ -376,8 +377,12 @@ function VocabSetCard({ set, onDelete, isOwner, progress = {} }) {
 
       <div className="px-5 py-4 bg-[#141414] border-t border-gray-800/60 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-[10px] font-black text-gray-500">
-            {set.authorName?.split(' ').slice(-1)[0][0] || <User className="w-3 h-3" />}
+          <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-[10px] font-black text-gray-400 overflow-hidden border border-gray-800/60 shadow-inner">
+            {author?.avatarUrl ? (
+              <img src={author.avatarUrl} alt={set.authorName} className="w-full h-full object-cover" />
+            ) : (
+              <span>{set.authorName?.split(' ').slice(-1)[0][0] || <User className="w-3 h-3" />}</span>
+            )}
           </div>
           <div className="text-xs">
             <div className="text-gray-400 font-bold">{set.authorName || 'Thành viên'}</div>
