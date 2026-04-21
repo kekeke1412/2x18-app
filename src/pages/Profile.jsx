@@ -727,32 +727,6 @@ function SystemSettings() {
         </div>
 
         <div className="space-y-5">
-          <div className="space-y-2">
-            <label className="text-xs font-black text-gray-400 uppercase tracking-wider flex items-center gap-2">
-              <Key className="w-3 h-3 text-blue-400" /> GEMINI API KEY (AI RESTORATION)
-            </label>
-            <div className="relative">
-              <input 
-                type="password"
-                className="input-dark pr-12"
-                placeholder="Dán API Key của Gemini vào đây..."
-                value={form.gemini_api_key}
-                onChange={e => setForm({...form, gemini_api_key: e.target.value})}
-              />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                {config?.gemini_api_key ? (
-                  <CheckCircle2 className="w-5 h-5 text-green-500" />
-                ) : (
-                  <AlertTriangle className="w-5 h-5 text-amber-500" />
-                )}
-              </div>
-            </div>
-            <p className="text-[10px] text-gray-600 leading-relaxed italic">
-              Key này sẽ được đồng bộ ngay lập tức cho toàn bộ người dùng để khôi phục các tính năng AI.
-            </p>
-          </div>
-
-          <div className="h-px bg-gray-800 my-2"></div>
 
           <div className="space-y-4">
              <div className="flex items-center justify-between p-4 bg-[#121212] border border-gray-800 rounded-xl">
