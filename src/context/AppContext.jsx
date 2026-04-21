@@ -1185,7 +1185,22 @@ export function AppProvider({ children }) {
     || state.currentUser?.mailSchool === SUPER_ADMIN_EMAIL;
 
   const isCore       = isSuperAdmin || state.currentUser?.role?.toLowerCase() === 'core';
-  const myGrades     = state.grades[state.currentUser?.id] || {};
+  
+  // Enrich grades with subject names and credits for AI and UI usage
+  const myGrades = useMemo(() => {
+    const rawGrades = state.grades[state.currentUser?.id] || {};
+    return Object.entries(rawGrades).map(([sid, scoreData]) => {
+      const sub = subjectDatabase.find(s => s.id === sid);
+      return {
+        subjectId: sid,
+        subjectName: sub?.name || sid,
+        code: sub?.code || '',
+        credits: sub?.credits || 0,
+        ...scoreData
+      };
+    });
+  }, [state.grades, state.currentUser?.id]);
+
   const myTasks      = state.tasks.filter(t => t.userId === state.currentUser?.id);
   const getMemberById  = id  => state.members.find(m => m.id === id);
   const getSmeMember   = sid => getMemberById(state.smeMap[sid]);

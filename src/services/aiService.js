@@ -92,7 +92,10 @@ export async function chatWithAI(userMessage, context, history = []) {
 
   // Format grades for AI to read easily
   const gradesText = detailedGrades && detailedGrades.length > 0
-    ? detailedGrades.map(g => `- ${g.subjectName}: ${g.score} (Hệ số ${g.weight})`).join('\n')
+    ? detailedGrades
+        .filter(g => g.cc || g.gk || g.ck) // Chỉ hiện những môn đã có điểm
+        .map(g => `- ${g.subjectName} (${g.code}): CC:${g.cc || 0}, GK:${g.gk || 0}, CK:${g.ck || 0}. (Số tín chỉ: ${g.credits})`)
+        .join('\n')
     : "Chưa có dữ liệu điểm.";
 
   const system = `Bạn là "2X18 Bot", Siêu cố vấn học tập của nhóm 2X18.
