@@ -1198,6 +1198,7 @@ export function AppProvider({ children }) {
         subjectName: sub?.name || sid,
         code: sub?.code || '',
         credits: sub?.credits || 0,
+        status: scoreData?.status || 'Chưa rõ',
         ...scoreData
       };
     });
