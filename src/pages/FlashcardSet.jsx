@@ -20,7 +20,7 @@ export default function FlashcardSet() {
     userVocab = {}, addQuizResult, quizHistory = {}, toast 
   } = useApp();
   
-  const set = vocab[setId] || { title: '', description: '', cards: [] };
+  const set = vocab[setId] || { title: '', description: '', terms: [] };
   // progress is now { wordIndex: level }
   const progress = useMemo(() => userVocab[currentUser?.id]?.[setId] || {}, [userVocab, currentUser, setId]);
   const masteredCount = useMemo(() => Object.values(progress).filter(lv => Number(lv) === 6).length, [progress]);
