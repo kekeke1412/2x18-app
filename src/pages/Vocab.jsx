@@ -24,6 +24,7 @@ export default function Vocab() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [newSet, setNewSet] = useState({ title: '', description: '', terms: [] });
+  const [exampleSource, setExampleSource] = useState('');
 
   const sets = toArr(vocab).filter(s => 
     s.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -322,6 +323,16 @@ export default function Vocab() {
                     value={newSet.description}
                     onChange={e => setNewSet({...newSet, description: e.target.value})}
                     className="w-full bg-[#121212] border border-gray-800 rounded-xl py-3 px-4 text-sm focus:border-indigo-500 outline-none transition-all min-h-[100px] resize-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-black text-gray-500 uppercase tracking-widest block mb-1.5">Nguồn ví dụ AI (Tên sách/Tác giả)</label>
+                  <input 
+                    type="text" 
+                    placeholder="VD: Art of Electronics, IELTS Cambridge..."
+                    value={exampleSource}
+                    onChange={e => setExampleSource(e.target.value)}
+                    className="w-full bg-[#121212] border border-gray-800 rounded-xl py-3 px-4 text-sm focus:border-indigo-500 outline-none transition-all"
                   />
                 </div>
               </div>

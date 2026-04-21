@@ -30,6 +30,7 @@ export default function FlashcardSet() {
   const [isEditing, setIsEditing] = useState(false);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [hideMastered, setHideMastered] = useState(false);
+  const [exampleSource, setExampleSource] = useState('');
   
   const isOwner = set?.authorId === currentUser?.id || isSuperAdmin || isCore;
 
@@ -96,7 +97,7 @@ export default function FlashcardSet() {
     if (!word.trim()) return;
     setIsAiLoading(idx);
     try {
-      const suggestions = await suggestDefinitions([word]);
+      const suggestions = await suggestDefinitions([word], exampleSource);
       if (suggestions && suggestions.length > 0) {
         const s = suggestions[0];
         const newCards = [...cards];
@@ -311,6 +312,19 @@ export default function FlashcardSet() {
           )}
         </div>
       </div>
+
+      {isEditing && (
+        <div className="px-6 py-2 bg-[#1a1a1a] border-b border-gray-800/60 flex items-center gap-3">
+          <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest shrink-0">Nguồn ví dụ AI:</label>
+          <input 
+            type="text"
+            placeholder="VD: Sách chuyên ngành, Sherlock Holmes..."
+            value={exampleSource}
+            onChange={e => setExampleSource(e.target.value)}
+            className="flex-1 bg-black/20 border border-gray-800/40 rounded-lg px-3 py-1.5 text-[11px] outline-none focus:border-indigo-500/50 transition-all"
+          />
+        </div>
+      )}
 
       {/* Tabs */}
       {!isEditing && (
