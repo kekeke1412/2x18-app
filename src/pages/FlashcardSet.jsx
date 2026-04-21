@@ -300,7 +300,7 @@ export default function FlashcardSet() {
               <Sparkles className="w-3.5 h-3.5" /> <span className="hidden md:inline">{hideMastered ? 'HIỆN TẤT CẢ' : 'ẨN TỪ ĐÃ THUỘC'}</span>
             </button>
           )}
-          {isOwner && (
+          {activeTab === 'list' && isOwner && (
             <>
               {isEditing ? (
                 <button onClick={handleSave} className="flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-xl text-xs font-black transition-all shadow-lg shadow-green-900/20">
@@ -1031,8 +1031,12 @@ function HistoryDashboard({ history }) {
 function StudyCard({ card, isFlipped, onFlip, onSwipe, onSpeak, isSpeaking }) {
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-25, 25]);
-  const opacity = useTransform(x, [-200, -150, 0, 150, 200], [0, 1, 1, 1, 0]);
+  const opacity = useTransform(x, [-250, -150, 0, 150, 250], [0, 1, 1, 1, 0]);
   const bgColor = useTransform(x, [-100, 0, 100], ['#ef4444', '#1a1a1a', '#22c55e']);
+  
+  // Labels when dragging
+  const labelOpacityRight = useTransform(x, [50, 100], [0, 1]);
+  const labelOpacityLeft = useTransform(x, [-50, -100], [0, 1]);
 
   const handleDragEnd = (e, info) => {
     if (info.offset.x > 100) onSwipe('right');
@@ -1044,11 +1048,20 @@ function StudyCard({ card, isFlipped, onFlip, onSwipe, onSpeak, isSpeaking }) {
       style={{ x, rotate, opacity }}
       drag="x"
       dragConstraints={{ left: 0, right: 0 }}
+      dragElastic={0.8}
       onDragEnd={handleDragEnd}
       onClick={onFlip}
       className="absolute inset-0 cursor-grab active:cursor-grabbing preserve-3d transition-transform duration-700"
     >
       <div className={`w-full h-full relative preserve-3d transition-transform duration-700 ${isFlipped ? 'rotate-y-180' : ''}`}>
+        {/* Visual Labels for Dragging */}
+        <motion.div style={{ opacity: labelOpacityRight }} className="absolute top-1/2 left-10 -translate-y-1/2 z-50 pointer-events-none">
+          <div className="bg-green-500 text-white px-6 py-3 rounded-2xl font-black text-2xl shadow-xl border-4 border-white/20 rotate-[-15deg]">NHỚ</div>
+        </motion.div>
+        <motion.div style={{ opacity: labelOpacityLeft }} className="absolute top-1/2 right-10 -translate-y-1/2 z-50 pointer-events-none">
+          <div className="bg-red-500 text-white px-6 py-3 rounded-2xl font-black text-2xl shadow-xl border-4 border-white/20 rotate-[15deg]">QUÊN</div>
+        </motion.div>
+
         {/* Front */}
         <motion.div 
           style={{ backgroundColor: bgColor }}

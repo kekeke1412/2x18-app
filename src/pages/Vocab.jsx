@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { 
   Book, Plus, Search, Trash2, Edit3, ChevronRight, 
   Layers, Clock, User, Star, BookOpen, Sparkles, X, PlusCircle,
-  AlertCircle, CheckCircle2, Users
+  AlertCircle, CheckCircle2, Users, Trophy
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Link } from 'react-router-dom';
@@ -20,6 +20,7 @@ const toArr = v => {
 export default function Vocab() {
   const { vocab = {}, currentUser, isSuperAdmin, isCore, members, addVocabSet, deleteVocabSet, userVocab = {} } = useApp();
   const canSeeStats = isSuperAdmin || isCore;
+  const [activeTab, setActiveTab] = useState('sets'); // 'sets' | 'stats'
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [newSet, setNewSet] = useState({ title: '', description: '', terms: [] });
@@ -27,7 +28,7 @@ export default function Vocab() {
   const sets = toArr(vocab).filter(s => 
     s.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     s.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  ).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  ).sort((a, b) => (a.title || '').localeCompare(b.title || '', undefined, { numeric: true, sensitivity: 'base' }));
 
   const handleAddSet = () => {
     if (!newSet.title.trim()) return;
@@ -90,149 +91,196 @@ export default function Vocab() {
           </button>
         </div>
 
-        {/* Search */}
-        <div className="mt-6 relative max-w-md">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-          <input 
-            type="text" 
-            placeholder="Tìm kiếm học phần..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-[#121212] border border-gray-800 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:border-indigo-500 outline-none transition-all"
-          />
+        {/* Tab Navigation */}
+        <div className="flex items-center gap-1 mt-6 bg-[#121212] p-1 rounded-2xl border border-gray-800/40 w-fit">
+          <button 
+            onClick={() => setActiveTab('sets')}
+            className={`px-6 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${activeTab === 'sets' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-gray-500 hover:text-gray-300'}`}
+          >
+            <Layers className="w-4 h-4" /> HỌC PHẦN
+          </button>
+          <button 
+            onClick={() => setActiveTab('stats')}
+            className={`px-6 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${activeTab === 'stats' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-gray-500 hover:text-gray-300'}`}
+          >
+            <Trophy className="w-4 h-4" /> THỐNG KÊ
+          </button>
         </div>
+
+        {/* Search - Only show in Sets tab */}
+        <AnimatePresence>
+          {activeTab === 'sets' && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0, marginTop: 0 }}
+              animate={{ opacity: 1, height: 'auto', marginTop: 24 }}
+              exit={{ opacity: 0, height: 0, marginTop: 0 }}
+              className="relative max-w-md overflow-hidden"
+            >
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              <input 
+                type="text" 
+                placeholder="Tìm kiếm học phần..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-[#121212] border border-gray-800 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:border-indigo-500 outline-none transition-all"
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
         
-        {/* ── Mastery Dashboard ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-10">
-          <div className="lg:col-span-1 bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-3xl p-6 shadow-xl shadow-indigo-900/20 flex flex-col justify-between border border-white/10 relative overflow-hidden group">
-            <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700" />
-            <div>
-              <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center mb-4 backdrop-blur-md">
-                <Sparkles className="w-6 h-6 text-white" />
+        {/* ── STATS TAB ─────────────────────────────────────────────────── */}
+        {activeTab === 'stats' && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-6xl mx-auto"
+          >
+            {/* ── Mastery Dashboard ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-10">
+              <div className="lg:col-span-1 bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-3xl p-6 shadow-xl shadow-indigo-900/20 flex flex-col justify-between border border-white/10 relative overflow-hidden group">
+                <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700" />
+                <div>
+                  <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center mb-4 backdrop-blur-md">
+                    <Sparkles className="w-6 h-6 text-white" />
+                  </div>
+                  <h3 className="text-white/70 text-xs font-black uppercase tracking-widest">Tổng từ vựng nhóm</h3>
+                  <div className="text-4xl font-black text-white mt-1">{totalWords}</div>
+                </div>
+                <div className="mt-6 pt-6 border-t border-white/10">
+                  <div className="text-white/60 text-[10px] font-bold uppercase">Cùng nhau xây dựng kho kiến thức</div>
+                </div>
               </div>
-              <h3 className="text-white/70 text-xs font-black uppercase tracking-widest">Tổng từ vựng nhóm</h3>
-              <div className="text-4xl font-black text-white mt-1">{totalWords}</div>
-            </div>
-            <div className="mt-6 pt-6 border-t border-white/10">
-              <div className="text-white/60 text-[10px] font-bold uppercase">Cùng nhau xây dựng kho kiến thức</div>
-            </div>
-          </div>
 
-          <div className="lg:col-span-3 bg-[#1a1a1a] border border-gray-800/60 rounded-3xl p-6 flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                <Star className="w-4 h-4 text-yellow-500" /> TIẾN ĐỘ CÁ NHÂN
-              </h3>
-              <div className="text-xs font-bold text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
-                Đã nhớ sâu: {myMastered} từ
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
-              {[1, 2, 3, 4, 5, 6].map(lv => (
-                <div key={lv} className="flex flex-col items-center">
-                  <div className={`w-full aspect-square rounded-2xl flex flex-col items-center justify-center border transition-all ${lv === 6 ? 'bg-green-500/10 border-green-500/30' : 'bg-gray-800/30 border-gray-800/60'}`}>
-                    <div className={`text-xl font-black ${lv === 6 ? 'text-green-500' : 'text-gray-300'}`}>{myLvs[lv]}</div>
-                    <div className="text-[9px] font-black text-gray-500 uppercase mt-1">{lv === 6 ? 'Nhớ sâu' : `Bậc ${lv}`}</div>
+              <div className="lg:col-span-3 bg-[#1a1a1a] border border-gray-800/60 rounded-3xl p-6 flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                    <Star className="w-4 h-4 text-yellow-500" /> TIẾN ĐỘ CÁ NHÂN
+                  </h3>
+                  <div className="text-xs font-bold text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
+                    Đã nhớ sâu: {myMastered} từ
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* ── Admin Member Stats ── */}
-        {canSeeStats && (
-          <div className="mb-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex items-center gap-3 mb-4 px-2">
-              <div className="w-8 h-8 bg-purple-600/20 rounded-lg flex items-center justify-center">
-                <Users className="w-4 h-4 text-purple-400" />
+                
+                <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+                  {[1, 2, 3, 4, 5, 6].map(lv => (
+                    <div key={lv} className="flex flex-col items-center">
+                      <div className={`w-full aspect-square rounded-2xl flex flex-col items-center justify-center border transition-all ${lv === 6 ? 'bg-green-500/10 border-green-500/30' : 'bg-gray-800/30 border-gray-800/60'}`}>
+                        <div className={`text-xl font-black ${lv === 6 ? 'text-green-500' : 'text-gray-300'}`}>{myLvs[lv]}</div>
+                        <div className="text-[9px] font-black text-gray-500 uppercase mt-1">{lv === 6 ? 'Nhớ sâu' : `Bậc ${lv}`}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <h2 className="text-sm font-black text-gray-400 uppercase tracking-[0.2em]">Thống kê thành viên (Admin)</h2>
             </div>
-            <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-3xl overflow-hidden">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-800/20 border-b border-gray-800/60">
-                    <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest">Thành viên</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Đã học (Lv 1-5)</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Nhớ sâu (Lv 6)</th>
-                    <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest text-right">Tổng tiến độ</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-800/40">
-                  {members.filter(m => m.status === 'active').sort((a,b) => (getLevels(b.id)[6]) - (getLevels(a.id)[6])).map(m => {
-                    const lvs = getLevels(m.id);
-                    const mastered = lvs[6];
-                    const learning = lvs[1] + lvs[2] + lvs[3] + lvs[4] + lvs[5];
-                    return (
-                      <tr key={m.id} className="hover:bg-white/[0.02] transition-colors">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-[10px] font-black text-gray-400">
-                              {m.avatar || m.fullName?.slice(0,2).toUpperCase()}
-                            </div>
-                            <div className="text-sm font-bold text-gray-200">{m.fullName}</div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-center text-sm font-bold text-gray-400">{learning}</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="bg-green-500/10 text-green-500 px-3 py-1 rounded-full text-xs font-black border border-green-500/20">{mastered}</span>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="text-xs font-black text-indigo-400">{mastered + learning} / {totalWords}</div>
-                          <div className="w-24 h-1 bg-gray-800 rounded-full mt-2 ml-auto overflow-hidden">
-                            <div className="h-full bg-indigo-500" style={{ width: `${Math.min(100, ((mastered + learning) / (totalWords || 1)) * 100)}%` }} />
-                          </div>
-                        </td>
+
+            {/* ── Admin Member Stats ── */}
+            {canSeeStats && (
+              <div className="mb-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex items-center gap-3 mb-4 px-2">
+                  <div className="w-8 h-8 bg-purple-600/20 rounded-lg flex items-center justify-center">
+                    <Users className="w-4 h-4 text-purple-400" />
+                  </div>
+                  <h2 className="text-sm font-black text-gray-400 uppercase tracking-[0.2em]">Bảng vàng tiến độ (Admin)</h2>
+                </div>
+                <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-3xl overflow-hidden">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-gray-800/20 border-b border-gray-800/60">
+                        <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest">Thành viên</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Đang học (Lv 1-5)</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Nhớ sâu (Lv 6)</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest text-right">Tổng tiến độ</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                    </thead>
+                    <tbody className="divide-y divide-gray-800/40">
+                      {members
+                        .filter(m => m.status === 'active')
+                        .sort((a,b) => (a.fullName || '').localeCompare(b.fullName || '')) // Xếp theo ABC
+                        .map(m => {
+                          const lvs = getLevels(m.id);
+                          const mastered = lvs[6];
+                          const learning = lvs[1] + lvs[2] + lvs[3] + lvs[4] + lvs[5];
+                          return (
+                            <tr key={m.id} className="hover:bg-white/[0.02] transition-colors">
+                              <td className="px-6 py-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-[10px] font-black text-gray-400 overflow-hidden border border-gray-700">
+                                    {m.avatar ? (
+                                      <img src={m.avatar} alt={m.fullName} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <span>{m.fullName?.slice(0,2).toUpperCase()}</span>
+                                    )}
+                                  </div>
+                                  <div className="text-sm font-bold text-gray-200">{m.fullName}</div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 text-center text-sm font-bold text-gray-400">{learning}</td>
+                              <td className="px-6 py-4 text-center">
+                                <span className="bg-green-500/10 text-green-500 px-3 py-1 rounded-full text-xs font-black border border-green-500/20">{mastered}</span>
+                              </td>
+                              <td className="px-6 py-4 text-right">
+                                <div className="text-xs font-black text-indigo-400">{mastered + learning} / {totalWords}</div>
+                                <div className="w-24 h-1 bg-gray-800 rounded-full mt-2 ml-auto overflow-hidden">
+                                  <div className="h-full bg-indigo-500" style={{ width: `${Math.min(100, ((mastered + learning) / (totalWords || 1)) * 100)}%` }} />
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </motion.div>
         )}
 
-        <div className="flex items-center gap-3 mb-6 px-2">
-          <div className="w-8 h-8 bg-indigo-600/20 rounded-lg flex items-center justify-center">
-            <Book className="w-4 h-4 text-indigo-400" />
-          </div>
-          <h2 className="text-sm font-black text-gray-400 uppercase tracking-[0.2em]">Danh sách học phần</h2>
-        </div>
-
-        {sets.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-20 h-20 bg-gray-800/30 rounded-full flex items-center justify-center mb-4">
-              <BookOpen className="w-10 h-10 text-gray-600" />
-            </div>
-            <h2 className="text-lg font-bold text-gray-400">Chưa có học phần nào</h2>
-            <p className="text-sm text-gray-600 mt-1">Hãy tạo học phần đầu tiên để bắt đầu học tập!</p>
-          </div>
-        ) : (
+        {/* ── SETS TAB ──────────────────────────────────────────────────── */}
+        {activeTab === 'sets' && (
           <motion.div 
-            variants={{
-              show: { transition: { staggerChildren: 0.05 } }
-            }}
-            initial="hidden"
-            animate="show"
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
           >
-            {sets.map(set => (
-              <VocabSetCard 
-                key={set.id} 
-                set={set} 
-                onDelete={() => {
-                  if (confirm('Xóa học phần này?')) deleteVocabSet(set.id);
+            <div className="flex items-center gap-3 mb-6 px-2">
+              <div className="w-8 h-8 bg-indigo-600/20 rounded-lg flex items-center justify-center">
+                <Book className="w-4 h-4 text-indigo-400" />
+              </div>
+              <h2 className="text-sm font-black text-gray-400 uppercase tracking-[0.2em]">Danh sách học phần</h2>
+            </div>
+
+            {sets.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="w-20 h-20 bg-gray-800/30 rounded-full flex items-center justify-center mb-4">
+                  <BookOpen className="w-10 h-10 text-gray-600" />
+                </div>
+                <h2 className="text-lg font-bold text-gray-400">Chưa có học phần nào</h2>
+                <p className="text-sm text-gray-600 mt-1">Hãy tạo học phần đầu tiên để bắt đầu học tập!</p>
+              </div>
+            ) : (
+              <motion.div 
+                variants={{
+                  show: { transition: { staggerChildren: 0.05 } }
                 }}
-                isOwner={set.authorId === currentUser?.id || isSuperAdmin}
-                progress={userVocab[currentUser?.id]?.[set.id]?.length || 0}
-              />
-            ))}
+                initial="hidden"
+                animate="show"
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+              >
+                {sets.map(s => (
+                  <VocabSetCard 
+                    key={s.id} 
+                    set={s} 
+                    isOwner={s.authorId === currentUser?.id || isSuperAdmin || isCore}
+                    progress={userVocab[currentUser?.id]?.[s.id] || {}}
+                    onDelete={() => deleteVocabSet(s.id)}
+                  />
+                ))}
+              </motion.div>
+            )}
           </motion.div>
         )}
       </div>

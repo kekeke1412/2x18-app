@@ -14,9 +14,10 @@ Return valid JSON representing an array of high-quality word definitions.`;
   const user = `For the following English words, provide professional definitions and academic examples.
   
 STRICT REQUIREMENTS:
-1. Topic Preference: Use examples related to Electronics, Semiconductors, IC Design, or Physics research.
-2. Word Types: Accurate IELTS classification (n, v, adj, adv, phr v, idiom, collocation).
-3. Example: Must be high-level academic English (IELTS Band 6.0+ style).
+1. Level: IELTS Band 6.0 style (Academic but clear).
+2. Topic: Electronics, Semiconductors, IC Design, or Physics.
+3. Example Length: VERY SHORT (Strictly under 12 words) to fit mobile screens.
+4. Word Types: Accurate classification (n, v, adj, adv, phr v, idiom, collocation).
 
 Words: ${words.join(', ')}
 
@@ -25,10 +26,10 @@ Required JSON structure:
   {
     "word": "...",
     "definition": "Nghĩa tiếng Việt súc tích",
-    "type": "n/v/adj/adv/phr v/idiom/collocation",
+    "type": "...",
     "ipa": "phiên âm chuẩn",
-    "example": "Academic sentence related to Electronics/Semiconductors",
-    "exampleVi": "Dịch nghĩa ví dụ sang tiếng Việt"
+    "example": "Short academic sentence (<12 words)",
+    "exampleVi": "Dịch nghĩa ví dụ"
   }
 ]`;
 
