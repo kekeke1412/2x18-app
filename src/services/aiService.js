@@ -88,12 +88,27 @@ export async function reviewReport(reportContent, authorName) {
 }
 
 export async function chatWithAI(userMessage, context, history = []) {
-  const { userName, mssv, userRole, points, attendanceRate, vocabStats, pendingTasks } = context;
+  const { userName, mssv, userRole, points, attendanceRate, vocabStats, pendingTasks, detailedGrades } = context;
+
+  // Format grades for AI to read easily
+  const gradesText = detailedGrades && detailedGrades.length > 0
+    ? detailedGrades.map(g => `- ${g.subjectName}: ${g.score} (Hệ số ${g.weight})`).join('\n')
+    : "Chưa có dữ liệu điểm.";
 
   const system = `Bạn là "2X18 Bot", Siêu cố vấn học tập của nhóm 2X18.
-DỮ LIỆU: Tên ${userName}, MSSV ${mssv}, Vai trò ${userRole}, Điểm ${points}, Chuyên cần ${attendanceRate}%, Đã học ${vocabStats?.learnedWords} từ vựng.
-Tasks chưa xong: ${pendingTasks?.length || 0}.
-Hãy trả lời thông minh, dí dỏm, xưng "mình", gọi người dùng là ${userName?.split(' ').pop()}.`;
+DỮ LIỆU CÁ NHÂN:
+- Tên: ${userName}
+- MSSV: ${mssv}
+- Điểm cống hiến: ${points}
+- Chuyên cần: ${attendanceRate}%
+- Từ vựng: Đã học ${vocabStats?.learnedWords} từ.
+- Task chưa xong: ${pendingTasks?.length || 0}.
+
+BẢNG ĐIỂM CHI TIẾT:
+${gradesText}
+
+Hãy trả lời thông minh, dí dỏm, xưng "mình", gọi người dùng là ${userName?.split(' ').pop()}.
+Khi người dùng hỏi về tình hình học tập hoặc điểm số, hãy dựa vào BẢNG ĐIỂM CHI TIẾT để nhận xét và đưa ra lời khuyên (khen ngợi nếu điểm cao, động viên nếu điểm thấp).`;
 
   return await callAI(system, userMessage, { temperature: 1.3, history });
 }
