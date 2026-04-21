@@ -82,6 +82,11 @@ function RankBadge({ pts, size = 'sm' }) {
   );
 }
 
+/* ── Avatar Helper (maps to UserAvatar) ── */
+function Avatar({ m, size, isMe }) {
+  return <UserAvatar user={m} size={size} isMe={isMe} />;
+}
+
 /* ── Leaderboard row ── */
 function LbRow({ m, i, currentUser }) {
   const isMe = m.id === currentUser?.id;
