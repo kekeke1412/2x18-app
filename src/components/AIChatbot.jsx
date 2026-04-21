@@ -5,7 +5,7 @@ import { chatWithAI } from '../services/aiService';
 import { useApp } from '../context/AppContext';
 
 export default function AIChatbot() {
-  const { currentUser, myGrades, myTasks, calEvents, attendance, contributions, vocab, userVocab, docs } = useApp();
+  const { currentUser, myGrades, myGradesEnriched, myTasks, calEvents, attendance, contributions, vocab, userVocab, docs } = useApp();
 
   const firstName = currentUser?.fullName?.split(' ').filter(Boolean).slice(-1)[0] || 'bạn';
 
