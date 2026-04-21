@@ -1187,10 +1187,11 @@ export function AppProvider({ children }) {
 
   const isCore       = isSuperAdmin || state.currentUser?.role?.toLowerCase() === 'core';
   
-  // Enrich grades with subject names and credits for AI and UI usage
-  const myGrades = useMemo(() => {
-    const rawGrades = state.grades[state.currentUser?.id] || {};
-    return Object.entries(rawGrades).map(([sid, scoreData]) => {
+  const myGrades     = state.grades[state.currentUser?.id] || {};
+
+  // Enrich grades specifically for AI usage (Array format)
+  const myGradesEnriched = useMemo(() => {
+    return Object.entries(myGrades).map(([sid, scoreData]) => {
       const sub = subjectDatabase.find(s => s.id === sid);
       return {
         subjectId: sid,
@@ -1200,7 +1201,7 @@ export function AppProvider({ children }) {
         ...scoreData
       };
     });
-  }, [state.grades, state.currentUser?.id]);
+  }, [myGrades]);
 
   const myTasks      = state.tasks.filter(t => t.userId === state.currentUser?.id);
   const getMemberById  = id  => state.members.find(m => m.id === id);
@@ -1209,7 +1210,7 @@ export function AppProvider({ children }) {
   const pendingMembers = state.members.filter(m => m.status === 'pending');
 
   const value = {
-    ...state, isCore, isSuperAdmin, myGrades, myTasks,
+    ...state, isCore, isSuperAdmin, myGrades, myGradesEnriched, myTasks,
     activeMembers, pendingMembers,
     login, logout, loginWithGoogle, register,
     toast, rmToast, addAudit,

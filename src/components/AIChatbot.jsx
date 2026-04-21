@@ -72,7 +72,7 @@ export default function AIChatbot() {
           totalSets: Object.keys(vocab || {}).length,
           learnedWords: Object.values(userVocab[currentUser?.id] || {}).flat().length
         },
-        detailedGrades: myGrades,
+        detailedGrades: myGradesEnriched,
         allDocuments:   docs
       };
 
