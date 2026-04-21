@@ -46,7 +46,7 @@ export function safeJson(text, fallback) {
 
 // ── Cập nhật các hàm nghiệp vụ để dùng callAI ──────────────────────────────
 
-export async function suggestTaskAssignment(taskDescription, members, existingTasks, currentUser) {
+export async function suggestTaskAssignment(taskDescription, members, existingTasks) {
   const memberInfo = members.map(m => {
     const memberTasks = existingTasks.filter(t => t.userId === m.id && !t.done);
     return {
@@ -67,7 +67,7 @@ ${memberInfo.map((m, i) => `${i + 1}. ${m.name} (Role: ${m.role}) — Đang có 
 Trả về JSON: { "suggestedAssignee": "...", "reason": "...", "subtasks": [], "estimatedDays": 3, "priority": "high" }`;
 
   try {
-    const text = await callAI(system, user, { currentUser, temperature: 0.4, responseMimeType: 'application/json' });
+    const text = await callAI(system, user, { temperature: 0.4, responseMimeType: 'application/json' });
     return safeJson(text, { suggestedAssignee: '', reason: 'Không thể phân tích.', subtasks: [], estimatedDays: 0, priority: 'medium' });
   } catch (err) {
     console.error('[suggestTaskAssignment]', err);
@@ -75,19 +75,19 @@ Trả về JSON: { "suggestedAssignee": "...", "reason": "...", "subtasks": [], 
   }
 }
 
-export async function reviewReport(reportContent, authorName, currentUser) {
+export async function reviewReport(reportContent, authorName) {
   const system = `Bạn là Cố vấn cấp cao (Senior Advisor) của dự án 2X18. Trả về JSON thuần.`;
   const user = `BÁO CÁO CỦA: ${authorName}\nNỘI DUNG: "${reportContent}"\nTrả về JSON: { "summary": [], "quality": "good", "qualityLabel": "Tốt", "feedback": "...", "isComplete": true }`;
 
   try {
-    const text = await callAI(system, user, { currentUser, temperature: 0.3, responseMimeType: 'application/json' });
+    const text = await callAI(system, user, { temperature: 0.3, responseMimeType: 'application/json' });
     return safeJson(text, { summary: [], quality: 'average', qualityLabel: 'Không xác định', feedback: 'Lỗi AI.', isComplete: false });
   } catch (err) {
     return { summary: [], quality: 'average', qualityLabel: 'Không xác định', feedback: 'Lỗi AI.', isComplete: false };
   }
 }
 
-export async function chatWithAI(userMessage, context, history = [], currentUser) {
+export async function chatWithAI(userMessage, context, history = []) {
   const { userName, mssv, userRole, points, attendanceRate, vocabStats, pendingTasks } = context;
 
   const system = `Bạn là "2X18 Bot", Siêu cố vấn học tập của nhóm 2X18.
@@ -95,10 +95,10 @@ DỮ LIỆU: Tên ${userName}, MSSV ${mssv}, Vai trò ${userRole}, Điểm ${poi
 Tasks chưa xong: ${pendingTasks?.length || 0}.
 Hãy trả lời thông minh, dí dỏm, xưng "mình", gọi người dùng là ${userName?.split(' ').pop()}.`;
 
-  return await callAI(system, userMessage, { currentUser, temperature: 0.8, history });
+  return await callAI(system, userMessage, { temperature: 0.8, history });
 }
 
-export async function analyzeEarlyWarning(members, attendance, tasks, currentUser) {
+export async function analyzeEarlyWarning(members, attendance, tasks) {
   const memberStats = members.map(m => {
     const memberTasks = tasks.filter(t => t.userId === m.id);
     const doneTasks = memberTasks.filter(t => t.done).length;
@@ -109,7 +109,7 @@ export async function analyzeEarlyWarning(members, attendance, tasks, currentUse
   const user = `DỮ LIỆU: ${JSON.stringify(memberStats)}\nJSON: { "warnings": [], "overallHealth": "good", "suggestion": "..." }`;
 
   try {
-    const text = await callAI(system, user, { currentUser, temperature: 0.2, responseMimeType: 'application/json' });
+    const text = await callAI(system, user, { temperature: 0.2, responseMimeType: 'application/json' });
     return safeJson(text, { warnings: [], overallHealth: 'good', suggestion: '...' });
   } catch (err) {
     return { warnings: [], overallHealth: 'good', suggestion: 'Lỗi AI.' };

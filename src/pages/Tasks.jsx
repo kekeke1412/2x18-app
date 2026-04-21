@@ -89,7 +89,7 @@ export default function Tasks() {
     setIsAiLoading(true);
     setAiSuggestion(null);
     try {
-      const res = await suggestTaskAssignment(newTask.title, members, myTasks, currentUser);
+      const res = await suggestTaskAssignment(newTask.title, members, myTasks);
       if (res) {
         setAiSuggestion(res);
         // Auto-fill some fields if possible

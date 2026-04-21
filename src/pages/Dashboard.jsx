@@ -555,7 +555,7 @@ export default function Dashboard() {
     setIsAiAnalyzing(true);
     setAiAnalysis(null);
     try {
-      const res = await analyzeEarlyWarning(members, attendance, tasks, currentUser);
+      const res = await analyzeEarlyWarning(members, attendance, tasks);
       setAiAnalysis(res);
     } catch (err) {
       console.error(err);

@@ -83,7 +83,7 @@ export default function AIChatbot() {
         .filter(m => m.role === 'user' || m.role === 'assistant')
         .slice(-10); // last 10 exchanges
 
-      const aiRes = await chatWithAI(userMsg, context, history, currentUser);
+      const aiRes = await chatWithAI(userMsg, context, history);
       setMessages(prev => [...prev, { role: 'assistant', text: aiRes }]);
     } catch (err) {
       console.error('[AIChatbot]', err);

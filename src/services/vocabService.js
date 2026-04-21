@@ -4,9 +4,8 @@ import { callAI, safeJson } from './aiService';
 /**
  * Suggest definitions, pronunciation, part of speech and examples for a list of words
  * @param {string[]} words 
- * @param {object} currentUser - Thông tin user để lấy API Key cá nhân
  */
-export const suggestDefinitions = async (words, currentUser) => {
+export const suggestDefinitions = async (words) => {
   if (!words || words.length === 0) return [];
 
   const system = `You are a professional IELTS instructor and an expert in Technical English (Electronics & Semiconductors). 
@@ -35,7 +34,7 @@ Required JSON structure:
 ]`;
 
   try {
-    const text = await callAI(system, user, { currentUser, temperature: 0.1, responseMimeType: 'application/json' });
+    const text = await callAI(system, user, { temperature: 0.1, responseMimeType: 'application/json' });
     const result = safeJson(text, []);
     return Array.isArray(result) ? result : [];
   } catch (error) {

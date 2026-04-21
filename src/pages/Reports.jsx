@@ -47,7 +47,7 @@ function ReportCard({ r, getMemberById, isCore, isSuperAdmin, currentUser, appro
     if (isAiLoading) return;
     setIsAiLoading(true);
     try {
-      const res = await reviewReport(r.title, author?.fullName || 'Thành viên', currentUser);
+      const res = await reviewReport(r.title, author?.fullName || 'Thành viên');
       setAiResult(res);
     } catch (err) {
       console.error(err);
