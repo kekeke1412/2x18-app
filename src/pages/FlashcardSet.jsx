@@ -16,17 +16,22 @@ export default function FlashcardSet() {
   const { setId } = useParams();
   const navigate = useNavigate();
   const { 
-    vocab = {}, currentUser, editVocabSet, markWordLearned, 
+    vocab = {}, currentUser, isSuperAdmin, isCore, editVocabSet, markWordLearned, incrementWordLevel,
     userVocab = {}, addQuizResult, quizHistory = {}, toast 
   } = useApp();
   
-  const set = vocab[setId];
-  const progress = useMemo(() => userVocab[currentUser?.id]?.[setId] || [], [userVocab, currentUser, setId]);
+  const set = vocab[setId] || { title: '', description: '', cards: [] };
+  // progress is now { wordIndex: level }
+  const progress = useMemo(() => userVocab[currentUser?.id]?.[setId] || {}, [userVocab, currentUser, setId]);
+  const masteredCount = useMemo(() => Object.values(progress).filter(lv => Number(lv) === 6).length, [progress]);
   
   const [activeTab, setActiveTab] = useState('list'); // 'list' | 'study' | 'quiz'
   const [cards, setCards] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [hideMastered, setHideMastered] = useState(false);
+  
+  const isOwner = set?.authorId === currentUser?.id || isSuperAdmin || isCore;
 
   // Study (Swipe + Flip) State
   const [studyIndex, setStudyIndex] = useState(0);
@@ -175,16 +180,16 @@ export default function FlashcardSet() {
       if (type === 'choice') {
         const distractors = terms.filter(t => t.word !== term.word).sort(() => Math.random() - 0.5).slice(0, 3).map(t => t.definition);
         const options = [...distractors, term.definition].sort(() => Math.random() - 0.5);
-        return { type, question: `"${term.word}" có nghĩa là gì?`, answer: term.definition, options, term };
+        return { type, question: `"${term.word}" có nghĩa là gì?`, answer: term.definition, options, term, wordIndex: term.originalIndex };
       } else if (type === 'tf') {
         const isMatch = Math.random() > 0.5;
         const shownDef = isMatch ? term.definition : (terms.find(t => t.word !== term.word)?.definition || '...');
-        return { type, question: `"${term.word}" nghĩa là "${shownDef}"?`, answer: isMatch ? 'true' : 'false', term };
+        return { type, question: `"${term.word}" nghĩa là "${shownDef}"?`, answer: isMatch ? 'true' : 'false', term, wordIndex: term.originalIndex };
       } else if (type === 'fill') {
         // Ưu tiên dùng example, nếu không có thì dùng định nghĩa nhưng phải che từ đi
         const sourceText = term.example || `Nghĩa: ${term.definition}`;
         const blanked = sourceText.replace(regex, '_____');
-        return { type, question: `Điền từ còn thiếu: ${blanked}`, answer: cleanWord, term };
+        return { type, question: `Điền từ còn thiếu: ${blanked}`, answer: cleanWord, term, wordIndex: term.originalIndex };
       } else {
         // Đối với câu hỏi tự luận, cũng phải che từ đi nếu nó xuất hiện trong định nghĩa
         const hiddenDef = (term.definition || '').replace(regex, '_____');
@@ -282,19 +287,31 @@ export default function FlashcardSet() {
           <div className="min-w-0">
             <h1 className="text-base md:text-lg font-black text-white truncate">{set.title}</h1>
             <p className="text-[9px] md:text-[10px] text-gray-500 font-bold uppercase tracking-widest truncate">
-              {cards.length} THUẬT NGỮ · ĐÃ HỌC {progress.length}/{cards.length}
+              {cards.length} THUẬT NGỮ · ĐÃ NHỚ SÂU {masteredCount}/{cards.length}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {isEditing ? (
-            <button onClick={handleSave} className="flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-xl text-xs font-black transition-all shadow-lg shadow-green-900/20">
-              <Save className="w-3.5 h-3.5" /> LƯU THAY ĐỔI
+          {activeTab === 'list' && !isEditing && (
+            <button 
+              onClick={() => setHideMastered(!hideMastered)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all ${hideMastered ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'bg-[#1a1a1a] text-gray-400 border border-gray-800'}`}
+            >
+              <Sparkles className="w-3.5 h-3.5" /> <span className="hidden md:inline">{hideMastered ? 'HIỆN TẤT CẢ' : 'ẨN TỪ ĐÃ THUỘC'}</span>
             </button>
-          ) : (
-            <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600 hover:text-white px-4 py-2 rounded-xl text-xs font-black transition-all border border-indigo-500/30">
-              <Edit3 className="w-3.5 h-3.5" /> CHỈNH SỬA
-            </button>
+          )}
+          {isOwner && (
+            <>
+              {isEditing ? (
+                <button onClick={handleSave} className="flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-xl text-xs font-black transition-all shadow-lg shadow-green-900/20">
+                  <Save className="w-3.5 h-3.5" /> LƯU THAY ĐỔI
+                </button>
+              ) : (
+                <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 bg-indigo-600/10 text-indigo-400 hover:bg-indigo-600 hover:text-white px-4 py-2 rounded-xl text-xs font-black transition-all border border-indigo-500/30">
+                  <Edit3 className="w-3.5 h-3.5" /> CHỈNH SỬA
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -326,9 +343,16 @@ export default function FlashcardSet() {
           {/* ── LIST VIEW ──────────────────────────────────────────────────── */}
           {activeTab === 'list' && (
             <div className="space-y-4 pb-20">
-              <AnimatePresence>
-                {cards.map((card, idx) => (
-                  <motion.div layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} key={idx} className={`bg-[#1a1a1a] border rounded-2xl p-5 transition-all ${isEditing ? 'border-indigo-500/30' : 'border-gray-800 hover:border-gray-700'}`}>
+              <AnimatePresence mode="popLayout">
+                {cards.filter((_, i) => !hideMastered || (Number(progress[i]) || 0) < 6).map((card, idx) => (
+                  <motion.div 
+                    layout 
+                    initial={{ opacity: 0, y: 10 }} 
+                    animate={{ opacity: 1, y: 0 }} 
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    key={idx} 
+                    className={`bg-[#1a1a1a] border rounded-2xl p-5 transition-all ${isEditing ? 'border-indigo-500/30' : 'border-gray-800 hover:border-gray-700'}`}
+                  >
                     {isEditing ? (
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
@@ -400,9 +424,20 @@ export default function FlashcardSet() {
                             </div>
                           )}
                         </div>
-                        <button onClick={() => toggleLearned(idx)} className={`p-2 rounded-full transition-all ${progress.some(p => Number(p) === idx) ? 'text-green-500 bg-green-500/10' : 'text-gray-700 hover:text-gray-500 bg-gray-800/50'}`}>
-                          <CheckCircle2 className="w-6 h-6" />
-                        </button>
+                        
+                        <div className="flex flex-col items-center gap-1 shrink-0">
+                          {Number(progress[idx]) === 6 ? (
+                            <div className="flex flex-col items-center gap-1 bg-green-500/10 p-3 rounded-2xl border border-green-500/20">
+                              <CheckCircle2 className="w-6 h-6 text-green-500" />
+                              <span className="text-[8px] font-black text-green-600 uppercase tracking-tighter">Nhớ sâu</span>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center gap-1 bg-gray-800/40 p-3 rounded-2xl border border-gray-800/60 min-w-[56px]">
+                              <span className="text-xl font-black text-gray-400 leading-none">{Number(progress[idx]) || 0}</span>
+                              <span className="text-[8px] font-black text-gray-500 uppercase tracking-tighter">Bậc</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </motion.div>

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { 
   Book, Plus, Search, Trash2, Edit3, ChevronRight, 
   Layers, Clock, User, Star, BookOpen, Sparkles, X, PlusCircle,
-  AlertCircle, CheckCircle2
+  AlertCircle, CheckCircle2, Users
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Link } from 'react-router-dom';
