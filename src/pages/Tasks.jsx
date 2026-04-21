@@ -89,17 +89,19 @@ export default function Tasks() {
     setIsAiLoading(true);
     setAiSuggestion(null);
     try {
-      const res = await suggestTaskAssignment(newTask.title, members, myTasks);
-      setAiSuggestion(res);
-      // Auto-fill some fields if possible
-      if (res.suggestedAssignee) {
-        const found = members.find(m => m.fullName === res.suggestedAssignee);
-        if (found) setNewTask(prev => ({ ...prev, assigneeId: found.id }));
-      }
-      if (res.estimatedDays) {
-        const d = new Date();
-        d.setDate(d.getDate() + res.estimatedDays);
-        setNewTask(prev => ({ ...prev, date: d.toISOString().split('T')[0] }));
+      const res = await suggestTaskAssignment(newTask.title, members, myTasks, currentUser);
+      if (res) {
+        setAiSuggestion(res);
+        // Auto-fill some fields if possible
+        if (res.suggestedAssignee) {
+          const found = members.find(m => m.fullName === res.suggestedAssignee);
+          if (found) setNewTask(prev => ({ ...prev, assigneeId: found.id }));
+        }
+        if (res.estimatedDays) {
+          const d = new Date();
+          d.setDate(d.getDate() + res.estimatedDays);
+          setNewTask(prev => ({ ...prev, date: d.toISOString().split('T')[0] }));
+        }
       }
     } catch (err) {
       console.error(err);

@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import { subjectDatabase, calculateHe10, getHe4, electiveLimits } from '../data';
 import { useApp } from '../context/AppContext';
-import { getApiKey } from '../services/aiService';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -828,23 +827,23 @@ function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfil
             <div className="relative">
               <input 
                 type={isEditing ? "text" : "password"}
-                value={profile.personalApiKey || ''}
-                onChange={e => setProfile(p => ({ ...p, personalApiKey: e.target.value }))}
+                value={profile.geminiKey || ''}
+                onChange={e => setProfile(p => ({ ...p, geminiKey: e.target.value }))}
                 disabled={!isEditing}
-                placeholder="Dán Key cá nhân để dùng riêng (ghi đè Key của nhóm)..."
+                placeholder="Dán Key cá nhân để dùng riêng (ưu tiên 1)..."
                 className={`w-full text-sm px-4 py-3 rounded-xl outline-none transition-all
                   ${!isEditing ? 'bg-transparent text-gray-400 border-transparent italic cursor-default' 
                              : 'bg-[#252525] border border-gray-700 text-white focus:border-indigo-500 shadow-inner'}`}
               />
-              {!isEditing && profile.personalApiKey && (
+              {!isEditing && profile.geminiKey && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
                    <CheckCircle className="w-4 h-4 text-green-500" />
                 </div>
               )}
             </div>
             <p className="text-[10px] text-gray-600 leading-relaxed italic">
-              * Khi bạn nhập Key ở đây, 2X18 sẽ ưu tiên dùng "tài nguyên" của bạn để xử lý AI. 
-              Giúp tiết kiệm lượt dùng cho Key chung của nhóm.
+              * Hệ thống ưu tiên dùng <strong>Gemini Key</strong> của bạn. 
+              Nếu bạn không có Key, hệ thống sẽ tự động chuyển sang <strong>DeepSeek (Nguồn lực của nhóm)</strong> để xử lý.
             </p>
           </div>
         </div>

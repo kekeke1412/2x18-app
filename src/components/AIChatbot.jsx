@@ -23,12 +23,9 @@ export default function AIChatbot() {
   const chatEndRef = useRef(null);
   const inputRef   = useRef(null);
 
-  // Check AI readiness on mount and when chat opens
+  // Always ready because of System Fallback
   useEffect(() => {
-    const checkKey = () => setHasApiKey(!!getApiKey());
-    checkKey();
-    const timer = setInterval(checkKey, 5000); // Re-check every 5s in case user updates Profile
-    return () => clearInterval(timer);
+    setHasApiKey(true);
   }, []);
 
   // Auto-scroll to bottom on new messages
@@ -84,9 +81,9 @@ export default function AIChatbot() {
       const history = messages
         .slice(1) // Bỏ qua câu chào đầu tiên của Bot để lịch sử bắt đầu bằng 'user'
         .filter(m => m.role === 'user' || m.role === 'assistant')
-        .slice(-10); // last 10 exchanges max
+        .slice(-10); // last 10 exchanges
 
-      const aiRes = await chatWithAI(userMsg, context, history);
+      const aiRes = await chatWithAI(userMsg, context, history, currentUser);
       setMessages(prev => [...prev, { role: 'assistant', text: aiRes }]);
     } catch (err) {
       console.error('[AIChatbot]', err);

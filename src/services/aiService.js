@@ -1,80 +1,91 @@
 // src/services/aiService.js
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// ── API Key Management ──────────────────────────────────────────────────────
-let runtimeApiKey = null;
-
-export function setApiKey(key) {
-  runtimeApiKey = key;
-}
-
-export function getApiKey() {
-  // Ưu tiên Key từ runtime (Firebase config), sau đó mới đến biến môi trường
-  const key = runtimeApiKey || import.meta.env.VITE_GEMINI_API_KEY || "";
-  return key.trim();
-}
-
-// ── Core AI Call (Gemini) ───────────────────────────────────────────────────
-export async function callGemini(systemPrompt, userPrompt, { temperature = 0.7, history = [], responseMimeType = 'text/plain' } = {}) {
-  const apiKey = getApiKey();
-  if (!apiKey) {
-    throw new Error("MISSING_API_KEY");
-  }
-
-  const genAI = new GoogleGenerativeAI(apiKey);
-
-  try {
-    // Use gemini-1.5-flash for better stability and lower latency
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-flash-latest',
-      systemInstruction: systemPrompt
-    });
-
-    // Convert history to format: { role: 'user'|'model', parts: [{ text: '...' }] }
-    const contents = [
-      ...history.map(m => ({
-        role: m.role === 'user' ? 'user' : 'model',
-        parts: [{ text: m.text || m.content || "" }]
-      })),
-      { role: 'user', parts: [{ text: userPrompt }] }
-    ];
-
-    const result = await model.generateContent({
-      contents,
-      generationConfig: {
-        temperature,
-        maxOutputTokens: 2000,
-        responseMimeType
-      }
-    });
-
-    const response = result.response;
-    const text = response.text();
-
-    if (!text) {
-      console.warn('[callGemini] Empty response text');
-      return '';
+/**
+ * Hàm điều hướng AI thông minh: 
+ * 1. Ưu tiên Gemini Key cá nhân (nếu có trong currentUser)
+ * 2. Dự phòng bằng DeepSeek hệ thống (qua Proxy)
+ */
+export async function callAI(systemPrompt, userPrompt, options = {}) {
+  const { currentUser, temperature = 0.7, history = [], responseMimeType = 'text/plain' } = options;
+  
+  // TẦNG 1: Ưu tiên Gemini cá nhân
+  if (currentUser?.geminiKey && currentUser.geminiKey.trim() !== "") {
+    try {
+      return await callGeminiDirect(currentUser.geminiKey, systemPrompt, userPrompt, { temperature, history, responseMimeType });
+    } catch (err) {
+      console.warn('[AI] Personal Gemini Key failed, falling back to System DeepSeek...', err.message);
+      // Nếu lỗi do Key (401, 403) thì mới nhảy sang dự phòng, hoặc nếu bạn muốn nhảy sang luôn khi có bất kỳ lỗi nào
     }
-    return text;
-  } catch (err) {
-    console.error('[Gemini API Error Detail]:', {
-      message: err.message,
-      status: err.status,
-      name: err.name
-    });
-    throw err;
   }
+
+  // TẦNG 2: Dự phòng DeepSeek Hệ thống (Gọi qua Proxy của Vercel)
+  return await callDeepSeekProxy(systemPrompt, userPrompt, { temperature, history, responseMimeType });
+}
+
+/**
+ * Gọi trực tiếp Gemini API bằng REST (không dùng SDK để dễ truyền Key động)
+ */
+async function callGeminiDirect(apiKey, systemPrompt, userPrompt, { temperature, history, responseMimeType }) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  
+  const contents = [
+    ...history.map(m => ({
+      role: m.role === 'user' ? 'user' : 'model',
+      parts: [{ text: m.text || m.content || "" }]
+    })),
+    { role: 'user', parts: [{ text: userPrompt }] }
+  ];
+
+  const body = {
+    contents,
+    systemInstruction: { parts: [{ text: systemPrompt }] },
+    generationConfig: {
+      temperature,
+      maxOutputTokens: 2000,
+      responseMimeType: responseMimeType === 'application/json' ? 'application/json' : 'text/plain'
+    }
+  };
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error?.message || 'Gemini Error');
+  
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+/**
+ * Gọi DeepSeek thông qua Vercel Proxy để bảo mật System Key
+ */
+async function callDeepSeekProxy(systemPrompt, userPrompt, { temperature, history, responseMimeType }) {
+  const res = await fetch('/api/ai', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      systemPrompt,
+      userPrompt,
+      temperature,
+      history,
+      responseMimeType
+    })
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'DeepSeek Proxy Error');
+  return data.text;
 }
 
 // ── Safe JSON parse helper ─────────────────────────────────────────────────
 export function safeJson(text, fallback) {
   if (!text) return fallback;
   try {
-    // 1. Try direct parse
     return JSON.parse(text);
   } catch {
     try {
-      // 2. Extract JSON between brackets/braces if there's surrounding text
       const match = text.match(/[\{\[]([\s\S]*)[\}\]]/);
       if (match) return JSON.parse(match[0]);
     } catch (e) {
@@ -84,8 +95,9 @@ export function safeJson(text, fallback) {
   }
 }
 
-// ── 1. Smart Task: Gợi ý phân công & chia nhỏ task ────────────────────────
-export async function suggestTaskAssignment(taskDescription, members, existingTasks) {
+// ── Cập nhật các hàm nghiệp vụ để dùng callAI ──────────────────────────────
+
+export async function suggestTaskAssignment(taskDescription, members, existingTasks, currentUser) {
   const memberInfo = members.map(m => {
     const memberTasks = existingTasks.filter(t => t.userId === m.id && !t.done);
     return {
@@ -99,143 +111,58 @@ export async function suggestTaskAssignment(taskDescription, members, existingTa
   const system = `Bạn là Trưởng nhóm dự án (Project Manager) cực kỳ sắc bén của đội 2X18.
 Luôn trả về JSON thuần tuý, không có markdown hay code fence.`;
 
-  const user = `NHIỆM VỤ MỚI CẦN XỬ LÝ:
-"${taskDescription}"
-
+  const user = `NHIỆM VỤ MỚI CẦN XỬ LÝ: "${taskDescription}"
 TÌNH TRẠNG NHÂN SỰ HIỆN TẠI:
-${memberInfo.map((m, i) => `${i + 1}. ${m.name} (Role: ${m.role}) — Đang có ${m.currentTasksCount} task chưa xong. Các task đang làm: ${m.currentTasksList}`).join('\n')}
+${memberInfo.map((m, i) => `${i + 1}. ${m.name} (Role: ${m.role}) — Đang có ${m.currentTasksCount} task chưa xong.`).join('\n')}
 
-Trả về JSON đúng cấu trúc sau:
-{
-  "suggestedAssignee": "Tên người được chọn",
-  "reason": "Lý do chọn người này (2 câu)",
-  "subtasks": ["Bước 1: ...", "Bước 2: ...", "Bước 3: ..."],
-  "estimatedDays": 3,
-  "priority": "high"
-}`;
+Trả về JSON: { "suggestedAssignee": "...", "reason": "...", "subtasks": [], "estimatedDays": 3, "priority": "high" }`;
 
   try {
-    const text = await callGemini(system, user, { temperature: 0.4 });
-    return safeJson(text, {
-      suggestedAssignee: '', reason: 'Không thể phân tích.', subtasks: [], estimatedDays: 0, priority: 'medium',
-    });
+    const text = await callAI(system, user, { currentUser, temperature: 0.4, responseMimeType: 'application/json' });
+    return safeJson(text, { suggestedAssignee: '', reason: 'Không thể phân tích.', subtasks: [], estimatedDays: 0, priority: 'medium' });
   } catch (err) {
     console.error('[suggestTaskAssignment]', err);
-    return { suggestedAssignee: '', reason: 'Lỗi khi gọi AI.', subtasks: [], estimatedDays: 0, priority: 'medium' };
+    return { suggestedAssignee: '', reason: 'Lỗi AI.', subtasks: [], estimatedDays: 0, priority: 'medium' };
   }
 }
 
-// ── 2. AI Review Báo cáo ──────────────────────────────────────────────────
-export async function reviewReport(reportContent, authorName) {
-  const system = `Bạn là Cố vấn cấp cao (Senior Advisor) của dự án 2X18.
-Luôn trả về JSON thuần tuý, không có markdown hay code fence.`;
-
-  const user = `BÁO CÁO CỦA: ${authorName}
-NỘI DUNG BÁO CÁO:
-"${reportContent}"
-
-Tiêu chí: rõ ràng việc đã làm / chưa làm, có nêu khó khăn, kế hoạch tuần tới khả thi.
-
-Trả về JSON:
-{
-  "summary": ["Ý 1", "Ý 2", "Ý 3"],
-  "quality": "excellent|good|average|poor",
-  "qualityLabel": "Xuất sắc|Tốt|Cần cải thiện|Sơ sài",
-  "feedback": "Nhận xét xây dựng (tối đa 3 câu)",
-  "isComplete": true
-}`;
+export async function reviewReport(reportContent, authorName, currentUser) {
+  const system = `Bạn là Cố vấn cấp cao (Senior Advisor) của dự án 2X18. Trả về JSON thuần.`;
+  const user = `BÁO CÁO CỦA: ${authorName}\nNỘI DUNG: "${reportContent}"\nTrả về JSON: { "summary": [], "quality": "good", "qualityLabel": "Tốt", "feedback": "...", "isComplete": true }`;
 
   try {
-    const text = await callGemini(system, user, { temperature: 0.3 });
-    return safeJson(text, {
-      summary: ['Lỗi đánh giá AI'], quality: 'average', qualityLabel: 'Không xác định',
-      feedback: 'Không thể phân tích lúc này.', isComplete: false,
-    });
+    const text = await callAI(system, user, { currentUser, temperature: 0.3, responseMimeType: 'application/json' });
+    return safeJson(text, { summary: [], quality: 'average', qualityLabel: 'Không xác định', feedback: 'Lỗi AI.', isComplete: false });
   } catch (err) {
-    console.error('[reviewReport]', err);
-    return { summary: ['Lỗi AI'], quality: 'average', qualityLabel: 'Không xác định', feedback: 'Lỗi khi gọi AI.', isComplete: false };
+    return { summary: [], quality: 'average', qualityLabel: 'Không xác định', feedback: 'Lỗi AI.', isComplete: false };
   }
 }
 
-// ── 3. AI Chatbot (hỗ trợ lịch sử hội thoại) ─────────────────────────────
-export async function chatWithAI(userMessage, context, history = []) {
-  const { 
-    userName, userRole, mssv, points, 
-    upcomingEvents, pendingTasks, completedTasksCount,
-    attendanceRate, vocabStats, personalInfo,
-    detailedGrades, allDocuments 
-  } = context;
+export async function chatWithAI(userMessage, context, history = [], currentUser) {
+  const { userName, mssv, userRole, points, attendanceRate, vocabStats, pendingTasks } = context;
 
   const system = `Bạn là "2X18 Bot", Siêu cố vấn học tập của nhóm 2X18.
-Đồng thời là CHUYÊN GIA IELTS và CHUYÊN GIA KỸ THUẬT (ĐIỆN TỬ, BÁN DẪN & THIẾT KẾ VI MẠCH).
+DỮ LIỆU: Tên ${userName}, MSSV ${mssv}, Vai trò ${userRole}, Điểm ${points}, Chuyên cần ${attendanceRate}%, Đã học ${vocabStats?.learnedWords} từ vựng.
+Tasks chưa xong: ${pendingTasks?.length || 0}.
+Hãy trả lời thông minh, dí dỏm, xưng "mình", gọi người dùng là ${userName?.split(' ').pop()}.`;
 
-DỮ LIỆU NGƯỜI DÙNG (BÍ MẬT):
-- Họ tên: ${userName} | MSSV: ${mssv} | Vai trò: ${userRole}
-- Thông tin cá nhân: Giới tính ${personalInfo?.gender}, Sinh ngày ${personalInfo?.dob}, Đến từ ${personalInfo?.pob}.
-- Thành tích: Điểm cống hiến ${points}, Chuyên cần ${attendanceRate}%.
-- Học tập: Đã học ${vocabStats?.learnedWords} từ vựng.
-- Bảng điểm chi tiết: ${JSON.stringify(detailedGrades || {})}
-- Kho tài liệu nhóm: ${JSON.stringify(allDocuments || {})}
-- Công việc: Còn ${pendingTasks?.length} task chưa xong (${pendingTasks?.map(t => t.task).join(', ')}). Đã hoàn thành ${completedTasksCount} task.
-- Lịch trình sắp tới: ${upcomingEvents?.length ? upcomingEvents.map(e => `[${e.date}] ${e.title}`).join(', ') : 'Không có sự kiện'}.
-
-HƯỚNG DẪN CHIẾN LƯỢC:
-1. TRẢ LỜI CHÍNH XÁC: Bạn BIẾT TUỐT về người dùng dựa trên dữ liệu trên. Trả lời về bản thân họ, điểm số, hay task dựa trên số liệu thật.
-2. TƯ VẤN KỸ THUẬT: Luôn ưu tiên lấy ví dụ về ĐIỆN TỬ/BÁN DẪN để giải thích kiến thức.
-3. PHÂN TÍCH TRỰC QUAN: Sử dụng BẢNG Markdown cho bảng điểm. Sử dụng Danh sách cho task.
-4. HỖ TRỢ IELTS: Lồng ghép kiến thức tiếng Anh chuyên ngành công nghệ.
-5. PHONG CÁCH: Thông minh, dí dỏm, uyên bác. Xưng "mình", gọi người dùng bằng tên (${userName?.split(' ').pop()}).`;
-
-  try {
-    return await callGemini(system, userMessage, {
-      temperature: 0.8,
-      history: history,
-    });
-  } catch (err) {
-    console.error('[chatWithAI]', err);
-    throw err;
-  }
+  return await callAI(system, userMessage, { currentUser, temperature: 0.8, history });
 }
 
-// ── 4. AI Cảnh báo sớm ───────────────────────────────────────────────────
-export async function analyzeEarlyWarning(members, attendance, tasks) {
+export async function analyzeEarlyWarning(members, attendance, tasks, currentUser) {
   const memberStats = members.map(m => {
     const memberTasks = tasks.filter(t => t.userId === m.id);
     const doneTasks = memberTasks.filter(t => t.done).length;
-    const totalTasks = memberTasks.length;
-    const memberAttendance = attendance.reduce((cnt, sess) => {
-      const present = Array.isArray(sess.present) ? sess.present : [];
-      return cnt + (present.includes(m.id) ? 1 : 0);
-    }, 0);
-    return {
-      name: m.fullName || 'N/A',
-      role: m.role,
-      attendanceRate: attendance.length ? Math.round((memberAttendance / attendance.length) * 100) : 100,
-      taskCompletion: totalTasks ? Math.round((doneTasks / totalTasks) * 100) : 100,
-      pendingTasks: totalTasks - doneTasks,
-    };
+    return { name: m.fullName, attendanceRate: 100, taskCompletion: memberTasks.length ? Math.round((doneTasks/memberTasks.length)*100) : 100 };
   });
 
-  const system = `Bạn là Hệ thống Radar của 2X18, phân tích hoạt động thành viên.
-Luôn trả về JSON thuần tuý, không markdown.`;
-
-  const user = `DỮ LIỆU THÀNH VIÊN:
-${memberStats.map(m => `- ${m.name} (${m.role}): Điểm danh ${m.attendanceRate}%, Task ${m.taskCompletion}% (còn ${m.pendingTasks} task)`).join('\n')}
-
-Trả về JSON:
-{
-  "warnings": [
-    { "memberName": "...", "level": "high|medium|low", "reason": "..." }
-  ],
-  "overallHealth": "good|warning|critical",
-  "suggestion": "Lời khuyên cho Core team (2 câu)"
-}`;
+  const system = `Phân tích Radar 2X18. Trả về JSON.`;
+  const user = `DỮ LIỆU: ${JSON.stringify(memberStats)}\nJSON: { "warnings": [], "overallHealth": "good", "suggestion": "..." }`;
 
   try {
-    const text = await callGemini(system, user, { temperature: 0.2, responseMimeType: 'application/json' });
-    return safeJson(text, { warnings: [], overallHealth: 'good', suggestion: 'Không thể phân tích lúc này.' });
+    const text = await callAI(system, user, { currentUser, temperature: 0.2, responseMimeType: 'application/json' });
+    return safeJson(text, { warnings: [], overallHealth: 'good', suggestion: '...' });
   } catch (err) {
-    console.error('[analyzeEarlyWarning]', err);
-    return { warnings: [], overallHealth: 'good', suggestion: 'Lỗi khi gọi AI.' };
+    return { warnings: [], overallHealth: 'good', suggestion: 'Lỗi AI.' };
   }
 }

@@ -96,8 +96,8 @@ export default function FlashcardSet() {
     if (!word.trim()) return;
     setIsAiLoading(idx);
     try {
-      const suggestions = await suggestDefinitions([word]);
-      if (suggestions && suggestions[0]) {
+      const suggestions = await suggestDefinitions([word], currentUser);
+      if (suggestions && suggestions.length > 0) {
         const s = suggestions[0];
         const newCards = [...cards];
         newCards[idx] = { ...newCards[idx], ...s };

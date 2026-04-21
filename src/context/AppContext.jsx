@@ -6,7 +6,6 @@ import {
   signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword,
   GoogleAuthProvider, signInWithPopup, onAuthStateChanged,
 } from 'firebase/auth';
-import { setApiKey } from '../services/aiService';
 
 export const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
 
@@ -530,17 +529,7 @@ export function AppProvider({ children }) {
     };
   }, []);
 
-  // ── Sync AI Key (Ưu tiên: Cá nhân > Hệ thống > ENV) ───────────────────────
-  useEffect(() => {
-    const personal = state.currentUser?.personalApiKey;
-    const global = state.config?.gemini_api_key;
-    
-    if (personal) {
-      setApiKey(personal);
-    } else if (global) {
-      setApiKey(global);
-    }
-  }, [state.currentUser?.personalApiKey, state.config?.gemini_api_key]);
+
 
 
   // ── Sync currentUser from members ─────────────────────────────────────────
