@@ -680,106 +680,6 @@ function GradesTable({ profile, grades, onSave, canEdit }) {
   );
 }
 
-// ── System Settings Tab (Super Admin Only) ──────────────────────────────────
-function SystemSettings() {
-  const { config, updateConfig } = useApp();
-  const [isSaving, setIsSaving] = useState(false);
-  const [form, setForm] = useState({
-    gemini_api_key: config?.gemini_api_key || '',
-    maintenance_mode: config?.maintenance_mode || false,
-    announcement: config?.announcement || '',
-  });
-
-  useEffect(() => {
-    setForm({
-      gemini_api_key: config?.gemini_api_key || '',
-      maintenance_mode: config?.maintenance_mode || false,
-      announcement: config?.announcement || '',
-    });
-  }, [config]);
-
-  const handleSave = async () => {
-    setIsSaving(true);
-    const success = await updateConfig(form);
-    if (success) {
-      // Đợi thêm một chút để user thấy trạng thái
-      setTimeout(() => setIsSaving(false), 800);
-    } else {
-      setIsSaving(false);
-    }
-  };
-
-  return (
-    <div className="max-w-2xl mx-auto space-y-6 pb-20">
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-[#1a1a1a] border border-blue-500/20 rounded-2xl p-6 shadow-2xl"
-      >
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-blue-600/20 rounded-xl flex items-center justify-center">
-            <ShieldCheck className="w-5 h-5 text-blue-400" />
-          </div>
-          <div>
-            <h3 className="text-lg font-black text-white">Cấu hình Hệ thống</h3>
-            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Dành riêng cho Super Admin</p>
-          </div>
-        </div>
-
-        <div className="space-y-5">
-
-          <div className="space-y-4">
-             <div className="flex items-center justify-between p-4 bg-[#121212] border border-gray-800 rounded-xl">
-                <div>
-                   <div className="text-sm font-bold text-gray-200">Chế độ bảo trì</div>
-                   <div className="text-[10px] text-gray-500">Khóa truy cập đối với thành viên thường</div>
-                </div>
-                <button 
-                  onClick={() => setForm({...form, maintenance_mode: !form.maintenance_mode})}
-                  className={`w-12 h-6 rounded-full transition-all relative ${form.maintenance_mode ? 'bg-red-600' : 'bg-gray-700'}`}
-                >
-                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${form.maintenance_mode ? 'left-7' : 'left-1'}`} />
-                </button>
-             </div>
-
-             <div className="space-y-2">
-                <label className="text-xs font-black text-gray-400 uppercase tracking-wider">Thông báo toàn hệ thống</label>
-                <textarea 
-                  className="input-dark min-h-[100px] resize-none"
-                  placeholder="Nội dung thông báo sẽ hiện ở Dashboard..."
-                  value={form.announcement}
-                  onChange={e => setForm({...form, announcement: e.target.value})}
-                />
-             </div>
-          </div>
-
-          <div className="pt-2">
-            <button 
-              onClick={handleSave}
-              disabled={isSaving}
-              className="w-full py-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-black rounded-2xl transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2"
-            >
-              {isSaving ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ĐANG LƯU...
-                </div>
-              ) : (
-                <><Save className="w-4 h-4" /> LƯU CẤU HÌNH HỆ THỐNG</>
-              )}
-            </button>
-            
-            {config?.updatedAt && (
-              <p className="text-center text-[9px] text-gray-600 mt-3 uppercase tracking-widest">
-                Cập nhật lần cuối: {new Date(config.updatedAt).toLocaleString('vi-VN')} bởi {config.updatedBy || 'Admin'}
-              </p>
-            )}
-          </div>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
 
 function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfile, onStartEdit }) {
   const rl = roleLabel(profile.role);
@@ -1192,7 +1092,7 @@ export default function Profile() {
     { key:'profile', label:'Hồ sơ',      icon:User     },
     { key:'grades',  label:'Bảng điểm',  icon:BookOpen },
     ...(isCore||isSuperAdmin ? [{ key:'members', label:'Thành viên', icon:Users }] : []),
-    ...(isSuperAdmin ? [{ key:'system', label:'Hệ thống', icon:Settings }] : []),
+
   ];
 
   return (
@@ -1294,9 +1194,7 @@ export default function Profile() {
               <MembersTab/>
             )}
 
-            {activeTab === 'system' && isSuperAdmin && (
-              <SystemSettings/>
-            )}
+
           </motion.div>
         </AnimatePresence>
       </div>
