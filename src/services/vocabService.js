@@ -17,12 +17,12 @@ Return ONLY valid JSON representing an array of objects.`;
     : `Topic: Electronics, Semiconductors, IC Design, or Physics. Level: IELTS Band 6.0 style (Academic but clear).`;
 
   const user = `For the following words: ${words.join(', ')}
-Provide: IPA, Type, Concise Vietnamese Definition, and Example Sentence.
+Provide: IPA, Type (n, v, adj, adv, phr v, idiom, collocation), Level (A1, A2, B1, B2, C1, C2), Concise Vietnamese Definition, and Example Sentence.
 
 STRICT REQUIREMENTS:
 1. Examples: ${exampleGuidance}
 2. Example Length: Under 15 words.
-3. Word Types: Accurate (n, v, adj, adv, phr v, idiom, collocation).
+3. Language: Professional and technical.
 
 Required JSON structure:
 [
@@ -30,6 +30,7 @@ Required JSON structure:
     "word": "...",
     "definition": "Nghĩa tiếng Việt súc tích",
     "type": "...",
+    "level": "B2",
     "ipa": "phiên âm chuẩn",
     "example": "Sentence reflecting ${source || 'Academic context'}",
     "exampleVi": "Dịch nghĩa ví dụ"

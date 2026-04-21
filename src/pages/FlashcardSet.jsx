@@ -89,7 +89,7 @@ export default function FlashcardSet() {
   if (!set) return <div className="p-10 text-center text-gray-500 font-bold">Học phần không tồn tại.</div>;
 
   const handleSave = () => { editVocabSet({ ...set, terms: cards }); setIsEditing(false); };
-  const handleAddCard = () => { setCards([...cards, { word: '', definition: '', type: 'n', ipa: '', example: '', exampleVi: '' }]); };
+  const handleAddCard = () => { setCards([...cards, { word: '', definition: '', type: 'n', level: 'B1', ipa: '', example: '', exampleVi: '' }]); };
   const handleRemoveCard = (idx) => { setCards(cards.filter((_, i) => i !== idx)); };
 
   const handleAiSuggest = async (idx) => {
@@ -396,6 +396,19 @@ export default function FlashcardSet() {
                               <option value="idiom">idiom</option>
                               <option value="colloc">colloc</option>
                             </select>
+                            <select 
+                              value={card.level} 
+                              onChange={e => { const n = [...cards]; n[idx].level = e.target.value; setCards(n); }}
+                              className="w-16 bg-[#121212] border border-gray-800 rounded-xl px-2 py-2.5 text-xs font-black focus:border-indigo-500 outline-none text-amber-400"
+                            >
+                              <option value="">Lvl</option>
+                              <option value="A1">A1</option>
+                              <option value="A2">A2</option>
+                              <option value="B1">B1</option>
+                              <option value="B2">B2</option>
+                              <option value="C1">C1</option>
+                              <option value="C2">C2</option>
+                            </select>
                           </div>
                           <input 
                             placeholder="Định nghĩa (Ví dụ: Vật lý học)" 
@@ -423,6 +436,7 @@ export default function FlashcardSet() {
                                 <Volume2 className={`w-4 h-4 ${isSpeaking === card.word ? 'animate-pulse' : ''}`} />
                               </button>
                               <span className="text-[10px] bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded-md font-black uppercase tracking-wider border border-indigo-500/20">{card.type || 'n/a'}</span>
+                              {card.level && <span className="text-[10px] bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-md font-black uppercase tracking-wider border border-amber-500/20">{card.level}</span>}
                             </div>
                             <span className="text-xs text-gray-500 font-mono italic break-all">{card.ipa}</span>
                           </div>
@@ -1087,6 +1101,7 @@ function StudyCard({ card, isFlipped, onFlip, onSwipe, onSpeak, isSpeaking }) {
               <Volume2 className={`w-6 h-6 ${isSpeaking === card.word ? 'animate-pulse' : ''}`} />
             </button>
             <span className="text-[10px] bg-white/10 text-white/60 px-2 py-0.5 rounded-md font-black uppercase tracking-wider border border-white/10">{card.type || 'n/a'}</span>
+            {card.level && <span className="text-[10px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-md font-black border border-amber-500/40">{card.level}</span>}
             <span className="text-sm text-indigo-400 font-mono italic bg-indigo-500/10 px-4 py-1.5 rounded-full border border-indigo-500/20">{card.ipa}</span>
           </div>
           <div className="absolute bottom-10 flex items-center gap-3 text-[10px] font-black text-gray-600 uppercase tracking-[0.3em]">
