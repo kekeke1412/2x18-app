@@ -26,7 +26,7 @@ export async function callAI(systemPrompt, userPrompt, options = {}) {
  * Gọi trực tiếp Gemini API bằng REST (không dùng SDK để dễ truyền Key động)
  */
 async function callGeminiDirect(apiKey, systemPrompt, userPrompt, { temperature, history, responseMimeType }) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
   
   const contents = [
     ...history.map(m => ({
