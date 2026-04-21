@@ -7,10 +7,10 @@ import { useApp } from '../context/AppContext';
 // A lightweight Markdown-like formatter for bold and line breaks
 const MarkdownText = ({ text }) => {
   if (!text) return null;
-  
+
   // Split by double asterisks for bolding
   const parts = text.split(/(\*\*.*?\*\*)/g);
-  
+
   return (
     <span>
       {parts.map((part, i) => {
@@ -28,19 +28,19 @@ export default function AIChatbot() {
 
   const firstName = currentUser?.fullName?.split(' ').filter(Boolean).slice(-1)[0] || 'bạn';
 
-  const [isOpen,      setIsOpen]      = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [hasApiKey,   setHasApiKey]   = useState(false);
-  const [messages,    setMessages]    = useState([
+  const [hasApiKey, setHasApiKey] = useState(false);
+  const [messages, setMessages] = useState([
     {
       role: 'assistant',
       text: `Chào ${firstName}! Mình là 2X18 Bot 🤖✨\nMình biết lịch, task và điểm danh của bạn — hỏi gì cũng được nhé!`,
     },
   ]);
-  const [input,     setInput]     = useState('');
-  const [isTyping,  setIsTyping]  = useState(false);
+  const [input, setInput] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
   const chatEndRef = useRef(null);
-  const inputRef   = useRef(null);
+  const inputRef = useRef(null);
 
   // Always ready because of System Fallback
   useEffect(() => {
@@ -70,29 +70,29 @@ export default function AIChatbot() {
     try {
       // Build rich context from app state
       const context = {
-        userName:         currentUser?.fullName,
-        userRole:         currentUser?.role,
-        mssv:             currentUser?.mssv,
-        personalInfo:     {
+        userName: currentUser?.fullName,
+        userRole: currentUser?.role,
+        mssv: currentUser?.mssv,
+        personalInfo: {
           gender: currentUser?.gender,
           dob: currentUser?.dob,
           pob: currentUser?.pob,
           phone: currentUser?.phone,
         },
-        points:           contributions[currentUser?.id] || 0,
-        upcomingEvents:   (calEvents || [])
+        points: contributions[currentUser?.id] || 0,
+        upcomingEvents: (calEvents || [])
           .filter(e => new Date(e.date) >= new Date())
           .slice(0, 5),
-        pendingTasks:     (myTasks || [])
+        pendingTasks: (myTasks || [])
           .filter(t => !t.done),
         completedTasksCount: (myTasks || []).filter(t => t.done).length,
-        attendanceRate:   attendance?.length ? Math.round(((attendance.filter(s => (s.present || []).includes(currentUser?.id)).length) / attendance.length) * 100) : 100,
+        attendanceRate: attendance?.length ? Math.round(((attendance.filter(s => (s.present || []).includes(currentUser?.id)).length) / attendance.length) * 100) : 100,
         vocabStats: {
           totalSets: Object.keys(vocab || {}).length,
           learnedWords: Object.values(userVocab[currentUser?.id] || {}).flat().length
         },
         detailedGrades: myGradesEnriched,
-        allDocuments:   docs
+        allDocuments: docs
       };
 
       // Pass previous conversation as history for multi-turn awareness
@@ -133,31 +133,29 @@ export default function AIChatbot() {
       className="fixed bottom-8 right-6 md:right-20 z-50 w-14 h-14 bg-blue-600 rounded-2xl shadow-[0_10px_40px_-10px_rgba(37,99,235,0.5)] flex items-center justify-center text-white hover:scale-110 transition-all group active:scale-95"
       title="Mở 2X18 Bot"
     >
-      <MessageCircle className="w-6 h-6 group-hover:rotate-12 transition-transform"/>
-      <span className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-[#121212] ${
-        hasApiKey ? 'bg-green-400' : 'bg-amber-500 animate-pulse'
-      }`}/>
+      <MessageCircle className="w-6 h-6 group-hover:rotate-12 transition-transform" />
+      <span className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-[#121212] ${hasApiKey ? 'bg-green-400' : 'bg-amber-500 animate-pulse'
+        }`} />
     </button>
   );
 
   return (
-    <div className={`fixed bottom-8 right-6 md:right-20 z-50 w-[calc(100vw-48px)] max-w-[320px] bg-[#1a1a1a]/95 border border-gray-800/50 rounded-3xl shadow-[0_20px_50px_-20px_rgba(0,0,0,0.7)] flex flex-col transition-all duration-500 backdrop-blur-xl overflow-hidden ${
-      isMinimized ? 'h-16' : 'h-[520px] max-h-[80vh]'
-    }`}>
+    <div className={`fixed bottom-8 right-6 md:right-20 z-50 w-[calc(100vw-48px)] max-w-[320px] bg-[#1a1a1a]/95 border border-gray-800/50 rounded-3xl shadow-[0_20px_50px_-20px_rgba(0,0,0,0.7)] flex flex-col transition-all duration-500 backdrop-blur-xl overflow-hidden ${isMinimized ? 'h-16' : 'h-[520px] max-h-[80vh]'
+      }`}>
 
       {/* ── Header ── */}
       <div className="px-3 py-2.5 border-b border-gray-800 flex items-center justify-between bg-blue-600/10 shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center shrink-0">
-            <Bot className="w-[18px] h-[18px] text-white"/>
+            <Bot className="w-[18px] h-[18px] text-white" />
           </div>
           <div>
             <div className="text-sm font-bold text-white flex items-center gap-1">
-              2X18 Bot <Sparkles className="w-3 h-3 text-blue-400"/>
+              2X18 Bot <Sparkles className="w-3 h-3 text-blue-400" />
               <span className="text-[8px] bg-blue-500/20 text-blue-400 px-1 rounded border border-blue-500/30 ml-1">PRO</span>
             </div>
             <div className={`text-[10px] flex items-center gap-1 font-bold ${hasApiKey ? 'text-green-400' : 'text-amber-500'}`}>
-              <span className={`w-1.5 h-1.5 rounded-full inline-block ${hasApiKey ? 'bg-green-400' : 'bg-amber-500 animate-pulse'}`}/>
+              <span className={`w-1.5 h-1.5 rounded-full inline-block ${hasApiKey ? 'bg-green-400' : 'bg-amber-500 animate-pulse'}`} />
               {hasApiKey ? 'Sẵn sàng' : 'Yêu cầu API Key'}
             </div>
           </div>
@@ -168,18 +166,18 @@ export default function AIChatbot() {
               onClick={clearChat}
               title="Xóa lịch sử"
               className="p-1.5 hover:bg-gray-800 rounded-lg text-gray-600 hover:text-red-400 transition-colors">
-              <Trash2 className="w-3.5 h-3.5"/>
+              <Trash2 className="w-3.5 h-3.5" />
             </button>
           )}
           <button
             onClick={() => setIsMinimized(v => !v)}
             className="p-1.5 hover:bg-gray-800 rounded-lg text-gray-500 hover:text-white transition-colors">
-            <Minus className="w-4 h-4"/>
+            <Minus className="w-4 h-4" />
           </button>
           <button
             onClick={() => setIsOpen(false)}
             className="p-1.5 hover:bg-red-500/20 rounded-lg text-gray-500 hover:text-red-400 transition-colors">
-            <X className="w-4 h-4"/>
+            <X className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -192,14 +190,13 @@ export default function AIChatbot() {
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {m.role === 'assistant' && (
                   <div className="w-6 h-6 bg-blue-600 rounded-lg flex items-center justify-center shrink-0 mr-1.5 mt-0.5">
-                    <Bot className="w-3.5 h-3.5 text-white"/>
+                    <Bot className="w-3.5 h-3.5 text-white" />
                   </div>
                 )}
-                <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
-                  m.role === 'user'
+                <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${m.role === 'user'
                     ? 'bg-blue-600 text-white rounded-tr-sm'
                     : 'bg-[#1e1e1e] text-gray-200 rounded-tl-sm border border-gray-800'
-                }`}>
+                  }`}>
                   <MarkdownText text={m.text} />
                 </div>
               </div>
@@ -209,33 +206,33 @@ export default function AIChatbot() {
             {isTyping && (
               <div className="flex justify-start">
                 <div className="w-6 h-6 bg-blue-600 rounded-lg flex items-center justify-center shrink-0 mr-1.5 mt-0.5">
-                  <Bot className="w-3.5 h-3.5 text-white"/>
+                  <Bot className="w-3.5 h-3.5 text-white" />
                 </div>
                 <div className="bg-[#1e1e1e] border border-gray-800 px-3 py-2.5 rounded-2xl rounded-tl-sm flex gap-1 items-center">
-                  <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce"/>
-                  <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce [animation-delay:0.15s]"/>
-                  <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce [animation-delay:0.3s]"/>
+                  <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" />
+                  <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce [animation-delay:0.15s]" />
+                  <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce [animation-delay:0.3s]" />
                 </div>
               </div>
             )}
-            <div ref={chatEndRef}/>
+            <div ref={chatEndRef} />
           </div>
 
           {/* ── Quick Actions ── */}
           <div className="px-3 py-2 flex gap-2 bg-[#0f0f0f] border-t border-gray-800/50 overflow-x-auto no-scrollbar shrink-0">
-             {[
-               { id: 'tasks',  icon: <Clock className="w-3.5 h-3.5"/>,  label: 'Gợi ý task', prompt: 'Dựa vào Roadmap, hãy gợi ý cho mình 3 việc cần làm tiếp theo?' },
-               { id: 'grades', icon: <BookOpen className="w-3.5 h-3.5"/>, label: 'Phân tích học tập', prompt: 'Phân tích bảng điểm của mình và cho biết mình cần chú ý môn nào?' },
-               { id: 'moto',   icon: <Star className="w-3.5 h-3.5"/>,     label: 'Động lực', prompt: 'Hãy cho mình một lời khuyên hoặc câu nói truyền cảm hứng dựa trên tiến độ của mình!' },
-             ].map(act => (
-               <button 
-                 key={act.id}
-                 onClick={() => { setInput(act.prompt); }}
-                 className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1a1a1a] hover:bg-[#252525] border border-gray-800 rounded-xl text-[10px] font-bold text-gray-400 whitespace-nowrap transition-all"
-               >
-                 {act.icon} {act.label}
-               </button>
-             ))}
+            {[
+              { id: 'tasks', icon: <Clock className="w-3.5 h-3.5" />, label: 'Gợi ý task', prompt: 'Dựa vào Roadmap, hãy gợi ý cho mình 3 việc cần làm tiếp theo?' },
+              { id: 'grades', icon: <BookOpen className="w-3.5 h-3.5" />, label: 'Phân tích học tập', prompt: 'Phân tích bảng điểm của mình và cho biết mình cần chú ý môn nào?' },
+              { id: 'moto', icon: <Star className="w-3.5 h-3.5" />, label: 'Động lực', prompt: 'Hãy cho mình một lời khuyên hoặc câu nói truyền cảm hứng dựa trên tiến độ của mình!' },
+            ].map(act => (
+              <button
+                key={act.id}
+                onClick={() => { setInput(act.prompt); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1a1a1a] hover:bg-[#252525] border border-gray-800 rounded-xl text-[10px] font-bold text-gray-400 whitespace-nowrap transition-all"
+              >
+                {act.icon} {act.label}
+              </button>
+            ))}
           </div>
 
           {/* ── Suggested prompts (only when empty) ── */}
@@ -274,7 +271,7 @@ export default function AIChatbot() {
                 disabled={!input.trim() || isTyping}
                 className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-white hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
               >
-                <Send className="w-4 h-4"/>
+                <Send className="w-4 h-4" />
               </button>
             </form>
           </div>

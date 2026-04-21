@@ -678,62 +678,79 @@ export function AppProvider({ children }) {
   }, []);
 
   const loginWithGoogle = useCallback(async () => {
-    const provider = new GoogleAuthProvider();
-    provider.addScope('https://www.googleapis.com/auth/calendar.events');
-    provider.addScope('https://www.googleapis.com/auth/drive.file');
-    provider.setCustomParameters({ prompt: 'select_account' });
-    const cred = await signInWithPopup(auth, provider);
-    const fbUser = cred.user;
-    const isSA = fbUser.email === SUPER_ADMIN_EMAIL;
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.addScope('https://www.googleapis.com/auth/calendar.events');
+      provider.addScope('https://www.googleapis.com/auth/drive.file');
+      provider.setCustomParameters({ prompt: 'select_account' });
+      
+      console.log('[Auth] Starting Google Login...');
+      const cred = await signInWithPopup(auth, provider);
+      const fbUser = cred.user;
+      const isSA = fbUser.email === SUPER_ADMIN_EMAIL;
 
-    const snap = await get(ref(db, `2x18_members/${fbUser.uid}`));
-    let member = snap.val();
+      const snap = await get(ref(db, `2x18_members/${fbUser.uid}`));
+      let member = snap.val();
 
-    if (!member) {
-      member = {
-        id: fbUser.uid, uid: fbUser.uid,
-        email: fbUser.email, mailSchool: fbUser.email,
-        fullName: fbUser.displayName || 'Thành viên',
-        avatarUrl: fbUser.photoURL || '',
-        avatar: (fbUser.displayName || 'NT').split(' ').map(w => w[0]).slice(-2).join('').toUpperCase(),
-        role: isSA ? 'super_admin' : 'member',
-        status: isSA ? 'active' : 'pending',
-        mssv: '', phone: '', gender: '',
-        registeredAt: new Date().toISOString(),
-      };
-      await set(ref(db, `2x18_members/${fbUser.uid}`), member);
-    } else {
-      const googlePhoto = fbUser.photoURL || '';
-      const needsAvatarSync = googlePhoto && member.avatarUrl !== googlePhoto;
-      const needsAdminFix = isSA && (member.role !== 'super_admin' || member.status !== 'active');
-
-      if (needsAvatarSync || needsAdminFix) {
+      if (!member) {
         member = {
-          ...member,
-          avatarUrl: googlePhoto || member.avatarUrl || '',
-          ...(needsAdminFix ? { role: 'super_admin', status: 'active' } : {}),
+          id: fbUser.uid, uid: fbUser.uid,
+          email: fbUser.email, mailSchool: fbUser.email,
+          fullName: fbUser.displayName || 'Thành viên',
+          avatarUrl: fbUser.photoURL || '',
+          avatar: (fbUser.displayName || 'NT').split(' ').map(w => w[0]).slice(-2).join('').toUpperCase(),
+          role: isSA ? 'super_admin' : 'member',
+          status: isSA ? 'active' : 'pending',
+          mssv: '', phone: '', gender: '',
+          registeredAt: new Date().toISOString(),
         };
-        await set(ref(db, `2x18_members/${member.id}`), member);
+        await set(ref(db, `2x18_members/${fbUser.uid}`), member);
+      } else {
+        const googlePhoto = fbUser.photoURL || '';
+        const needsAvatarSync = googlePhoto && member.avatarUrl !== googlePhoto;
+        const needsAdminFix = isSA && (member.role !== 'super_admin' || member.status !== 'active');
+
+        if (needsAvatarSync || needsAdminFix) {
+          member = {
+            ...member,
+            avatarUrl: googlePhoto || member.avatarUrl || '',
+            ...(needsAdminFix ? { role: 'super_admin', status: 'active' } : {}),
+          };
+          await set(ref(db, `2x18_members/${member.id}`), member);
+        }
       }
-    }
 
-    if (member.status === 'pending') {
-      await signOut(auth).catch(() => {});
-      return { status: 'pending', name: member.fullName, email: member.email };
-    }
+      if (member.status === 'pending') {
+        await signOut(auth).catch(() => {});
+        return { status: 'pending', name: member.fullName, email: member.email };
+      }
 
-    const user = { ...member, uid: fbUser.uid };
-    dispatch({ type: A.SET_USER, payload: user });
-    localStorage.setItem('2x18_current_user', JSON.stringify(user));
-    
-    const credential = GoogleAuthProvider.credentialFromResult(cred);
-    if (credential?.accessToken) {
-      dispatch({ type: A.SET_GOOGLE_TOKEN, payload: credential.accessToken });
-      localStorage.setItem('2x18_google_token', credential.accessToken);
+      const user = { ...member, uid: fbUser.uid };
+      dispatch({ type: A.SET_USER, payload: user });
+      localStorage.setItem('2x18_current_user', JSON.stringify(user));
+      
+      const credential = GoogleAuthProvider.credentialFromResult(cred);
+      if (credential?.accessToken) {
+        dispatch({ type: A.SET_GOOGLE_TOKEN, payload: credential.accessToken });
+        localStorage.setItem('2x18_google_token', credential.accessToken);
+      }
+      
+      console.log('[Auth] Google Login Success');
+      return { status: 'ok' };
+    } catch (err) {
+      console.error('[Auth] Google Login Error:', err);
+      const msg = {
+        'auth/popup-blocked': 'Trình duyệt đã chặn cửa sổ đăng nhập. Hãy cho phép popup và thử lại!',
+        'auth/cancelled-popup-request': 'Yêu cầu đăng nhập đã bị hủy.',
+        'auth/popup-closed-by-user': 'Cửa sổ đăng nhập đã bị đóng.',
+        'auth/unauthorized-domain': 'Tên miền này chưa được cấp phép trong Firebase Console!',
+        'auth/network-request-failed': 'Lỗi kết nối mạng. Hãy kiểm tra lại đường truyền!',
+      }[err.code] || `Lỗi đăng nhập Google: ${err.message}`;
+      
+      toast(msg, 'error');
+      throw err;
     }
-    
-    return { status: 'ok' };
-  }, []);
+  }, [toast]);
 
   const register = useCallback(async (userData) => {
     const { email, password, ho='', ten='', mssv='', phone='', reason='' } = userData;

@@ -31,14 +31,16 @@ export default function Auth() {
   const handleGoogle = async () => {
     setLoading(true);
     try {
+      console.log('[AuthPage] Initiating Google login...');
       const result = await loginWithGoogle();
       if (result?.status === 'pending') {
         setPendingInfo({ name: result?.name, email: result?.email });
-      } else {
+      } else if (result?.status === 'ok') {
         navigate('/dashboard', { replace: true });
       }
-    } catch {
-      // error toast already shown in context
+    } catch (err) {
+      console.error('[AuthPage] Google login failed:', err);
+      // Toast is already shown in AppContext.jsx
     } finally {
       setLoading(false);
     }
