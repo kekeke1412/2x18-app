@@ -1,7 +1,7 @@
 // src/components/AIChatbot.jsx
 import React, { useState, useRef, useEffect } from 'react';
 import { Bot, X, Send, Minus, Sparkles, MessageCircle, Trash2, AlertCircle, Clock, BookOpen, Star } from 'lucide-react';
-import { chatWithAI, getApiKey } from '../services/aiService';
+import { chatWithAI } from '../services/aiService';
 import { useApp } from '../context/AppContext';
 
 export default function AIChatbot() {
@@ -88,7 +88,7 @@ export default function AIChatbot() {
     } catch (err) {
       console.error('[AIChatbot]', err);
       let errMsg = 'Ối, mình gặp lỗi rồi 😅 Bạn thử lại nhé!';
-      if (err.message === 'MISSING_API_KEY' || !getApiKey()) {
+      if (err.message === 'MISSING_API_KEY') {
         errMsg = 'Hệ thống AI chưa được cấu hình hoặc Key đã hết hạn. Vui lòng liên hệ Admin 🔑';
         setHasApiKey(false);
       }
