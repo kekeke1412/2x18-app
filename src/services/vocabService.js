@@ -7,7 +7,7 @@ import { callGemini, safeJson } from './aiService';
  */
 export const suggestDefinitions = async (words) => {
   if (!words || words.length === 0) return [];
-  
+
   const system = `You are a professional IELTS instructor and an expert in Technical English (Electronics & Semiconductors). 
 Return valid JSON representing an array of high-quality word definitions.`;
 
@@ -16,7 +16,7 @@ Return valid JSON representing an array of high-quality word definitions.`;
 STRICT REQUIREMENTS:
 1. Topic Preference: Use examples related to Electronics, Semiconductors, IC Design, or Physics research.
 2. Word Types: Accurate IELTS classification (n, v, adj, adv, phr v, idiom, collocation).
-3. Example: Must be high-level academic English (IELTS Band 7.0+ style).
+3. Example: Must be high-level academic English (IELTS Band 6.0+ style).
 
 Words: ${words.join(', ')}
 

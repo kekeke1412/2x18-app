@@ -107,7 +107,7 @@ export default function FlashcardSet() {
   };
 
   const toggleLearned = (idx) => {
-    const isLearned = progress.includes(idx);
+    const isLearned = progress.some(p => Number(p) === idx);
     markWordLearned(setId, idx, !isLearned);
   };
 
@@ -153,7 +153,12 @@ export default function FlashcardSet() {
   };
 
   const generateQuiz = (terms) => {
-    const shuffled = [...terms].sort(() => Math.random() - 0.5);
+    // Chỉ kiểm tra những từ chưa Nhớ sâu (Lv 6) hoặc kiểm tra ngẫu nhiên nếu đã nhớ hết
+    const pool = terms.map((t, i) => ({ ...t, originalIndex: i }));
+    const available = pool.filter(t => (Number(progress[t.originalIndex]) || 0) < 6);
+    const toQuiz = available.length >= 4 ? available : pool;
+
+    const shuffled = [...toQuiz].sort(() => Math.random() - 0.5);
     return shuffled.map((term) => {
       const typeRand = Math.random();
       let type = 'choice';
@@ -183,7 +188,7 @@ export default function FlashcardSet() {
       } else {
         // Đối với câu hỏi tự luận, cũng phải che từ đi nếu nó xuất hiện trong định nghĩa
         const hiddenDef = (term.definition || '').replace(regex, '_____');
-        return { type, question: `Hãy ghi lại thuật ngữ cho nghĩa: "${hiddenDef}"`, answer: cleanWord, term };
+        return { type, question: `Hãy ghi lại thuật ngữ cho nghĩa: "${hiddenDef}"`, answer: cleanWord, term, wordIndex: term.originalIndex };
       }
     });
   };
@@ -203,6 +208,8 @@ export default function FlashcardSet() {
 
     if (isCorrect) {
       setQuizScore(prev => prev + 1);
+      // Tự động tăng bậc khi đúng
+      incrementWordLevel(setId, current.wordIndex);
     }
     
     // Record details
@@ -393,7 +400,7 @@ export default function FlashcardSet() {
                             </div>
                           )}
                         </div>
-                        <button onClick={() => toggleLearned(idx)} className={`p-2 rounded-full transition-all ${progress.includes(idx) ? 'text-green-500 bg-green-500/10' : 'text-gray-700 hover:text-gray-500 bg-gray-800/50'}`}>
+                        <button onClick={() => toggleLearned(idx)} className={`p-2 rounded-full transition-all ${progress.some(p => Number(p) === idx) ? 'text-green-500 bg-green-500/10' : 'text-gray-700 hover:text-gray-500 bg-gray-800/50'}`}>
                           <CheckCircle2 className="w-6 h-6" />
                         </button>
                       </div>

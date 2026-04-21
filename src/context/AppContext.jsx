@@ -50,10 +50,9 @@ const A = {
   ADD_REPORT:'ADD_REPORT', APPROVE_REPORT:'APPROVE_REPORT', DELETE_REPORT:'DELETE_REPORT',
   SET_REPORTS:'SET_REPORTS',
   SET_GOOGLE_TOKEN:'SET_GOOGLE_TOKEN',
-  DELETE_VOCAB_SET:'DELETE_VOCAB_SET',
-  MARK_WORD_LEARNED:'MARK_WORD_LEARNED',
   ADD_QUIZ_RESULT:'ADD_QUIZ_RESULT',
-  ADD_VOCAB_SET:'ADD_VOCAB_SET', EDIT_VOCAB_SET:'EDIT_VOCAB_SET',
+  ADD_VOCAB_SET:'ADD_VOCAB_SET', EDIT_VOCAB_SET:'EDIT_VOCAB_SET', DELETE_VOCAB_SET:'DELETE_VOCAB_SET',
+  MARK_WORD_LEARNED:'MARK_WORD_LEARNED', INCREMENT_WORD_LEVEL:'INCREMENT_WORD_LEVEL',
 };
 
 const init = {
@@ -336,10 +335,34 @@ function reducer(s, { type, payload }) {
     }
     case A.MARK_WORD_LEARNED: {
       const {setId, wordIndex, userId, learned} = payload;
-      const prev = s.userVocab[userId] || {};
-      const setProg = prev[setId] || [];
-      const newProg = learned ? [...new Set([...setProg, wordIndex])] : setProg.filter(i => i !== wordIndex);
-      return { ...s, userVocab:{...s.userVocab, [userId]:{...prev, [setId]:newProg}} };
+      const idx = String(wordIndex);
+      const userSets = s.userVocab[userId] || {};
+      const currentSetData = userSets[setId] || {};
+      
+      // Migrate array to object if needed
+      let levels = Array.isArray(currentSetData) 
+        ? currentSetData.reduce((acc, i) => ({ ...acc, [i]: 6 }), {})
+        : { ...currentSetData };
+
+      if (learned) levels[idx] = 6;
+      else delete levels[idx];
+
+      return { ...s, userVocab: { ...s.userVocab, [userId]: { ...userSets, [setId]: levels } } };
+    }
+    case A.INCREMENT_WORD_LEVEL: {
+      const {setId, wordIndex, userId} = payload;
+      const idx = String(wordIndex);
+      const userSets = s.userVocab[userId] || {};
+      const currentSetData = userSets[setId] || {};
+      
+      let levels = Array.isArray(currentSetData) 
+        ? currentSetData.reduce((acc, i) => ({ ...acc, [i]: 6 }), {})
+        : { ...currentSetData };
+
+      const curLv = Number(levels[idx]) || 0;
+      if (curLv < 6) levels[idx] = curLv + 1;
+
+      return { ...s, userVocab: { ...s.userVocab, [userId]: { ...userSets, [setId]: levels } } };
     }
     case A.ADD_QUIZ_RESULT: {
       const { userId, result } = payload;
@@ -538,22 +561,15 @@ export function AppProvider({ children }) {
   }, [state.members]); // eslint-disable-line
 
   // ── Auto-sync to Firebase ─────────────────────────────────────────────────
-  // Khóa an toàn: Chỉ đồng bộ lên server sau khi đã tải xong dữ liệu ban đầu
-  const isDataReadyRef = useRef(false);
+
 
   useEffect(() => {
-    if (state.isLoading) return;
-    // Đợi 2 giây sau khi hết Loading để đảm bảo các node lẻ tẻ đã về hết
-    const timer = setTimeout(() => { isDataReadyRef.current = true; }, 2000);
-    return () => clearTimeout(timer);
-  }, [state.isLoading]);
-
-  useEffect(() => {
-    if (!isDataReadyRef.current) return; // CHƯA TẢI XONG THÌ CẤM GHI ĐÈ
+    if (state.isLoading) return; 
     
+    // logic skip sync if just came from firebase remains but let's be less aggressive
     if (fromFirebaseRef.current) {
       fromFirebaseRef.current = false;
-      return;
+      // We don't return here anymore to ensure user changes in the same batch aren't lost
     }
     if (!state.currentUser || state.currentUser.status === 'pending') return;
     if (state.isLoading || !state.members.length) return;
@@ -1088,6 +1104,11 @@ export function AppProvider({ children }) {
   const markWordLearned = useCallback((setId, wordIndex, learned) => {
     if (!state.currentUser?.id) return;
     dispatch({ type: A.MARK_WORD_LEARNED, payload: { setId, wordIndex, userId: state.currentUser.id, learned } });
+  }, [state.currentUser]);
+
+  const incrementWordLevel = useCallback((setId, wordIndex) => {
+    if (!state.currentUser?.id) return;
+    dispatch({ type: A.INCREMENT_WORD_LEVEL, payload: { setId, wordIndex, userId: state.currentUser.id } });
   }, [state.currentUser]);
 
   const addQuizResult = useCallback((result) => {
