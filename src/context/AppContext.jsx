@@ -78,7 +78,11 @@ function makeTrashItem(type, data, meta, payload) {
 // ── Reducer ────────────────────────────────────────────────────────────────
 function reducer(s, { type, payload }) {
   switch (type) {
-    case A.SET_USER:    return { ...s, currentUser: payload };
+    case A.SET_USER: {
+      if (payload) localStorage.setItem('2x18_current_user', JSON.stringify(payload));
+      else localStorage.removeItem('2x18_current_user');
+      return { ...s, currentUser: payload, isLoading: payload ? s.isLoading : false };
+    }
     case A.SET_LOADING: return { ...s, isLoading: payload };
     case A.SET_GOOGLE_TOKEN: return { ...s, googleToken: payload };
     case A.INIT_DATA: {
@@ -87,7 +91,6 @@ function reducer(s, { type, payload }) {
         // reports is managed separately via SET_REPORTS to avoid race conditions
         reports: s.reports,
         unreadCount: (payload.notifications||[]).filter(n=>!n.read).length,
-        isLoading: false,
       };
     }
 

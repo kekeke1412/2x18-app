@@ -395,7 +395,7 @@ export default function Gamification() {
                       <div style={{ textAlign:'center' }}>
                         <div style={{ fontSize:11, fontWeight:700, color:isMe?'#60a5fa':'#d4d4d8',
                           overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:90 }}>
-                          {m.fullName.split(' ').pop()}
+                          {m.fullName?.split(' ').pop() || '??'}
                         </div>
                         <RankBadge pts={m.points} size="sm" />
                         <div style={{ fontSize:14, fontWeight:900, marginTop:2,
