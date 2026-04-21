@@ -2,7 +2,7 @@
 
 export async function callAI(systemPrompt, userPrompt, options = {}) {
   const { temperature = 1.3, history = [], responseMimeType = 'text/plain' } = options;
-  
+
   // Chỉ sử dụng DeepSeek Hệ thống (Gọi qua Proxy của Vercel)
   return await callDeepSeekProxy(systemPrompt, userPrompt, { temperature, history, responseMimeType });
 }
@@ -93,9 +93,15 @@ export async function chatWithAI(userMessage, context, history = []) {
   // Format grades for AI to read easily
   const gradesText = detailedGrades && detailedGrades.length > 0
     ? detailedGrades
-        .map(g => `- ${g.subjectName} (${g.code}): [Trạng thái: ${g.status}] | CC:${g.cc || 0}, GK:${g.gk || 0}, CK:${g.ck || 0}. (Số tín chỉ: ${g.credits})`)
-        .join('\n')
-    : "Chưa có dữ liệu điểm.";
+      .filter(g => g.status !== 'Chưa học' && g.status !== 'Chưa rõ') // Loại bỏ môn chưa học
+      .map(g => {
+        if (g.status === 'Đang học') {
+          return `- ${g.subjectName} (${g.code}): [ĐANG HỌC] - Chưa có bảng điểm. (Số tín chỉ: ${g.credits})`;
+        }
+        return `- ${g.subjectName} (${g.code}): [ĐÃ XONG] - CC:${g.cc || 0}, GK:${g.gk || 0}, CK:${g.ck || 0}. (Số tín chỉ: ${g.credits})`;
+      })
+      .join('\n')
+    : "Chưa có dữ liệu học tập.";
 
   const system = `Bạn là "2X18 Bot", Siêu cố vấn học tập của nhóm 2X18.
 DỮ LIỆU CÁ NHÂN:

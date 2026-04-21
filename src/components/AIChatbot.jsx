@@ -4,6 +4,25 @@ import { Bot, X, Send, Minus, Sparkles, MessageCircle, Trash2, AlertCircle, Cloc
 import { chatWithAI } from '../services/aiService';
 import { useApp } from '../context/AppContext';
 
+// A lightweight Markdown-like formatter for bold and line breaks
+const MarkdownText = ({ text }) => {
+  if (!text) return null;
+  
+  // Split by double asterisks for bolding
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  
+  return (
+    <span>
+      {parts.map((part, i) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={i} className="font-black text-white">{part.slice(2, -2)}</strong>;
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </span>
+  );
+};
+
 export default function AIChatbot() {
   const { currentUser, myGrades, myGradesEnriched, myTasks, calEvents, attendance, contributions, vocab, userVocab, docs } = useApp();
 
@@ -181,7 +200,7 @@ export default function AIChatbot() {
                     ? 'bg-blue-600 text-white rounded-tr-sm'
                     : 'bg-[#1e1e1e] text-gray-200 rounded-tl-sm border border-gray-800'
                 }`}>
-                  {m.text}
+                  <MarkdownText text={m.text} />
                 </div>
               </div>
             ))}
