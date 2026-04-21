@@ -1,61 +1,10 @@
 // src/services/aiService.js
 
-/**
- * Hàm điều hướng AI thông minh: 
- * 1. Ưu tiên Gemini Key cá nhân (nếu có trong currentUser)
- * 2. Dự phòng bằng DeepSeek hệ thống (qua Proxy)
- */
 export async function callAI(systemPrompt, userPrompt, options = {}) {
-  const { currentUser, temperature = 0.7, history = [], responseMimeType = 'text/plain' } = options;
+  const { temperature = 0.7, history = [], responseMimeType = 'text/plain' } = options;
   
-  // TẦNG 1: Ưu tiên Gemini cá nhân
-  if (currentUser?.geminiKey && currentUser.geminiKey.trim() !== "") {
-    try {
-      return await callGeminiDirect(currentUser.geminiKey, systemPrompt, userPrompt, { temperature, history, responseMimeType });
-    } catch (err) {
-      console.warn('[AI] Personal Gemini Key failed, falling back to System DeepSeek...', err.message);
-      // Nếu lỗi do Key (401, 403) thì mới nhảy sang dự phòng, hoặc nếu bạn muốn nhảy sang luôn khi có bất kỳ lỗi nào
-    }
-  }
-
-  // TẦNG 2: Dự phòng DeepSeek Hệ thống (Gọi qua Proxy của Vercel)
+  // Chỉ sử dụng DeepSeek Hệ thống (Gọi qua Proxy của Vercel)
   return await callDeepSeekProxy(systemPrompt, userPrompt, { temperature, history, responseMimeType });
-}
-
-/**
- * Gọi trực tiếp Gemini API bằng REST (không dùng SDK để dễ truyền Key động)
- */
-async function callGeminiDirect(apiKey, systemPrompt, userPrompt, { temperature, history, responseMimeType }) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
-  
-  const contents = [
-    ...history.map(m => ({
-      role: m.role === 'user' ? 'user' : 'model',
-      parts: [{ text: m.text || m.content || "" }]
-    })),
-    { role: 'user', parts: [{ text: userPrompt }] }
-  ];
-
-  const body = {
-    contents,
-    systemInstruction: { parts: [{ text: systemPrompt }] },
-    generationConfig: {
-      temperature,
-      maxOutputTokens: 2000,
-      responseMimeType: responseMimeType === 'application/json' ? 'application/json' : 'text/plain'
-    }
-  };
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
-
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error?.message || 'Gemini Error');
-  
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
 
 /**
@@ -153,7 +102,7 @@ export async function analyzeEarlyWarning(members, attendance, tasks, currentUse
   const memberStats = members.map(m => {
     const memberTasks = tasks.filter(t => t.userId === m.id);
     const doneTasks = memberTasks.filter(t => t.done).length;
-    return { name: m.fullName, attendanceRate: 100, taskCompletion: memberTasks.length ? Math.round((doneTasks/memberTasks.length)*100) : 100 };
+    return { name: m.fullName, attendanceRate: 100, taskCompletion: memberTasks.length ? Math.round((doneTasks / memberTasks.length) * 100) : 100 };
   });
 
   const system = `Phân tích Radar 2X18. Trả về JSON.`;
