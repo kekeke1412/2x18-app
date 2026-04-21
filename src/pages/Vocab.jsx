@@ -279,7 +279,11 @@ export default function Vocab() {
                     set={s} 
                     isOwner={s.authorId === currentUser?.id || isSuperAdmin || isCore}
                     progress={userVocab[currentUser?.id]?.[s.id] || {}}
-                    onDelete={() => deleteVocabSet(s.id)}
+                    onDelete={() => {
+                      if (window.confirm(`Bạn có chắc chắn muốn xóa học phần "${s.title}"? Dữ liệu sẽ được chuyển vào thùng rác.`)) {
+                        deleteVocabSet(s.id);
+                      }
+                    }}
                   />
                 ))}
               </motion.div>

@@ -31,6 +31,7 @@ export default function FlashcardSet() {
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [hideMastered, setHideMastered] = useState(false);
   const [exampleSource, setExampleSource] = useState('');
+  const [description, setDescription] = useState('');
   
   const isOwner = set?.authorId === currentUser?.id || isSuperAdmin || isCore;
 
@@ -84,17 +85,22 @@ export default function FlashcardSet() {
     if (set) {
       setCards(toArr(set.terms));
       setExampleSource(set.exampleSource || '');
+      setDescription(set.description || '');
     }
   }, [set]);
 
   if (!set) return <div className="p-10 text-center text-gray-500 font-bold">Học phần không tồn tại.</div>;
 
   const handleSave = () => { 
-    editVocabSet({ ...set, terms: cards, exampleSource }); 
+    editVocabSet({ ...set, terms: cards, exampleSource, description }); 
     setIsEditing(false); 
   };
   const handleAddCard = () => { setCards([...cards, { word: '', definition: '', type: 'n', level: 'B1', ipa: '', example: '', exampleVi: '' }]); };
-  const handleRemoveCard = (idx) => { setCards(cards.filter((_, i) => i !== idx)); };
+  const handleRemoveCard = (idx) => { 
+    if (window.confirm('Bạn có chắc chắn muốn xóa thẻ này?')) {
+      setCards(cards.filter((_, i) => i !== idx)); 
+    }
+  };
 
   const handleAiSuggest = async (idx) => {
     const word = cards[idx].word;
@@ -319,12 +325,20 @@ export default function FlashcardSet() {
 
       {isEditing && (
         <div className="px-6 py-2 bg-[#1a1a1a] border-b border-gray-800/60 flex items-center gap-3">
-          <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest shrink-0">Nguồn ví dụ AI:</label>
+          <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest shrink-0">Nguồn AI:</label>
           <input 
             type="text"
-            placeholder="VD: Sách chuyên ngành, Sherlock Holmes..."
+            placeholder="Tên sách/Tác giả..."
             value={exampleSource}
             onChange={e => setExampleSource(e.target.value)}
+            className="flex-1 bg-black/20 border border-gray-800/40 rounded-lg px-3 py-1.5 text-[11px] outline-none focus:border-indigo-500/50 transition-all"
+          />
+          <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest shrink-0 ml-3">Mô tả:</label>
+          <input 
+            type="text"
+            placeholder="Ghi chú về học phần này..."
+            value={description}
+            onChange={e => setDescription(e.target.value)}
             className="flex-1 bg-black/20 border border-gray-800/40 rounded-lg px-3 py-1.5 text-[11px] outline-none focus:border-indigo-500/50 transition-all"
           />
         </div>

@@ -463,7 +463,7 @@ export default function Tasks() {
                                       }
                                       <div className="text-[10px] text-gray-600">{d.type} · {d.uploadedByName||'SME'} · {d.uploadedAt}</div>
                                     </div>
-                                    <button onClick={()=>ctxDeleteDoc(sub.id, d.id)}
+                                    <button onClick={() => { if (window.confirm('Xóa tài liệu này?')) ctxDeleteDoc(sub.id, d.id); }}
                                       className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 text-gray-600 transition-all">
                                       <Trash2 className="w-3.5 h-3.5"/>
                                     </button>
@@ -622,7 +622,7 @@ function TaskRow({ task, onDelete, index = 0 }) {
         <span className={`badge ${isLate?'badge-red':isSoon?'badge-yellow':'badge-gray'}`}>
           {isLate?`Trễ ${Math.abs(days)} ngày`:days===0?'Hôm nay':`Còn ${days}d`}
         </span>
-        <button onClick={()=>onDelete(task.id)}
+        <button onClick={() => { if (window.confirm('Xóa task này?')) onDelete(task.id); }}
           className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-600 hover:text-red-400 transition-all"
           title="Xóa (vào thùng rác)">
           <Trash2 className="w-4 h-4"/>
