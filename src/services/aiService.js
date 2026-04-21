@@ -1,7 +1,7 @@
 // src/services/aiService.js
 
 export async function callAI(systemPrompt, userPrompt, options = {}) {
-  const { temperature = 0.7, history = [], responseMimeType = 'text/plain' } = options;
+  const { temperature = 1.3, history = [], responseMimeType = 'text/plain' } = options;
   
   // Chỉ sử dụng DeepSeek Hệ thống (Gọi qua Proxy của Vercel)
   return await callDeepSeekProxy(systemPrompt, userPrompt, { temperature, history, responseMimeType });
@@ -67,7 +67,7 @@ ${memberInfo.map((m, i) => `${i + 1}. ${m.name} (Role: ${m.role}) — Đang có 
 Trả về JSON: { "suggestedAssignee": "...", "reason": "...", "subtasks": [], "estimatedDays": 3, "priority": "high" }`;
 
   try {
-    const text = await callAI(system, user, { temperature: 0.4, responseMimeType: 'application/json' });
+    const text = await callAI(system, user, { temperature: 1.0, responseMimeType: 'application/json' });
     return safeJson(text, { suggestedAssignee: '', reason: 'Không thể phân tích.', subtasks: [], estimatedDays: 0, priority: 'medium' });
   } catch (err) {
     console.error('[suggestTaskAssignment]', err);
@@ -80,7 +80,7 @@ export async function reviewReport(reportContent, authorName) {
   const user = `BÁO CÁO CỦA: ${authorName}\nNỘI DUNG: "${reportContent}"\nTrả về JSON: { "summary": [], "quality": "good", "qualityLabel": "Tốt", "feedback": "...", "isComplete": true }`;
 
   try {
-    const text = await callAI(system, user, { temperature: 0.3, responseMimeType: 'application/json' });
+    const text = await callAI(system, user, { temperature: 1.0, responseMimeType: 'application/json' });
     return safeJson(text, { summary: [], quality: 'average', qualityLabel: 'Không xác định', feedback: 'Lỗi AI.', isComplete: false });
   } catch (err) {
     return { summary: [], quality: 'average', qualityLabel: 'Không xác định', feedback: 'Lỗi AI.', isComplete: false };
@@ -95,7 +95,7 @@ DỮ LIỆU: Tên ${userName}, MSSV ${mssv}, Vai trò ${userRole}, Điểm ${poi
 Tasks chưa xong: ${pendingTasks?.length || 0}.
 Hãy trả lời thông minh, dí dỏm, xưng "mình", gọi người dùng là ${userName?.split(' ').pop()}.`;
 
-  return await callAI(system, userMessage, { temperature: 0.8, history });
+  return await callAI(system, userMessage, { temperature: 1.3, history });
 }
 
 export async function analyzeEarlyWarning(members, attendance, tasks) {
@@ -109,7 +109,7 @@ export async function analyzeEarlyWarning(members, attendance, tasks) {
   const user = `DỮ LIỆU: ${JSON.stringify(memberStats)}\nJSON: { "warnings": [], "overallHealth": "good", "suggestion": "..." }`;
 
   try {
-    const text = await callAI(system, user, { temperature: 0.2, responseMimeType: 'application/json' });
+    const text = await callAI(system, user, { temperature: 1.0, responseMimeType: 'application/json' });
     return safeJson(text, { warnings: [], overallHealth: 'good', suggestion: '...' });
   } catch (err) {
     return { warnings: [], overallHealth: 'good', suggestion: 'Lỗi AI.' };

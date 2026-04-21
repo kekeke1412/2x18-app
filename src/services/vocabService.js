@@ -34,7 +34,7 @@ Required JSON structure:
 ]`;
 
   try {
-    const text = await callAI(system, user, { temperature: 0.1, responseMimeType: 'application/json' });
+    const text = await callAI(system, user, { temperature: 1.3, responseMimeType: 'application/json' });
     const result = safeJson(text, []);
     return Array.isArray(result) ? result : [];
   } catch (error) {
