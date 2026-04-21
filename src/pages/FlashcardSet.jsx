@@ -83,12 +83,16 @@ export default function FlashcardSet() {
   useEffect(() => {
     if (set) {
       setCards(toArr(set.terms));
+      setExampleSource(set.exampleSource || '');
     }
   }, [set]);
 
   if (!set) return <div className="p-10 text-center text-gray-500 font-bold">Học phần không tồn tại.</div>;
 
-  const handleSave = () => { editVocabSet({ ...set, terms: cards }); setIsEditing(false); };
+  const handleSave = () => { 
+    editVocabSet({ ...set, terms: cards, exampleSource }); 
+    setIsEditing(false); 
+  };
   const handleAddCard = () => { setCards([...cards, { word: '', definition: '', type: 'n', level: 'B1', ipa: '', example: '', exampleVi: '' }]); };
   const handleRemoveCard = (idx) => { setCards(cards.filter((_, i) => i !== idx)); };
 

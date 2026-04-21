@@ -35,9 +35,11 @@ export default function Vocab() {
     if (!newSet.title.trim()) return;
     addVocabSet({
       ...newSet,
-      terms: [] // Initially empty, add terms in the edit/detail view
+      exampleSource, // Persist the AI source to DB
+      terms: [] // Initially empty
     });
     setNewSet({ title: '', description: '', terms: [] });
+    setExampleSource('');
     setShowAddModal(false);
   };
 
