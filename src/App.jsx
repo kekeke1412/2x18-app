@@ -57,6 +57,33 @@ function ToastContainer() {
   );
 }
 
+// ── Error Boundary ─────────────────────────────────────────────────────────
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(error, errorInfo) { console.error("App Error:", error, errorInfo); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-[#121212] flex flex-col items-center justify-center p-6 text-center">
+          <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-6">
+            <AlertTriangle className="w-8 h-8 text-red-500" />
+          </div>
+          <h2 className="text-xl font-black text-white mb-2">Phát hiện lỗi hiển thị</h2>
+          <p className="text-gray-400 text-sm max-w-md mb-6">Dữ liệu chưa tải kịp hoặc có lỗi xảy ra. Hãy thử làm mới trang.</p>
+          <button onClick={() => window.location.reload()} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-900/20">
+            LÀM MỚI TRANG
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // ── NavItem ────────────────────────────────────────────────────────────────
 function NavItem({ to, icon: Icon, label, disabled, badge, onClick, danger }) {
   const { pathname } = useLocation();
@@ -254,8 +281,9 @@ function AppLayout() {
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar">
-          <AnimatePresence mode="wait">
-            <Routes location={location} key={location.pathname}>
+          <ErrorBoundary>
+            <AnimatePresence mode="wait">
+              <Routes location={location} key={location.pathname}>
               <Route path="/dashboard"     element={<PageTransition><Dashboard   /></PageTransition>}/>
               <Route path="/profile"       element={<PageTransition><Profile     /></PageTransition>}/>
               <Route path="/subjects"      element={<PageTransition><Subjects    /></PageTransition>}/>
@@ -273,6 +301,7 @@ function AppLayout() {
               <Route path="*"              element={<Navigate to="/dashboard" replace/>}/>
             </Routes>
           </AnimatePresence>
+          </ErrorBoundary>
         </div>
       </main>
 
