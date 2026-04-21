@@ -162,6 +162,11 @@ export default function FlashcardSet() {
       else if (typeRand < 0.8) type = 'fill';
       else type = 'written';
 
+      // Chuẩn hóa từ và định nghĩa để tránh lộ đáp án
+      const cleanWord = (term.word || '').trim();
+      const escapedWord = cleanWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(escapedWord, 'gi');
+
       if (type === 'choice') {
         const distractors = terms.filter(t => t.word !== term.word).sort(() => Math.random() - 0.5).slice(0, 3).map(t => t.definition);
         const options = [...distractors, term.definition].sort(() => Math.random() - 0.5);
@@ -171,10 +176,14 @@ export default function FlashcardSet() {
         const shownDef = isMatch ? term.definition : (terms.find(t => t.word !== term.word)?.definition || '...');
         return { type, question: `"${term.word}" nghĩa là "${shownDef}"?`, answer: isMatch ? 'true' : 'false', term };
       } else if (type === 'fill') {
-        const blanked = term.example ? term.example.replace(new RegExp(term.word, 'gi'), '_____') : `Nghĩa: ${term.definition}`;
-        return { type, question: `Điền từ còn thiếu: ${blanked}`, answer: term.word, term };
+        // Ưu tiên dùng example, nếu không có thì dùng định nghĩa nhưng phải che từ đi
+        const sourceText = term.example || `Nghĩa: ${term.definition}`;
+        const blanked = sourceText.replace(regex, '_____');
+        return { type, question: `Điền từ còn thiếu: ${blanked}`, answer: cleanWord, term };
       } else {
-        return { type, question: `Hãy ghi lại thuật ngữ cho nghĩa: "${term.definition}"`, answer: term.word, term };
+        // Đối với câu hỏi tự luận, cũng phải che từ đi nếu nó xuất hiện trong định nghĩa
+        const hiddenDef = (term.definition || '').replace(regex, '_____');
+        return { type, question: `Hãy ghi lại thuật ngữ cho nghĩa: "${hiddenDef}"`, answer: cleanWord, term };
       }
     });
   };
