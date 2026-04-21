@@ -77,7 +77,7 @@ export default function AIChatbot() {
       };
 
       // Pass previous conversation as history for multi-turn awareness
-      // Gemini expects history to start with 'user' role
+      // DeepSeek expects history to start with 'user' role
       const history = messages
         .slice(1) // Bỏ qua câu chào đầu tiên của Bot để lịch sử bắt đầu bằng 'user'
         .filter(m => m.role === 'user' || m.role === 'assistant')
