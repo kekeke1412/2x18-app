@@ -229,7 +229,6 @@ export default function FlashcardSet() {
 
     if (isCorrect) {
       setQuizScore(prev => prev + 1);
-      incrementWordLevel(setId, current.wordIndex);
     }
     
     setQuizDetails(prev => [...prev, {
@@ -241,6 +240,11 @@ export default function FlashcardSet() {
 
     // Delay before next question to show animation
     setTimeout(() => {
+      // Tăng bậc từ vựng ở đây để tránh treo UI khi re-render
+      if (isCorrect) {
+        incrementWordLevel(setId, current.wordIndex);
+      }
+
       if (quizIndex < quizQuestions.length - 1) {
         setQuizIndex(prev => prev + 1);
         setQuizFeedback(null);
@@ -248,22 +252,28 @@ export default function FlashcardSet() {
         setIsChecking(false);
       } else {
         // Last question completed - switch to results view
+        // Calculate final score based on the latest state
         setQuizScore(finalScore => {
+          // We need to call addQuizResult with the most up-to-date score
           const result = {
             setId,
             setTitle: set.title,
-            score: isCorrect ? finalScore : finalScore, // Score was already updated above
+            score: finalScore,
             total: quizQuestions.length,
             percentage: Math.round((finalScore / quizQuestions.length) * 100),
           };
-          addQuizResult(result);
+          // Schedule side effect after state update
+          setTimeout(() => {
+            addQuizResult(result);
+            setQuizComplete(true);
+            setIsChecking(false);
+          }, 0);
           return finalScore;
         });
-        setQuizComplete(true);
-        setIsChecking(false);
       }
     }, 1000);
   };
+
 
 
   // Keyboard shortcuts for Quiz
