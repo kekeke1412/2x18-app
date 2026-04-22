@@ -1121,25 +1121,22 @@ export function AppProvider({ children }) {
     const userId = state.currentUser.id;
     
     try {
+      // Local state update
       dispatch({ type: A.INCREMENT_WORD_LEVEL, payload: { setId, wordIndex, userId } });
       
-      // Offload Firebase update to prevent blocking UI
-      setTimeout(() => {
-        const userSets = state.userVocab[userId] || {};
-        const currentSetData = userSets[setId] || {};
-        let levels = Array.isArray(currentSetData) 
-          ? currentSetData.reduce((acc, i) => ({ ...acc, [i]: 6 }), {})
-          : { ...currentSetData };
-        
-        const currentLevel = Number(levels[wordIndex]) || 0;
-        levels[wordIndex] = currentLevel < 6 ? currentLevel + 1 : 6;
-        
-        set(ref(db, `2x18_userVocab/${userId}/${setId}`), levels);
-      }, 0);
+      // Calculate new level from current state (best effort for local sync)
+      const userSets = state.userVocab[userId] || {};
+      const levels = userSets[setId] || {};
+      const currentLevel = Number(levels[wordIndex]) || 0;
+      const newLevel = currentLevel < 6 ? currentLevel + 1 : 6;
+
+      // Update Firebase leaf node directly to prevent overwriting other word updates
+      set(ref(db, `2x18_userVocab/${userId}/${setId}/${wordIndex}`), newLevel);
     } catch (e) {
       console.error('[incrementWordLevel]', e);
     }
   }, [state.currentUser, state.userVocab]);
+
 
 
   const addQuizResult = useCallback((result) => {
