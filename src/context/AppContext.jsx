@@ -1131,7 +1131,7 @@ export function AppProvider({ children }) {
       const newLevel = currentLevel < 6 ? currentLevel + 1 : 6;
 
       // Update Firebase leaf node directly to prevent overwriting other word updates
-      set(ref(db, `2x18_userVocab/${userId}/${setId}/${wordIndex}`), newLevel);
+      set(ref(db, `2x18_user_vocab/${userId}/${setId}/${wordIndex}`), newLevel);
     } catch (e) {
       console.error('[incrementWordLevel]', e);
     }

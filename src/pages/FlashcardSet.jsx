@@ -419,118 +419,123 @@ export default function FlashcardSet() {
           {activeTab === 'list' && (
             <div className="space-y-4 pb-20">
               <AnimatePresence mode="popLayout">
-                {cards.filter((_, i) => !hideMastered || (Number(progress[i]) || 0) < 6).map((card, idx) => (
-                  <motion.div
-                    layout
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    key={idx}
-                    className={`bg-[#1a1a1a] border rounded-2xl p-5 transition-all ${isEditing ? 'border-indigo-500/30' : 'border-gray-800 hover:border-gray-700'}`}
-                  >
-                    {isEditing ? (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-black text-gray-600 tracking-widest uppercase">Thẻ #{idx + 1}</span>
-                          <div className="flex items-center gap-2">
-                            <button onClick={() => handleAiSuggest(idx)} disabled={isAiLoading === idx} className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600/10 text-indigo-400 rounded-lg text-[10px] font-black hover:bg-indigo-600 hover:text-white transition-all border border-indigo-500/20">
-                              {isAiLoading === idx ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} AI SUGGEST
-                            </button>
-                            <button onClick={() => handleRemoveCard(idx)} className="p-1.5 text-gray-600 hover:text-red-400 transition-colors"><Trash2 className="w-4 h-4" /></button>
-                          </div>
-                        </div>
-                        <div className="flex flex-col md:flex-row gap-4">
-                          <div className="flex-1 flex gap-2">
-                            <input
-                              placeholder="Thuật ngữ"
-                              value={card.word}
-                              onChange={e => { const n = [...cards]; n[idx].word = e.target.value; setCards(n); }}
-                              className="flex-1 bg-[#121212] border border-gray-800 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 outline-none"
-                            />
-                            <select
-                              value={card.type}
-                              onChange={e => { const n = [...cards]; n[idx].type = e.target.value; setCards(n); }}
-                              className="w-24 bg-[#121212] border border-gray-800 rounded-xl px-2 py-2.5 text-xs font-bold focus:border-indigo-500 outline-none text-indigo-400"
-                            >
-                              <option value="">Loại</option>
-                              <option value="n">n</option>
-                              <option value="v">v</option>
-                              <option value="adj">adj</option>
-                              <option value="adv">adv</option>
-                              <option value="phr v">phr v</option>
-                              <option value="idiom">idiom</option>
-                              <option value="colloc">colloc</option>
-                            </select>
-                            <select
-                              value={card.level}
-                              onChange={e => { const n = [...cards]; n[idx].level = e.target.value; setCards(n); }}
-                              className="w-16 bg-[#121212] border border-gray-800 rounded-xl px-2 py-2.5 text-xs font-black focus:border-indigo-500 outline-none text-amber-400"
-                            >
-                              <option value="">Lvl</option>
-                              <option value="A1">A1</option>
-                              <option value="A2">A2</option>
-                              <option value="B1">B1</option>
-                              <option value="B2">B2</option>
-                              <option value="C1">C1</option>
-                              <option value="C2">C2</option>
-                            </select>
-                          </div>
-                          <input
-                            placeholder="Định nghĩa (Ví dụ: Vật lý học)"
-                            value={card.definition}
-                            onChange={e => { const n = [...cards]; n[idx].definition = e.target.value; setCards(n); }}
-                            className="flex-1 bg-[#121212] border border-gray-800 rounded-xl px-4 py-2.5 text-sm focus:border-indigo-500 outline-none"
-                          />
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <input placeholder="Phiên âm (Ví dụ: /ˈfɪz.ɪks/)" value={card.ipa} onChange={e => { const n = [...cards]; n[idx].ipa = e.target.value; setCards(n); }} className="bg-[#121212] border border-gray-800 rounded-xl px-4 py-2 text-[11px] focus:border-indigo-500 outline-none" />
-                          <input placeholder="Câu ví dụ..." value={card.example} onChange={e => { const n = [...cards]; n[idx].example = e.target.value; setCards(n); }} className="bg-[#121212] border border-gray-800 rounded-xl px-4 py-2 text-[11px] focus:border-indigo-500 outline-none" />
-                          <input placeholder="Dịch nghĩa ví dụ..." value={card.exampleVi} onChange={e => { const n = [...cards]; n[idx].exampleVi = e.target.value; setCards(n); }} className="bg-[#121212] border border-gray-800 rounded-xl px-4 py-2 text-[11px] focus:border-indigo-500 outline-none" />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-start justify-between gap-6">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-2">
-                            <h4 className="text-lg font-black text-indigo-400 break-words">{card.word}</h4>
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => speak(card.word)}
-                                className={`p-1.5 rounded-lg transition-all ${isSpeaking === card.word ? 'text-indigo-400 bg-indigo-500/20' : 'text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10'}`}
-                              >
-                                <Volume2 className={`w-4 h-4 ${isSpeaking === card.word ? 'animate-pulse' : ''}`} />
-                              </button>
-                              <span className="text-[10px] bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded-md font-black uppercase tracking-wider border border-indigo-500/20">{card.type || 'n/a'}</span>
-                              {card.level && <span className="text-[10px] bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-md font-black uppercase tracking-wider border border-amber-500/20">{card.level}</span>}
+                {cards.map((c, i) => ({ ...c, originalIndex: i }))
+                  .filter(card => !hideMastered || (Number(progress[card.originalIndex]) || 0) < 6)
+                  .map((card) => {
+                    const idx = card.originalIndex;
+                    return (
+                      <motion.div
+                        layout
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        key={idx}
+                        className={`bg-[#1a1a1a] border rounded-2xl p-5 transition-all ${isEditing ? 'border-indigo-500/30' : 'border-gray-800 hover:border-gray-700'}`}
+                      >
+                        {isEditing ? (
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-black text-gray-600 tracking-widest uppercase">Thẻ #{idx + 1}</span>
+                              <div className="flex items-center gap-2">
+                                <button onClick={() => handleAiSuggest(idx)} disabled={isAiLoading === idx} className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600/10 text-indigo-400 rounded-lg text-[10px] font-black hover:bg-indigo-600 hover:text-white transition-all border border-indigo-500/20">
+                                  {isAiLoading === idx ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} AI SUGGEST
+                                </button>
+                                <button onClick={() => handleRemoveCard(idx)} className="p-1.5 text-gray-600 hover:text-red-400 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                              </div>
                             </div>
-                            <span className="text-xs text-gray-500 font-mono italic break-all">{card.ipa}</span>
-                          </div>
-                          <p className="text-sm text-gray-200 font-medium mb-3 leading-relaxed">{card.definition}</p>
-                          {card.example && (
-                            <div className="pl-3 border-l-2 border-indigo-500/20 py-1">
-                              <p className="text-xs text-gray-400 italic mb-1">"{card.example}"</p>
-                              <p className="text-[10px] text-gray-600">→ {card.exampleVi}</p>
+                            <div className="flex flex-col md:flex-row gap-4">
+                              <div className="flex-1 flex gap-2">
+                                <input
+                                  placeholder="Thuật ngữ"
+                                  value={card.word}
+                                  onChange={e => { const n = [...cards]; n[idx].word = e.target.value; setCards(n); }}
+                                  className="flex-1 bg-[#121212] border border-gray-800 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 outline-none"
+                                />
+                                <select
+                                  value={card.type}
+                                  onChange={e => { const n = [...cards]; n[idx].type = e.target.value; setCards(n); }}
+                                  className="w-24 bg-[#121212] border border-gray-800 rounded-xl px-2 py-2.5 text-xs font-bold focus:border-indigo-500 outline-none text-indigo-400"
+                                >
+                                  <option value="">Loại</option>
+                                  <option value="n">n</option>
+                                  <option value="v">v</option>
+                                  <option value="adj">adj</option>
+                                  <option value="adv">adv</option>
+                                  <option value="phr v">phr v</option>
+                                  <option value="idiom">idiom</option>
+                                  <option value="colloc">colloc</option>
+                                </select>
+                                <select
+                                  value={card.level}
+                                  onChange={e => { const n = [...cards]; n[idx].level = e.target.value; setCards(n); }}
+                                  className="w-16 bg-[#121212] border border-gray-800 rounded-xl px-2 py-2.5 text-xs font-black focus:border-indigo-500 outline-none text-amber-400"
+                                >
+                                  <option value="">Lvl</option>
+                                  <option value="A1">A1</option>
+                                  <option value="A2">A2</option>
+                                  <option value="B1">B1</option>
+                                  <option value="B2">B2</option>
+                                  <option value="C1">C1</option>
+                                  <option value="C2">C2</option>
+                                </select>
+                              </div>
+                              <input
+                                placeholder="Định nghĩa (Ví dụ: Vật lý học)"
+                                value={card.definition}
+                                onChange={e => { const n = [...cards]; n[idx].definition = e.target.value; setCards(n); }}
+                                className="flex-1 bg-[#121212] border border-gray-800 rounded-xl px-4 py-2.5 text-sm focus:border-indigo-500 outline-none"
+                              />
                             </div>
-                          )}
-                        </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <input placeholder="Phiên âm (Ví dụ: /ˈfɪz.ɪks/)" value={card.ipa} onChange={e => { const n = [...cards]; n[idx].ipa = e.target.value; setCards(n); }} className="bg-[#121212] border border-gray-800 rounded-xl px-4 py-2 text-[11px] focus:border-indigo-500 outline-none" />
+                              <input placeholder="Câu ví dụ..." value={card.example} onChange={e => { const n = [...cards]; n[idx].example = e.target.value; setCards(n); }} className="bg-[#121212] border border-gray-800 rounded-xl px-4 py-2 text-[11px] focus:border-indigo-500 outline-none" />
+                              <input placeholder="Dịch nghĩa ví dụ..." value={card.exampleVi} onChange={e => { const n = [...cards]; n[idx].exampleVi = e.target.value; setCards(n); }} className="bg-[#121212] border border-gray-800 rounded-xl px-4 py-2 text-[11px] focus:border-indigo-500 outline-none" />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-start justify-between gap-6">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-2">
+                                <h4 className="text-lg font-black text-indigo-400 break-words">{card.word}</h4>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => speak(card.word)}
+                                    className={`p-1.5 rounded-lg transition-all ${isSpeaking === card.word ? 'text-indigo-400 bg-indigo-500/20' : 'text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10'}`}
+                                  >
+                                    <Volume2 className={`w-4 h-4 ${isSpeaking === card.word ? 'animate-pulse' : ''}`} />
+                                  </button>
+                                  <span className="text-[10px] bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded-md font-black uppercase tracking-wider border border-indigo-500/20">{card.type || 'n/a'}</span>
+                                  {card.level && <span className="text-[10px] bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-md font-black uppercase tracking-wider border border-amber-500/20">{card.level}</span>}
+                                </div>
+                                <span className="text-xs text-gray-500 font-mono italic break-all">{card.ipa}</span>
+                              </div>
+                              <p className="text-sm text-gray-200 font-medium mb-3 leading-relaxed">{card.definition}</p>
+                              {card.example && (
+                                <div className="pl-3 border-l-2 border-indigo-500/20 py-1">
+                                  <p className="text-xs text-gray-400 italic mb-1">"{card.example}"</p>
+                                  <p className="text-[10px] text-gray-600">→ {card.exampleVi}</p>
+                                </div>
+                              )}
+                            </div>
 
-                        <div className="flex flex-col items-center gap-1 shrink-0">
-                          {Number(progress[idx]) === 6 ? (
-                            <div className="flex flex-col items-center gap-1 bg-green-500/10 p-3 rounded-2xl border border-green-500/20">
-                              <CheckCircle2 className="w-6 h-6 text-green-500" />
-                              <span className="text-[8px] font-black text-green-600 uppercase tracking-tighter">Nhớ sâu</span>
+                            <div className="flex flex-col items-center gap-1 shrink-0">
+                              {Number(progress[idx]) === 6 ? (
+                                <div className="flex flex-col items-center gap-1 bg-green-500/10 p-3 rounded-2xl border border-green-500/20">
+                                  <CheckCircle2 className="w-6 h-6 text-green-500" />
+                                  <span className="text-[8px] font-black text-green-600 uppercase tracking-tighter">Nhớ sâu</span>
+                                </div>
+                              ) : (
+                                <div className="flex flex-col items-center gap-1 bg-gray-800/40 p-3 rounded-2xl border border-gray-800/60 min-w-[56px]">
+                                  <span className="text-xl font-black text-gray-400 leading-none">{Number(progress[idx]) || 0}</span>
+                                  <span className="text-[8px] font-black text-gray-500 uppercase tracking-tighter">Bậc</span>
+                                </div>
+                              )}
                             </div>
-                          ) : (
-                            <div className="flex flex-col items-center gap-1 bg-gray-800/40 p-3 rounded-2xl border border-gray-800/60 min-w-[56px]">
-                              <span className="text-xl font-black text-gray-400 leading-none">{Number(progress[idx]) || 0}</span>
-                              <span className="text-[8px] font-black text-gray-500 uppercase tracking-tighter">Bậc</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </motion.div>
-                ))}
+                          </div>
+                        )}
+                      </motion.div>
+                    );
+                  })}
               </AnimatePresence>
               {isEditing && (
                 <button onClick={handleAddCard} className="w-full py-5 bg-[#1a1a1a] border-2 border-dashed border-gray-800 rounded-2xl text-gray-500 font-bold hover:border-indigo-500/50 hover:text-indigo-400 transition-all flex flex-col items-center gap-2">
