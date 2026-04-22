@@ -1091,20 +1091,23 @@ export function AppProvider({ children }) {
   const updateSemesterLabel = useCallback((key,label) => dispatch({type:A.UPDATE_SEMESTER_LABEL,payload:{key,label}}), []);
 
   // ── VOCABULARY ────────────────────────────────────────────────────────────
-  const addVocabSet = useCallback((set) => {
+  const addVocabSet = useCallback((setObj) => {
     const id = uid();
-    const newSet = { ...set, id, authorId: state.currentUser?.id, authorName: state.currentUser?.fullName, createdAt: new Date().toISOString() };
+    const newSet = { ...setObj, id, authorId: state.currentUser?.id, authorName: state.currentUser?.fullName, createdAt: new Date().toISOString() };
     dispatch({ type: A.ADD_VOCAB_SET, payload: newSet });
+    set(ref(db, `2x18_vocab/${id}`), newSet);
     toast('Đã tạo học phần mới!', 'success');
   }, [state.currentUser, toast]);
 
-  const editVocabSet = useCallback((set) => {
-    dispatch({ type: A.EDIT_VOCAB_SET, payload: set });
+  const editVocabSet = useCallback((setObj) => {
+    dispatch({ type: A.EDIT_VOCAB_SET, payload: setObj });
+    set(ref(db, `2x18_vocab/${setObj.id}`), setObj);
     toast('Đã cập nhật học phần!', 'success');
   }, [toast]);
 
   const deleteVocabSet = useCallback((id) => {
     dispatch({ type: A.DELETE_VOCAB_SET, payload: { id } });
+    set(ref(db, `2x18_vocab/${id}`), null);
     toast('Đã xóa học phần.', 'info');
   }, [toast]);
 
