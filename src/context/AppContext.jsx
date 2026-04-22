@@ -1118,30 +1118,35 @@ export function AppProvider({ children }) {
 
   const incrementWordLevel = useCallback((setId, wordIndex) => {
     if (!state.currentUser?.id) return;
-    dispatch({ type: A.INCREMENT_WORD_LEVEL, payload: { setId, wordIndex, userId: state.currentUser.id } });
-  }, [state.currentUser]);
+    const userId = state.currentUser.id;
+    dispatch({ type: A.INCREMENT_WORD_LEVEL, payload: { setId, wordIndex, userId } });
+    
+    // Persist to Firebase directly
+    const userSets = state.userVocab[userId] || {};
+    const currentSetData = userSets[setId] || {};
+    let levels = Array.isArray(currentSetData) 
+      ? currentSetData.reduce((acc, i) => ({ ...acc, [i]: 6 }), {})
+      : { ...currentSetData };
+    
+    const currentLevel = Number(levels[wordIndex]) || 0;
+    const newLevel = currentLevel < 6 ? currentLevel + 1 : 6;
+    levels[wordIndex] = newLevel;
+    
+    set(ref(db, `2x18_userVocab/${userId}/${setId}`), levels);
+  }, [state.currentUser, state.userVocab]);
 
   const addQuizResult = useCallback((result) => {
     if (!state.currentUser?.id) return;
     const userId = state.currentUser.id;
     const fullResult = { ...result, id: uid(), timestamp: new Date().toISOString() };
     
-    // Ghi trực tiếp lên Firebase để đảm bảo không bị mất
-    const historyRef = ref(db, `2x18_quiz_history/${userId}`);
-    onValue(historyRef, (snapshot) => {
-      // Chỉ lấy 1 lần duy nhất để update
-    }, { onlyOnce: true });
-
-    // Cách an toàn hơn: dùng push hoặc ghi đè node con
-    const existingHistory = state.quizHistory[userId] || [];
-    const newHistory = [fullResult, ...existingHistory];
-    
-    // Cập nhật local trước cho nhanh
     dispatch({ type: A.ADD_QUIZ_RESULT, payload: { userId, result: fullResult } });
     
-    // Sau đó đẩy lên Firebase
+    const existingHistory = state.quizHistory[userId] || [];
+    const newHistory = [fullResult, ...existingHistory].slice(0, 50);
     fbSet(`2x18_quiz_history/${userId}`, newHistory);
   }, [state.currentUser, state.quizHistory]);
+
 
 
 

@@ -236,25 +236,34 @@ export default function FlashcardSet() {
 
     // Delay before next question to show animation
     setTimeout(() => {
-      if (quizIndex < quizQuestions.length - 1) {
-        setQuizIndex(quizIndex + 1);
-        setQuizFeedback(null); 
-        setUserAnswer('');
-        setIsChecking(false);
-      } else {
-        const finalScore = isCorrect ? quizScore + 1 : quizScore;
-        const result = {
-          setId,
-          setTitle: set.title,
-          score: finalScore,
-          total: quizQuestions.length,
-          percentage: Math.round((finalScore / quizQuestions.length) * 100),
-        };
-        addQuizResult(result);
-        setQuizComplete(true);
-        setIsChecking(false);
-      }
-    }, 1500); // Slightly longer for better feedback visibility
+      setQuizIndex(prevIndex => {
+        if (prevIndex < quizQuestions.length - 1) {
+          const nextIndex = prevIndex + 1;
+          setQuizFeedback(null);
+          setUserAnswer('');
+          setIsChecking(false);
+          return nextIndex;
+        } else {
+          // Last question completed
+          setQuizScore(currentScore => {
+            const finalScore = isCorrect ? currentScore + 1 : currentScore;
+            const result = {
+              setId,
+              setTitle: set.title,
+              score: finalScore,
+              total: quizQuestions.length,
+              percentage: Math.round((finalScore / quizQuestions.length) * 100),
+            };
+            addQuizResult(result);
+            setQuizComplete(true);
+            setIsChecking(false);
+            return currentScore;
+          });
+          return prevIndex;
+        }
+      });
+    }, 1000);
+
   };
 
   // Keyboard shortcuts for Quiz
