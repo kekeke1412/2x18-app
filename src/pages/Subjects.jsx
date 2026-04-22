@@ -530,7 +530,8 @@ export default function Subjects() {
     if (filterType==='learning') return myStatus==='Đang học';
     if (filterType==='sme') return smeMap[sub.id] === currentUser?.fullName;
     return true;
-  });
+  }).sort((a, b) => (a.code || '').localeCompare(b.code || '', undefined, { numeric: true, sensitivity: 'base' }));
+
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.4 }} className="h-full bg-[#121212] text-gray-200 flex flex-col overflow-hidden">

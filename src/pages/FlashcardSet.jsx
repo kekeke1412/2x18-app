@@ -32,6 +32,7 @@ export default function FlashcardSet() {
   const [hideMastered, setHideMastered] = useState(false);
   const [exampleSource, setExampleSource] = useState('');
   const [description, setDescription] = useState('');
+  const [title, setTitle] = useState('');
   
   const isOwner = set?.authorId === currentUser?.id || isSuperAdmin || isCore;
 
@@ -86,13 +87,14 @@ export default function FlashcardSet() {
       setCards(toArr(set.terms));
       setExampleSource(set.exampleSource || '');
       setDescription(set.description || '');
+      setTitle(set.title || '');
     }
   }, [set]);
 
   if (!set) return <div className="p-10 text-center text-gray-500 font-bold">Học phần không tồn tại.</div>;
 
   const handleSave = () => { 
-    editVocabSet({ ...set, terms: cards, exampleSource, description }); 
+    editVocabSet({ ...set, terms: cards, exampleSource, description, title }); 
     setIsEditing(false); 
   };
   const handleAddCard = () => { setCards([...cards, { word: '', definition: '', type: 'n', level: 'B1', ipa: '', example: '', exampleVi: '' }]); };
@@ -324,23 +326,37 @@ export default function FlashcardSet() {
       </div>
 
       {isEditing && (
-        <div className="px-6 py-2 bg-[#1a1a1a] border-b border-gray-800/60 flex items-center gap-3">
-          <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest shrink-0">Nguồn AI:</label>
-          <input 
-            type="text"
-            placeholder="Tên sách/Tác giả..."
-            value={exampleSource}
-            onChange={e => setExampleSource(e.target.value)}
-            className="flex-1 bg-black/20 border border-gray-800/40 rounded-lg px-3 py-1.5 text-[11px] outline-none focus:border-indigo-500/50 transition-all"
-          />
-          <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest shrink-0 ml-3">Mô tả:</label>
-          <input 
-            type="text"
-            placeholder="Ghi chú về học phần này..."
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            className="flex-1 bg-black/20 border border-gray-800/40 rounded-lg px-3 py-1.5 text-[11px] outline-none focus:border-indigo-500/50 transition-all"
-          />
+        <div className="px-6 py-2 bg-[#1a1a1a] border-b border-gray-800/60 flex flex-col md:flex-row items-start md:items-center gap-3">
+          <div className="flex items-center gap-2 flex-1 w-full">
+            <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest shrink-0">Tiêu đề:</label>
+            <input 
+              type="text"
+              placeholder="Tên học phần..."
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              className="flex-1 bg-black/20 border border-gray-800/40 rounded-lg px-3 py-1.5 text-[11px] outline-none focus:border-indigo-500/50 transition-all font-bold text-indigo-400"
+            />
+          </div>
+          <div className="flex items-center gap-2 flex-1 w-full">
+            <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest shrink-0">Nguồn AI:</label>
+            <input 
+              type="text"
+              placeholder="Tên sách/Tác giả..."
+              value={exampleSource}
+              onChange={e => setExampleSource(e.target.value)}
+              className="flex-1 bg-black/20 border border-gray-800/40 rounded-lg px-3 py-1.5 text-[11px] outline-none focus:border-indigo-500/50 transition-all"
+            />
+          </div>
+          <div className="flex items-center gap-2 flex-1 w-full">
+            <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest shrink-0">Mô tả:</label>
+            <input 
+              type="text"
+              placeholder="Ghi chú về học phần này..."
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              className="flex-1 bg-black/20 border border-gray-800/40 rounded-lg px-3 py-1.5 text-[11px] outline-none focus:border-indigo-500/50 transition-all"
+            />
+          </div>
         </div>
       )}
 
