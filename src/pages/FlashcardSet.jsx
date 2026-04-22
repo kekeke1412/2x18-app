@@ -235,7 +235,8 @@ export default function FlashcardSet() {
       question: current.question,
       userAns: ans,
       correctAns: current.answer,
-      isCorrect
+      isCorrect,
+      wordIndex: current.wordIndex // Add wordIndex here
     }]);
 
     // Delay before next question to show feedback animation
@@ -263,6 +264,13 @@ export default function FlashcardSet() {
             total: quizQuestions.length,
             percentage: Math.round((finalScore / quizQuestions.length) * 100),
             timestamp: new Date().toISOString(),
+            details: [...quizDetails, {
+              question: current.question,
+              userAns: ans,
+              correctAns: current.answer,
+              isCorrect,
+              wordIndex: current.wordIndex
+            }]
           });
           setQuizScore(finalScore);
           setQuizComplete(true);
