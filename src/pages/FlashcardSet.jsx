@@ -240,34 +240,42 @@ export default function FlashcardSet() {
 
     // Delay before next question to show feedback animation
     setTimeout(() => {
-      if (isCorrect) {
-        incrementWordLevel(setId, current.wordIndex);
-      }
+      try {
+        if (isCorrect) {
+          incrementWordLevel(setId, current.wordIndex);
+        }
 
-      if (quizIndex < quizQuestions.length - 1) {
-        // Chuyển sang câu tiếp theo
-        setQuizIndex(prev => prev + 1);
+        if (quizIndex < quizQuestions.length - 1) {
+          // Chuyển sang câu tiếp theo
+          setQuizIndex(prev => prev + 1);
+          setQuizFeedback(null);
+          setUserAnswer('');
+          setIsChecking(false);
+        } else {
+          // Câu cuối — tính điểm trực tiếp, tránh dùng setState updater để gọi side-effect
+          // quizScore trong closure là giá trị TRƯỚC câu này nên cộng thêm isCorrect
+          const finalScore = quizScore + (isCorrect ? 1 : 0);
+          addQuizResult({
+            setId,
+            setTitle: set.title,
+            score: finalScore,
+            total: quizQuestions.length,
+            percentage: Math.round((finalScore / quizQuestions.length) * 100),
+            timestamp: new Date().toISOString(),
+          });
+          setQuizScore(finalScore);
+          setQuizComplete(true);
+          setQuizFeedback(null);
+          setIsChecking(false);
+        }
+      } catch (err) {
+        console.error('[Quiz Error]', err);
         setQuizFeedback(null);
-        setUserAnswer('');
-        setIsChecking(false);
-      } else {
-        // Câu cuối — tính điểm trực tiếp, tránh dùng setState updater để gọi side-effect
-        // quizScore trong closure là giá trị TRƯỚC câu này nên cộng thêm isCorrect
-        const finalScore = quizScore + (isCorrect ? 1 : 0);
-        addQuizResult({
-          setId,
-          setTitle: set.title,
-          score: finalScore,
-          total: quizQuestions.length,
-          percentage: Math.round((finalScore / quizQuestions.length) * 100),
-          timestamp: new Date().toISOString(),
-        });
-        setQuizScore(finalScore);
-        setQuizComplete(true);
         setIsChecking(false);
       }
     }, 1000);
   };
+
 
 
 

@@ -1119,21 +1119,28 @@ export function AppProvider({ children }) {
   const incrementWordLevel = useCallback((setId, wordIndex) => {
     if (!state.currentUser?.id) return;
     const userId = state.currentUser.id;
-    dispatch({ type: A.INCREMENT_WORD_LEVEL, payload: { setId, wordIndex, userId } });
     
-    // Persist to Firebase directly
-    const userSets = state.userVocab[userId] || {};
-    const currentSetData = userSets[setId] || {};
-    let levels = Array.isArray(currentSetData) 
-      ? currentSetData.reduce((acc, i) => ({ ...acc, [i]: 6 }), {})
-      : { ...currentSetData };
-    
-    const currentLevel = Number(levels[wordIndex]) || 0;
-    const newLevel = currentLevel < 6 ? currentLevel + 1 : 6;
-    levels[wordIndex] = newLevel;
-    
-    set(ref(db, `2x18_userVocab/${userId}/${setId}`), levels);
+    try {
+      dispatch({ type: A.INCREMENT_WORD_LEVEL, payload: { setId, wordIndex, userId } });
+      
+      // Offload Firebase update to prevent blocking UI
+      setTimeout(() => {
+        const userSets = state.userVocab[userId] || {};
+        const currentSetData = userSets[setId] || {};
+        let levels = Array.isArray(currentSetData) 
+          ? currentSetData.reduce((acc, i) => ({ ...acc, [i]: 6 }), {})
+          : { ...currentSetData };
+        
+        const currentLevel = Number(levels[wordIndex]) || 0;
+        levels[wordIndex] = currentLevel < 6 ? currentLevel + 1 : 6;
+        
+        set(ref(db, `2x18_userVocab/${userId}/${setId}`), levels);
+      }, 0);
+    } catch (e) {
+      console.error('[incrementWordLevel]', e);
+    }
   }, [state.currentUser, state.userVocab]);
+
 
   const addQuizResult = useCallback((result) => {
     if (!state.currentUser?.id) return;
