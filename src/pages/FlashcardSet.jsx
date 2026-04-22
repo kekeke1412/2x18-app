@@ -210,10 +210,17 @@ export default function FlashcardSet() {
   const handleQuizAnswer = (ans) => {
     if (quizFeedback || isChecking) return;
     setIsChecking(true);
-    const current = quizQuestions[quizIndex];
-    const isCorrect = ans.toLowerCase().trim() === current.answer.toLowerCase().trim();
     
-    // Set feedback immediately for animation
+    const current = quizQuestions[quizIndex];
+    if (!current || !current.answer) {
+      console.warn('[Quiz] Invalid question or answer at index:', quizIndex);
+      setIsChecking(false);
+      return;
+    }
+
+    // So sánh không phân biệt hoa thường và khoảng trắng thừa
+    const isCorrect = (ans || '').trim().toLowerCase() === (current.answer || '').trim().toLowerCase();
+    
     setQuizFeedback({ 
       correct: isCorrect, 
       message: isCorrect ? 'Chính xác! 🎉' : `Sai rồi! Đáp án: ${current.answer}`,
@@ -222,11 +229,9 @@ export default function FlashcardSet() {
 
     if (isCorrect) {
       setQuizScore(prev => prev + 1);
-      // Tự động tăng bậc khi đúng
       incrementWordLevel(setId, current.wordIndex);
     }
     
-    // Record details
     setQuizDetails(prev => [...prev, {
       question: current.question,
       userAns: ans,
@@ -236,35 +241,30 @@ export default function FlashcardSet() {
 
     // Delay before next question to show animation
     setTimeout(() => {
-      setQuizIndex(prevIndex => {
-        if (prevIndex < quizQuestions.length - 1) {
-          const nextIndex = prevIndex + 1;
-          setQuizFeedback(null);
-          setUserAnswer('');
-          setIsChecking(false);
-          return nextIndex;
-        } else {
-          // Last question completed
-          setQuizScore(currentScore => {
-            const finalScore = isCorrect ? currentScore + 1 : currentScore;
-            const result = {
-              setId,
-              setTitle: set.title,
-              score: finalScore,
-              total: quizQuestions.length,
-              percentage: Math.round((finalScore / quizQuestions.length) * 100),
-            };
-            addQuizResult(result);
-            setQuizComplete(true);
-            setIsChecking(false);
-            return currentScore;
-          });
-          return prevIndex;
-        }
-      });
+      if (quizIndex < quizQuestions.length - 1) {
+        setQuizIndex(prev => prev + 1);
+        setQuizFeedback(null);
+        setUserAnswer('');
+        setIsChecking(false);
+      } else {
+        // Last question completed - switch to results view
+        setQuizScore(finalScore => {
+          const result = {
+            setId,
+            setTitle: set.title,
+            score: isCorrect ? finalScore : finalScore, // Score was already updated above
+            total: quizQuestions.length,
+            percentage: Math.round((finalScore / quizQuestions.length) * 100),
+          };
+          addQuizResult(result);
+          return finalScore;
+        });
+        setQuizComplete(true);
+        setIsChecking(false);
+      }
     }, 1000);
-
   };
+
 
   // Keyboard shortcuts for Quiz
   useEffect(() => {
