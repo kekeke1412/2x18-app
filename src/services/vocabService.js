@@ -28,7 +28,7 @@ Required JSON structure:
 [
   {
     "word": "...",
-    "definition": "Nghĩa tiếng Việt súc tích",
+    "definition": "Nghĩa tiếng Việt từ 2 đến 3 từ hoặc cụm từ không quá 5 từ",
     "type": "...",
     "level": "B2",
     "ipa": "phiên âm chuẩn",
