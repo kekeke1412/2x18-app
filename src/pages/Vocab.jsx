@@ -46,15 +46,19 @@ export default function Vocab() {
 
   // ── Statistics Calculation ────────────────────────────────────────────────
   const allSets = toArr(vocab);
-  const totalWords = allSets.reduce((sum, s) => sum + (s.terms?.length || 0), 0);
+  const totalWords = allSets.reduce((sum, s) => sum + toArr(s.terms).length, 0);
   
   const getLevels = (uid) => {
     const data = userVocab[uid] || {};
     let lvCounts = { 1:0, 2:0, 3:0, 4:0, 5:0, 6:0 };
     Object.values(data).forEach(setProg => {
+      if (!setProg) return;
       // Handle both old array and new object structures
       if (Array.isArray(setProg)) {
-        setProg.forEach(() => { lvCounts[6]++; });
+        setProg.forEach(lv => {
+          if (lv === 6) lvCounts[6]++;
+          else if (lvCounts[lv] !== undefined) lvCounts[lv]++;
+        });
       } else {
         Object.values(setProg).forEach(lv => {
           if (lvCounts[lv] !== undefined) lvCounts[lv]++;
@@ -64,8 +68,17 @@ export default function Vocab() {
     return lvCounts;
   };
 
+  const getMemberQuizStats = (uid) => {
+    const history = quizHistory[uid] || [];
+    if (history.length === 0) return { avg: 0, count: 0 };
+    const avg = Math.round(history.reduce((sum, h) => sum + (h.percentage || 0), 0) / history.length);
+    return { avg, count: history.length };
+  };
+
   const myLvs = getLevels(currentUser?.id);
   const myMastered = myLvs[6];
+  const myQuiz = getMemberQuizStats(currentUser?.id);
+
 
   return (
     <motion.div 
@@ -164,8 +177,13 @@ export default function Vocab() {
                   <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
                     <Star className="w-4 h-4 text-yellow-500" /> TIẾN ĐỘ CÁ NHÂN
                   </h3>
-                  <div className="text-xs font-bold text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
-                    Đã nhớ sâu: {myMastered} từ
+                  <div className="flex items-center gap-3">
+                    <div className="text-[10px] font-black text-purple-400 bg-purple-500/10 px-3 py-1 rounded-full border border-purple-500/20">
+                      Quiz: {myQuiz.avg}% ({myQuiz.count} bài)
+                    </div>
+                    <div className="text-[10px] font-black text-green-400 bg-green-500/10 px-3 py-1 rounded-full border border-green-500/20">
+                      Nhớ sâu: {myMastered} từ
+                    </div>
                   </div>
                 </div>
                 
@@ -198,6 +216,7 @@ export default function Vocab() {
                         <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest">Thành viên</th>
                         <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Đang học (Lv 1-5)</th>
                         <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Nhớ sâu (Lv 6)</th>
+                        <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest text-center">Quiz TB</th>
                         <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest text-right">Tổng tiến độ</th>
                       </tr>
                     </thead>
@@ -207,6 +226,7 @@ export default function Vocab() {
                         .sort((a,b) => (a.fullName || '').localeCompare(b.fullName || '')) // Xếp theo ABC
                         .map(m => {
                           const lvs = getLevels(m.id);
+                          const quiz = getMemberQuizStats(m.id);
                           const mastered = lvs[6];
                           const learning = lvs[1] + lvs[2] + lvs[3] + lvs[4] + lvs[5];
                           return (
@@ -226,6 +246,10 @@ export default function Vocab() {
                               <td className="px-6 py-4 text-center text-sm font-bold text-gray-400">{learning}</td>
                               <td className="px-6 py-4 text-center">
                                 <span className="bg-green-500/10 text-green-500 px-3 py-1 rounded-full text-xs font-black border border-green-500/20">{mastered}</span>
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                <div className="text-sm font-black text-purple-400">{quiz.avg}%</div>
+                                <div className="text-[9px] text-gray-600 font-bold uppercase">{quiz.count} bài</div>
                               </td>
                               <td className="px-6 py-4 text-right">
                                 <div className="text-xs font-black text-indigo-400">{mastered + learning} / {totalWords}</div>

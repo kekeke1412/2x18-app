@@ -1256,7 +1256,7 @@ export function AppProvider({ children }) {
     addAttendanceSession, checkAttendance, deleteAttendanceSession, editAttendanceSession,
     addDoc, deleteDoc, rateDoc,
     updateRole, addContribution, updateSemesterLabel,
-    addVocabSet, editVocabSet, deleteVocabSet, markWordLearned, addQuizResult,
+    addVocabSet, editVocabSet, deleteVocabSet, markWordLearned, incrementWordLevel, addQuizResult,
     restoreFromTrash, permanentDeleteTrash, emptyTrash,
     addReport, approveReport, deleteReport,
     getMemberById, getSmeMember, isProfileComplete, exportMembersCSV,
