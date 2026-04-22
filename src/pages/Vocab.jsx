@@ -22,7 +22,6 @@ export default function Vocab() {
   const canSeeStats = isSuperAdmin || isCore;
   const [activeTab, setActiveTab] = useState('sets'); // 'sets' | 'stats'
   const [showAddModal, setShowAddModal] = useState(false);
-  const [editSet, setEditSet] = useState(null); // Track set being edited
   const [searchTerm, setSearchTerm] = useState('');
   const [newSet, setNewSet] = useState({ title: '', description: '', terms: [] });
   const [exampleSource, setExampleSource] = useState('');
@@ -34,23 +33,13 @@ export default function Vocab() {
 
   const handleAddSet = () => {
     if (!newSet.title.trim()) return;
-    if (editSet) {
-      editVocabSet({
-        ...editSet,
-        title: newSet.title,
-        description: newSet.description,
-        exampleSource
-      });
-    } else {
-      addVocabSet({
-        ...newSet,
-        exampleSource, // Persist the AI source to DB
-        terms: [] // Initially empty
-      });
-    }
+    addVocabSet({
+      ...newSet,
+      exampleSource, // Persist the AI source to DB
+      terms: [] // Initially empty
+    });
     setNewSet({ title: '', description: '', terms: [] });
     setExampleSource('');
-    setEditSet(null);
     setShowAddModal(false);
   };
 
@@ -296,12 +285,6 @@ export default function Vocab() {
                         deleteVocabSet(s.id);
                       }
                     }}
-                    onEdit={() => {
-                      setEditSet(s);
-                      setNewSet({ title: s.title, description: s.description || '' });
-                      setExampleSource(s.exampleSource || '');
-                      setShowAddModal(true);
-                    }}
                   />
                 ))}
               </motion.div>
@@ -323,10 +306,9 @@ export default function Vocab() {
             >
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
                 <h3 className="font-black text-white flex items-center gap-2">
-                  {editSet ? <Edit3 className="w-5 h-5 text-indigo-400" /> : <PlusCircle className="w-5 h-5 text-indigo-400" />} 
-                  {editSet ? 'CHỈNH SỬA HỌC PHẦN' : 'TẠO HỌC PHẦN MỚI'}
+                  <PlusCircle className="w-5 h-5 text-indigo-400" /> TẠO HỌC PHẦN MỚI
                 </h3>
-                <button onClick={() => { setShowAddModal(false); setEditSet(null); setNewSet({ title: '', description: '' }); setExampleSource(''); }} className="text-gray-500 hover:text-white transition-colors">
+                <button onClick={() => setShowAddModal(false)} className="text-gray-500 hover:text-white transition-colors">
                   <X className="w-6 h-6" />
                 </button>
               </div>
@@ -362,13 +344,13 @@ export default function Vocab() {
                 </div>
               </div>
               <div className="p-6 border-t border-gray-800 flex gap-3">
-                <button onClick={() => { setShowAddModal(false); setEditSet(null); setNewSet({ title: '', description: '' }); setExampleSource(''); }} className="flex-1 py-3 text-sm font-bold text-gray-400 hover:text-white transition-colors">HỦY</button>
+                <button onClick={() => setShowAddModal(false)} className="flex-1 py-3 text-sm font-bold text-gray-400 hover:text-white transition-colors">HỦY</button>
                 <button 
                   onClick={handleAddSet}
                   disabled={!newSet.title.trim()}
                   className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-black rounded-xl transition-all shadow-lg shadow-indigo-900/30"
                 >
-                  {editSet ? 'LƯU THAY ĐỔI' : 'TẠO NGAY'}
+                  TẠO NGAY
                 </button>
               </div>
             </motion.div>
@@ -379,7 +361,7 @@ export default function Vocab() {
   );
 }
 
-function VocabSetCard({ set, onDelete, onEdit, isOwner, progress = {} }) {
+function VocabSetCard({ set, onDelete, isOwner, progress = {} }) {
   const { getMemberById } = useApp();
   const termCount = toArr(set.terms).length;
   const masteredCount = Object.values(progress).filter(lv => Number(lv) === 6).length;
@@ -400,14 +382,9 @@ function VocabSetCard({ set, onDelete, onEdit, isOwner, progress = {} }) {
             <Clock className="w-3 h-3" /> {termCount} thuật ngữ
           </div>
           {isOwner && (
-            <div className="flex items-center gap-1">
-              <button onClick={onEdit} className="p-1.5 text-gray-600 hover:text-indigo-400 transition-colors rounded-lg hover:bg-indigo-400/10">
-                <Edit3 className="w-4 h-4" />
-              </button>
-              <button onClick={onDelete} className="p-1.5 text-gray-600 hover:text-red-400 transition-colors rounded-lg hover:bg-red-400/10">
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
+            <button onClick={onDelete} className="p-1.5 text-gray-600 hover:text-red-400 transition-colors rounded-lg hover:bg-red-400/10">
+              <Trash2 className="w-4 h-4" />
+            </button>
           )}
         </div>
         <Link to={`/vocab/${set.id}`} className="block">
