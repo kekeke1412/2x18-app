@@ -241,19 +241,20 @@ export default function FlashcardSet() {
     // Delay before next question to show feedback animation
     setTimeout(() => {
       try {
+        // Reset feedback first to clear overlay
+        setQuizFeedback(null);
+        setUserAnswer('');
+
         if (isCorrect) {
-          incrementWordLevel(setId, current.wordIndex);
+          // Offload level increment to avoid blocking transition
+          setTimeout(() => incrementWordLevel(setId, current.wordIndex), 0);
         }
 
         if (quizIndex < quizQuestions.length - 1) {
-          // Chuyển sang câu tiếp theo
           setQuizIndex(prev => prev + 1);
-          setQuizFeedback(null);
-          setUserAnswer('');
           setIsChecking(false);
         } else {
-          // Câu cuối — tính điểm trực tiếp, tránh dùng setState updater để gọi side-effect
-          // quizScore trong closure là giá trị TRƯỚC câu này nên cộng thêm isCorrect
+          // End of quiz
           const finalScore = quizScore + (isCorrect ? 1 : 0);
           addQuizResult({
             setId,
@@ -265,7 +266,6 @@ export default function FlashcardSet() {
           });
           setQuizScore(finalScore);
           setQuizComplete(true);
-          setQuizFeedback(null);
           setIsChecking(false);
         }
       } catch (err) {
@@ -273,7 +273,8 @@ export default function FlashcardSet() {
         setQuizFeedback(null);
         setIsChecking(false);
       }
-    }, 1000);
+    }, 800); // Snappier delay
+
   };
 
 
