@@ -1,8 +1,8 @@
 // src/pages/FlashcardSet.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { 
-  ChevronLeft, Plus, Trash2, Edit3, Sparkles, 
+import {
+  ChevronLeft, Plus, Trash2, Edit3, Sparkles,
   Volume2, CheckCircle2, Circle, ArrowLeft, ArrowRight,
   Maximize2, RotateCcw, Save, Trash, X, Loader2, Book, Layers,
   Trophy, AlertTriangle, CheckCircle, HelpCircle, FileEdit, Zap,
@@ -15,16 +15,16 @@ import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-mo
 export default function FlashcardSet() {
   const { setId } = useParams();
   const navigate = useNavigate();
-  const { 
+  const {
     vocab = {}, currentUser, isSuperAdmin, isCore, editVocabSet, markWordLearned, incrementWordLevel,
-    userVocab = {}, addQuizResult, quizHistory = {}, toast 
+    userVocab = {}, addQuizResult, quizHistory = {}, toast
   } = useApp();
-  
+
   const set = vocab[setId] || { title: '', description: '', terms: [] };
   // progress is now { wordIndex: level }
   const progress = useMemo(() => userVocab[currentUser?.id]?.[setId] || {}, [userVocab, currentUser, setId]);
   const masteredCount = useMemo(() => Object.values(progress).filter(lv => Number(lv) === 6).length, [progress]);
-  
+
   const [activeTab, setActiveTab] = useState('list'); // 'list' | 'study' | 'quiz'
   const [cards, setCards] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
@@ -33,7 +33,7 @@ export default function FlashcardSet() {
   const [exampleSource, setExampleSource] = useState('');
   const [description, setDescription] = useState('');
   const [title, setTitle] = useState('');
-  
+
   const isOwner = set?.authorId === currentUser?.id || isSuperAdmin || isCore;
 
   // Study (Swipe + Flip) State
@@ -54,18 +54,18 @@ export default function FlashcardSet() {
   const [isChecking, setIsChecking] = useState(false);
   const [quizDetails, setQuizDetails] = useState([]); // { question, userAns, correctAns, isCorrect }
   const myHistory = useMemo(() => quizHistory[currentUser?.id] || [], [quizHistory, currentUser]);
-  const currentSetHistory = useMemo(() => 
-    myHistory.filter(h => h.setId === setId).sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp)),
-  [myHistory, setId]);
+  const currentSetHistory = useMemo(() =>
+    myHistory.filter(h => h.setId === setId).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)),
+    [myHistory, setId]);
 
   const speak = (text, lang = 'en') => {
     if (!text) return;
     setIsSpeaking(text);
-    
+
     // Sử dụng client=gtx thường ổn định hơn trên web
     const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${lang}&client=gtx`;
     const audio = new Audio(url);
-    
+
     audio.play()
       .then(() => {
         console.log('[TTS] Playing:', text);
@@ -93,14 +93,14 @@ export default function FlashcardSet() {
 
   if (!set) return <div className="p-10 text-center text-gray-500 font-bold">Học phần không tồn tại.</div>;
 
-  const handleSave = () => { 
-    editVocabSet({ ...set, terms: cards, exampleSource, description, title }); 
-    setIsEditing(false); 
+  const handleSave = () => {
+    editVocabSet({ ...set, terms: cards, exampleSource, description, title });
+    setIsEditing(false);
   };
   const handleAddCard = () => { setCards([...cards, { word: '', definition: '', type: 'n', level: 'B1', ipa: '', example: '', exampleVi: '' }]); };
-  const handleRemoveCard = (idx) => { 
+  const handleRemoveCard = (idx) => {
     if (window.confirm('Bạn có chắc chắn muốn xóa thẻ này?')) {
-      setCards(cards.filter((_, i) => i !== idx)); 
+      setCards(cards.filter((_, i) => i !== idx));
     }
   };
 
@@ -116,11 +116,11 @@ export default function FlashcardSet() {
         newCards[idx] = { ...newCards[idx], ...s };
         setCards(newCards);
       }
-    } catch (err) { 
-      console.error(err); 
+    } catch (err) {
+      console.error(err);
       toast(err.message || 'AI không phản hồi. Kiểm tra API Key.', 'error');
-    } finally { 
-      setIsAiLoading(false); 
+    } finally {
+      setIsAiLoading(false);
     }
   };
 
@@ -210,7 +210,7 @@ export default function FlashcardSet() {
   const handleQuizAnswer = (ans) => {
     if (quizFeedback || isChecking) return;
     setIsChecking(true);
-    
+
     const current = quizQuestions[quizIndex];
     if (!current || !current.answer) {
       console.warn('[Quiz] Invalid question or answer at index:', quizIndex);
@@ -220,9 +220,9 @@ export default function FlashcardSet() {
 
     // So sánh không phân biệt hoa thường và khoảng trắng thừa
     const isCorrect = (ans || '').trim().toLowerCase() === (current.answer || '').trim().toLowerCase();
-    
-    setQuizFeedback({ 
-      correct: isCorrect, 
+
+    setQuizFeedback({
+      correct: isCorrect,
       message: isCorrect ? 'Chính xác! 🎉' : `Sai rồi! Đáp án: ${current.answer}`,
       selected: ans
     });
@@ -230,7 +230,7 @@ export default function FlashcardSet() {
     if (isCorrect) {
       setQuizScore(prev => prev + 1);
     }
-    
+
     setQuizDetails(prev => [...prev, {
       question: current.question,
       userAns: ans,
@@ -238,38 +238,33 @@ export default function FlashcardSet() {
       isCorrect
     }]);
 
-    // Delay before next question to show animation
+    // Delay before next question to show feedback animation
     setTimeout(() => {
-      // Tăng bậc từ vựng ở đây để tránh treo UI khi re-render
       if (isCorrect) {
         incrementWordLevel(setId, current.wordIndex);
       }
 
       if (quizIndex < quizQuestions.length - 1) {
+        // Chuyển sang câu tiếp theo
         setQuizIndex(prev => prev + 1);
         setQuizFeedback(null);
         setUserAnswer('');
         setIsChecking(false);
       } else {
-        // Last question completed - switch to results view
-        // Calculate final score based on the latest state
-        setQuizScore(finalScore => {
-          // We need to call addQuizResult with the most up-to-date score
-          const result = {
-            setId,
-            setTitle: set.title,
-            score: finalScore,
-            total: quizQuestions.length,
-            percentage: Math.round((finalScore / quizQuestions.length) * 100),
-          };
-          // Schedule side effect after state update
-          setTimeout(() => {
-            addQuizResult(result);
-            setQuizComplete(true);
-            setIsChecking(false);
-          }, 0);
-          return finalScore;
+        // Câu cuối — tính điểm trực tiếp, tránh dùng setState updater để gọi side-effect
+        // quizScore trong closure là giá trị TRƯỚC câu này nên cộng thêm isCorrect
+        const finalScore = quizScore + (isCorrect ? 1 : 0);
+        addQuizResult({
+          setId,
+          setTitle: set.title,
+          score: finalScore,
+          total: quizQuestions.length,
+          percentage: Math.round((finalScore / quizQuestions.length) * 100),
+          timestamp: new Date().toISOString(),
         });
+        setQuizScore(finalScore);
+        setQuizComplete(true);
+        setIsChecking(false);
       }
     }, 1000);
   };
@@ -299,7 +294,7 @@ export default function FlashcardSet() {
   }, [activeTab, quizStarted, quizComplete, quizFeedback, quizIndex, quizQuestions]);
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
@@ -321,7 +316,7 @@ export default function FlashcardSet() {
         </div>
         <div className="flex items-center gap-2">
           {activeTab === 'list' && !isEditing && (
-            <button 
+            <button
               onClick={() => setHideMastered(!hideMastered)}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all ${hideMastered ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'bg-[#1a1a1a] text-gray-400 border border-gray-800'}`}
             >
@@ -348,7 +343,7 @@ export default function FlashcardSet() {
         <div className="px-6 py-2 bg-[#1a1a1a] border-b border-gray-800/60 flex flex-col md:flex-row items-start md:items-center gap-3">
           <div className="flex items-center gap-2 flex-1 w-full">
             <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest shrink-0">Tiêu đề:</label>
-            <input 
+            <input
               type="text"
               placeholder="Tên học phần..."
               value={title}
@@ -358,7 +353,7 @@ export default function FlashcardSet() {
           </div>
           <div className="flex items-center gap-2 flex-1 w-full">
             <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest shrink-0">Nguồn AI:</label>
-            <input 
+            <input
               type="text"
               placeholder="Tên sách/Tác giả..."
               value={exampleSource}
@@ -368,7 +363,7 @@ export default function FlashcardSet() {
           </div>
           <div className="flex items-center gap-2 flex-1 w-full">
             <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest shrink-0">Mô tả:</label>
-            <input 
+            <input
               type="text"
               placeholder="Ghi chú về học phần này..."
               value={description}
@@ -387,8 +382,8 @@ export default function FlashcardSet() {
             { id: 'study', label: 'Học tập', icon: Zap },
             { id: 'quiz', label: 'Kiểm tra', icon: HelpCircle },
           ].map(t => (
-            <button 
-              key={t.id} 
+            <button
+              key={t.id}
               onClick={() => { setActiveTab(t.id); if (t.id === 'study') startStudy(); if (t.id === 'quiz') setQuizStarted(false); }}
               className={`flex items-center gap-2 py-3 text-[11px] font-black uppercase tracking-widest transition-all relative whitespace-nowrap ${activeTab === t.id ? 'text-indigo-400' : 'text-gray-500 hover:text-gray-300'}`}
             >
@@ -402,18 +397,18 @@ export default function FlashcardSet() {
       {/* Content */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
         <div className="max-w-4xl mx-auto h-full">
-          
+
           {/* ── LIST VIEW ──────────────────────────────────────────────────── */}
           {activeTab === 'list' && (
             <div className="space-y-4 pb-20">
               <AnimatePresence mode="popLayout">
                 {cards.filter((_, i) => !hideMastered || (Number(progress[i]) || 0) < 6).map((card, idx) => (
-                  <motion.div 
-                    layout 
-                    initial={{ opacity: 0, y: 10 }} 
-                    animate={{ opacity: 1, y: 0 }} 
+                  <motion.div
+                    layout
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
-                    key={idx} 
+                    key={idx}
                     className={`bg-[#1a1a1a] border rounded-2xl p-5 transition-all ${isEditing ? 'border-indigo-500/30' : 'border-gray-800 hover:border-gray-700'}`}
                   >
                     {isEditing ? (
@@ -429,14 +424,14 @@ export default function FlashcardSet() {
                         </div>
                         <div className="flex flex-col md:flex-row gap-4">
                           <div className="flex-1 flex gap-2">
-                            <input 
-                              placeholder="Thuật ngữ" 
-                              value={card.word} 
-                              onChange={e => { const n = [...cards]; n[idx].word = e.target.value; setCards(n); }} 
-                              className="flex-1 bg-[#121212] border border-gray-800 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 outline-none" 
+                            <input
+                              placeholder="Thuật ngữ"
+                              value={card.word}
+                              onChange={e => { const n = [...cards]; n[idx].word = e.target.value; setCards(n); }}
+                              className="flex-1 bg-[#121212] border border-gray-800 rounded-xl px-4 py-2.5 text-sm font-bold focus:border-indigo-500 outline-none"
                             />
-                            <select 
-                              value={card.type} 
+                            <select
+                              value={card.type}
                               onChange={e => { const n = [...cards]; n[idx].type = e.target.value; setCards(n); }}
                               className="w-24 bg-[#121212] border border-gray-800 rounded-xl px-2 py-2.5 text-xs font-bold focus:border-indigo-500 outline-none text-indigo-400"
                             >
@@ -449,8 +444,8 @@ export default function FlashcardSet() {
                               <option value="idiom">idiom</option>
                               <option value="colloc">colloc</option>
                             </select>
-                            <select 
-                              value={card.level} 
+                            <select
+                              value={card.level}
                               onChange={e => { const n = [...cards]; n[idx].level = e.target.value; setCards(n); }}
                               className="w-16 bg-[#121212] border border-gray-800 rounded-xl px-2 py-2.5 text-xs font-black focus:border-indigo-500 outline-none text-amber-400"
                             >
@@ -463,11 +458,11 @@ export default function FlashcardSet() {
                               <option value="C2">C2</option>
                             </select>
                           </div>
-                          <input 
-                            placeholder="Định nghĩa (Ví dụ: Vật lý học)" 
-                            value={card.definition} 
-                            onChange={e => { const n = [...cards]; n[idx].definition = e.target.value; setCards(n); }} 
-                            className="flex-1 bg-[#121212] border border-gray-800 rounded-xl px-4 py-2.5 text-sm focus:border-indigo-500 outline-none" 
+                          <input
+                            placeholder="Định nghĩa (Ví dụ: Vật lý học)"
+                            value={card.definition}
+                            onChange={e => { const n = [...cards]; n[idx].definition = e.target.value; setCards(n); }}
+                            className="flex-1 bg-[#121212] border border-gray-800 rounded-xl px-4 py-2.5 text-sm focus:border-indigo-500 outline-none"
                           />
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -482,8 +477,8 @@ export default function FlashcardSet() {
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-2">
                             <h4 className="text-lg font-black text-indigo-400 break-words">{card.word}</h4>
                             <div className="flex items-center gap-2">
-                              <button 
-                                onClick={() => speak(card.word)} 
+                              <button
+                                onClick={() => speak(card.word)}
                                 className={`p-1.5 rounded-lg transition-all ${isSpeaking === card.word ? 'text-indigo-400 bg-indigo-500/20' : 'text-gray-500 hover:text-indigo-400 hover:bg-indigo-500/10'}`}
                               >
                                 <Volume2 className={`w-4 h-4 ${isSpeaking === card.word ? 'animate-pulse' : ''}`} />
@@ -501,7 +496,7 @@ export default function FlashcardSet() {
                             </div>
                           )}
                         </div>
-                        
+
                         <div className="flex flex-col items-center gap-1 shrink-0">
                           {Number(progress[idx]) === 6 ? (
                             <div className="flex flex-col items-center gap-1 bg-green-500/10 p-3 rounded-2xl border border-green-500/20">
@@ -556,14 +551,14 @@ export default function FlashcardSet() {
                       Tiến độ: {studyIndex + 1} / {cards.length}
                     </div>
                     <div className="flex gap-2">
-                       <div className="px-2 py-1 bg-green-500/10 rounded text-green-500 text-[10px] font-bold">{studyResults.remembered} R</div>
-                       <div className="px-2 py-1 bg-red-500/10 rounded text-red-500 text-[10px] font-bold">{studyResults.forgotten} L</div>
+                      <div className="px-2 py-1 bg-green-500/10 rounded text-green-500 text-[10px] font-bold">{studyResults.remembered} R</div>
+                      <div className="px-2 py-1 bg-red-500/10 rounded text-red-500 text-[10px] font-bold">{studyResults.forgotten} L</div>
                     </div>
                   </div>
 
                   <div className="relative aspect-[3/4] md:aspect-[3/2.2] perspective">
                     <AnimatePresence mode="wait">
-                      <StudyCard 
+                      <StudyCard
                         key={studyIndex}
                         card={cards[studyIndex]}
                         isFlipped={isFlipped}
@@ -574,7 +569,7 @@ export default function FlashcardSet() {
                       />
                     </AnimatePresence>
                   </div>
-                  
+
                   <div className="mt-8 flex justify-center gap-6">
                     <button onClick={() => handleSwipeAction('left')} className="p-4 bg-red-600/10 text-red-500 border border-red-500/30 rounded-2xl hover:bg-red-600 hover:text-white transition-all shadow-lg shadow-red-900/20">
                       <X className="w-6 h-6" />
@@ -601,17 +596,17 @@ export default function FlashcardSet() {
                     {/* Background Decorative Elements */}
                     <div className="absolute -top-24 -right-24 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl group-hover:bg-indigo-600/20 transition-all duration-700" />
                     <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-purple-600/10 rounded-full blur-3xl group-hover:bg-purple-600/20 transition-all duration-700" />
-                    
+
                     <div className="relative z-10 flex flex-col items-center text-center">
                       <div className="w-20 h-20 bg-gradient-to-tr from-indigo-600 to-violet-600 rounded-3xl flex items-center justify-center shadow-2xl shadow-indigo-500/20 mb-8 rotate-3 group-hover:rotate-6 transition-transform">
                         <Zap className="w-10 h-10 text-white" />
                       </div>
-                      
+
                       <h2 className="text-3xl font-black text-white mb-3 tracking-tight">Kiểm tra năng lực</h2>
                       <p className="text-gray-400 text-sm max-w-sm mb-10 leading-relaxed font-medium">
                         Thử thách bản thân với {cards.length} thuật ngữ trong học phần này. Hệ thống sẽ tự động tạo các dạng câu hỏi khác nhau.
                       </p>
-                      
+
                       <div className="grid grid-cols-2 gap-4 w-full mb-10">
                         <div className="bg-white/5 border border-white/5 rounded-2xl p-4 backdrop-blur-sm">
                           <div className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-1">Số lượng</div>
@@ -622,9 +617,9 @@ export default function FlashcardSet() {
                           <div className="text-xl font-black text-white">~{Math.ceil(cards.length * 0.5)} phút</div>
                         </div>
                       </div>
-                      
-                      <button 
-                        onClick={startQuiz} 
+
+                      <button
+                        onClick={startQuiz}
                         className="group/btn relative w-full py-5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl transition-all shadow-xl shadow-indigo-900/40 active:scale-95 overflow-hidden"
                       >
                         <span className="relative z-10 flex items-center justify-center gap-3 text-lg">
@@ -634,14 +629,14 @@ export default function FlashcardSet() {
                       </button>
                     </div>
                   </div>
-                  
+
                   {/* Dashboard lịch sử mini */}
                   <div className="mt-12 space-y-8">
                     <div className="flex items-center justify-between px-2">
                       <h3 className="text-sm font-black text-gray-500 uppercase tracking-[0.3em]">Thành tích gần đây</h3>
                       {currentSetHistory.length > 0 && (
                         <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
-                          TB: {Math.round(currentSetHistory.reduce((a,b)=>a+b.percentage,0)/currentSetHistory.length)}%
+                          TB: {Math.round(currentSetHistory.reduce((a, b) => a + b.percentage, 0) / currentSetHistory.length)}%
                         </div>
                       )}
                     </div>
@@ -652,21 +647,21 @@ export default function FlashcardSet() {
                 <div className="w-full max-w-2xl animate-in zoom-in-95 fade-in duration-500 pb-20">
                   <div className="bg-[#1a1a1a] border border-gray-800 rounded-[2.5rem] p-10 md:p-12 shadow-2xl relative overflow-hidden flex flex-col items-center text-center mb-10">
                     <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
-                    
-                    <motion.div 
-                      initial={{ scale: 0 }} 
-                      animate={{ scale: 1 }} 
+
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
                       transition={{ type: "spring", damping: 12, stiffness: 200, delay: 0.2 }}
                       className="w-24 h-24 bg-yellow-500/20 rounded-full flex items-center justify-center mb-6 shadow-2xl shadow-yellow-500/20"
                     >
                       <Trophy className="w-12 h-12 text-yellow-500" />
                     </motion.div>
-                    
+
                     <h2 className="text-3xl font-black text-white mb-2">Tuyệt vời!</h2>
                     <p className="text-gray-500 text-xs font-black uppercase tracking-[0.2em] mb-8">Bạn đã hoàn thành bài kiểm tra</p>
-                    
+
                     <div className="relative mb-10">
-                      <motion.div 
+                      <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.5 }}
@@ -678,14 +673,14 @@ export default function FlashcardSet() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-4 w-full mb-8">
-                      <button 
-                        onClick={startQuiz} 
+                      <button
+                        onClick={startQuiz}
                         className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl transition-all shadow-lg shadow-indigo-900/40 active:scale-95 flex items-center justify-center gap-2"
                       >
                         <RotateCcw className="w-4 h-4" /> THỬ LẠI
                       </button>
-                      <button 
-                        onClick={() => setQuizStarted(false)} 
+                      <button
+                        onClick={() => setQuizStarted(false)}
                         className="flex-1 py-4 bg-gray-800 hover:bg-gray-700 text-white font-black rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2"
                       >
                         <CheckCircle className="w-4 h-4" /> HOÀN TẤT
@@ -699,7 +694,7 @@ export default function FlashcardSet() {
                         <FileEdit className="w-4 h-4 text-indigo-400" /> CHI TIẾT KẾT QUẢ
                       </h3>
                     </div>
-                    
+
                     <div className="bg-[#1a1a1a] border border-gray-800 rounded-3xl overflow-hidden shadow-2xl">
                       <div className="divide-y divide-gray-800/50 max-h-[500px] overflow-y-auto custom-scrollbar">
                         {quizDetails.map((item, idx) => (
@@ -751,10 +746,10 @@ export default function FlashcardSet() {
                       </div>
                     </div>
                     <div className="h-2 bg-gray-800 rounded-full overflow-hidden w-full relative">
-                      <motion.div 
-                        initial={{ width: 0 }} 
-                        animate={{ width: `${(quizIndex / quizQuestions.length) * 100}%` }} 
-                        className="h-full bg-gradient-to-r from-indigo-600 to-violet-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]" 
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(quizIndex / quizQuestions.length) * 100}%` }}
+                        className="h-full bg-gradient-to-r from-indigo-600 to-violet-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]"
                       />
                     </div>
                   </div>
@@ -787,34 +782,32 @@ export default function FlashcardSet() {
                                 const isSelected = quizFeedback?.selected === opt;
                                 const isCorrect = opt === quizQuestions[quizIndex].answer;
                                 const showResult = quizFeedback !== null;
-                                
+
                                 return (
-                                  <motion.button 
-                                    key={i} 
+                                  <motion.button
+                                    key={i}
                                     whileHover={!showResult ? { x: 4, backgroundColor: 'rgba(255, 255, 255, 0.05)' } : {}}
                                     whileTap={!showResult ? { scale: 0.98 } : {}}
-                                    onClick={() => handleQuizAnswer(opt)} 
-                                    className={`group relative p-5 text-left border rounded-2xl text-sm font-medium transition-all flex items-center justify-between ${
-                                      showResult
+                                    onClick={() => handleQuizAnswer(opt)}
+                                    className={`group relative p-5 text-left border rounded-2xl text-sm font-medium transition-all flex items-center justify-between ${showResult
                                         ? isCorrect
                                           ? 'border-green-500 bg-green-500/10 text-green-400'
                                           : isSelected
                                             ? 'border-red-500 bg-red-500/10 text-red-400'
                                             : 'border-gray-800 opacity-40'
                                         : 'border-gray-800 bg-[#121212] hover:border-indigo-500/50'
-                                    }`}
+                                      }`}
                                   >
                                     <div className="flex items-center gap-4">
-                                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs border transition-colors ${
-                                        showResult 
+                                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs border transition-colors ${showResult
                                           ? isCorrect ? 'bg-green-500 border-green-500 text-white' : isSelected ? 'bg-red-500 border-red-500 text-white' : 'bg-gray-800 border-gray-700 text-gray-500'
                                           : 'bg-gray-800 border-gray-700 text-gray-400 group-hover:border-indigo-500 group-hover:text-indigo-400'
-                                      }`}>
+                                        }`}>
                                         {i + 1}
                                       </div>
                                       <span className="flex-1">{opt}</span>
                                     </div>
-                                    
+
                                     {showResult && isCorrect && <CheckCircle className="w-5 h-5 text-green-500 animate-in zoom-in duration-300" />}
                                     {showResult && isSelected && !isCorrect && <X className="w-5 h-5 text-red-500 animate-in zoom-in duration-300" />}
                                   </motion.button>
@@ -832,22 +825,21 @@ export default function FlashcardSet() {
                                 const showResult = quizFeedback !== null;
                                 const label = val === 'true' ? 'ĐÚNG' : 'SAI';
                                 const colorClass = val === 'true' ? 'green' : 'red';
-                                
+
                                 return (
-                                  <motion.button 
+                                  <motion.button
                                     key={val}
                                     whileHover={!showResult ? { scale: 1.02 } : {}}
                                     whileTap={!showResult ? { scale: 0.98 } : {}}
-                                    onClick={() => handleQuizAnswer(val)} 
-                                    className={`h-32 flex flex-col items-center justify-center gap-3 border-2 rounded-3xl font-black transition-all ${
-                                      showResult
+                                    onClick={() => handleQuizAnswer(val)}
+                                    className={`h-32 flex flex-col items-center justify-center gap-3 border-2 rounded-3xl font-black transition-all ${showResult
                                         ? isCorrect
                                           ? 'border-green-500 bg-green-500/10 text-green-400'
                                           : isSelected
                                             ? 'border-red-500 bg-red-500/10 text-red-400'
                                             : 'border-gray-800 opacity-40'
                                         : `border-gray-800 bg-[#121212] hover:border-${colorClass}-500/50 hover:text-${colorClass}-400`
-                                    }`}
+                                      }`}
                                   >
                                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center bg-${colorClass}-500/10 text-${colorClass}-500`}>
                                       {val === 'true' ? <CheckCircle2 className="w-7 h-7" /> : <X className="w-7 h-7" />}
@@ -864,18 +856,17 @@ export default function FlashcardSet() {
                           {(quizQuestions[quizIndex].type === 'written' || quizQuestions[quizIndex].type === 'fill') && (
                             <div className="space-y-6">
                               <div className="relative">
-                                <input 
-                                  autoFocus 
-                                  placeholder="Nhập câu trả lời của bạn..." 
-                                  value={userAnswer} 
-                                  onChange={e => setUserAnswer(e.target.value)} 
-                                  onKeyDown={e => e.key === 'Enter' && handleQuizAnswer(userAnswer)} 
+                                <input
+                                  autoFocus
+                                  placeholder="Nhập câu trả lời của bạn..."
+                                  value={userAnswer}
+                                  onChange={e => setUserAnswer(e.target.value)}
+                                  onKeyDown={e => e.key === 'Enter' && handleQuizAnswer(userAnswer)}
                                   disabled={isChecking || quizFeedback}
-                                  className={`w-full bg-[#121212] border-2 rounded-2xl p-6 text-xl font-bold outline-none transition-all ${
-                                    quizFeedback 
-                                      ? (quizFeedback.correct ? 'border-green-500 bg-green-500/5 text-green-400' : 'border-red-500 bg-red-500/5 text-red-400') 
+                                  className={`w-full bg-[#121212] border-2 rounded-2xl p-6 text-xl font-bold outline-none transition-all ${quizFeedback
+                                      ? (quizFeedback.correct ? 'border-green-500 bg-green-500/5 text-green-400' : 'border-red-500 bg-red-500/5 text-red-400')
                                       : 'border-gray-800 focus:border-indigo-500 shadow-inner shadow-black/40'
-                                  }`} 
+                                    }`}
                                 />
                                 {quizFeedback && (
                                   <div className="absolute right-6 top-1/2 -translate-y-1/2">
@@ -885,17 +876,16 @@ export default function FlashcardSet() {
                                       <X className="w-8 h-8 text-red-500 animate-shake" />
                                     )}
                                   </div>
-                                ) }
+                                )}
                               </div>
 
-                              <button 
-                                onClick={() => handleQuizAnswer(userAnswer)} 
+                              <button
+                                onClick={() => handleQuizAnswer(userAnswer)}
                                 disabled={isChecking || quizFeedback}
-                                className={`w-full py-5 font-black rounded-2xl transition-all flex items-center justify-center gap-3 text-lg shadow-xl active:scale-95 ${
-                                  quizFeedback 
-                                    ? (quizFeedback.correct ? 'bg-green-600 shadow-green-900/40' : 'bg-red-600 shadow-red-900/40') 
+                                className={`w-full py-5 font-black rounded-2xl transition-all flex items-center justify-center gap-3 text-lg shadow-xl active:scale-95 ${quizFeedback
+                                    ? (quizFeedback.correct ? 'bg-green-600 shadow-green-900/40' : 'bg-red-600 shadow-red-900/40')
                                     : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-900/40'
-                                } text-white`}
+                                  } text-white`}
                               >
                                 {isChecking ? (
                                   <><Loader2 className="w-6 h-6 animate-spin" /> Đang kiểm tra...</>
@@ -905,7 +895,7 @@ export default function FlashcardSet() {
                                   'KIỂM TRA'
                                 )}
                               </button>
-                              
+
                               {!quizFeedback && (
                                 <p className="text-center text-[10px] text-gray-600 font-bold uppercase tracking-widest">
                                   Nhấn Enter để gửi câu trả lời
@@ -918,7 +908,7 @@ export default function FlashcardSet() {
                         {/* Visual Feedback Overlays */}
                         <AnimatePresence>
                           {quizFeedback && (
-                            <motion.div 
+                            <motion.div
                               initial={{ opacity: 0, scale: 0.5 }}
                               animate={{ opacity: 1, scale: 1 }}
                               exit={{ opacity: 0, scale: 1.5 }}
@@ -928,7 +918,7 @@ export default function FlashcardSet() {
                                 {quizFeedback.correct ? <CheckCircle className="w-16 h-16 text-white" /> : <X className="w-16 h-16 text-white" />}
                               </div>
                               {!quizFeedback.correct && (
-                                <motion.div 
+                                <motion.div
                                   initial={{ y: 20, opacity: 0 }}
                                   animate={{ y: 0, opacity: 1 }}
                                   className="mt-6 bg-white/10 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/10"
@@ -949,7 +939,8 @@ export default function FlashcardSet() {
         </div>
       </div>
 
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .perspective { perspective: 1200px; }
         .preserve-3d { transform-style: preserve-3d; }
         .backface-hidden { backface-visibility: hidden; }
@@ -988,7 +979,7 @@ function QuizHistoryChart({ data }) {
   const height = 150;
   const width = 500;
   const padding = 20;
-  
+
   const maxValue = 100;
   const points = data.map((d, i) => {
     const x = padding + (i / (data.length - 1)) * (width - padding * 2);
@@ -997,7 +988,7 @@ function QuizHistoryChart({ data }) {
   });
 
   const linePath = points.map((p, i) => (i === 0 ? `M ${p.x},${p.y}` : `L ${p.x},${p.y}`)).join(' ');
-  const areaPath = `${linePath} L ${points[points.length-1].x},${height-padding} L ${points[0].x},${height-padding} Z`;
+  const areaPath = `${linePath} L ${points[points.length - 1].x},${height - padding} L ${points[0].x},${height - padding} Z`;
 
   return (
     <div className="w-full overflow-x-auto no-scrollbar">
@@ -1018,30 +1009,30 @@ function QuizHistoryChart({ data }) {
           const y = height - padding - (v / 100) * (height - padding * 2);
           return (
             <g key={v}>
-              <line x1={padding} y1={y} x2={width-padding} y2={y} stroke="#ffffff" strokeOpacity="0.05" strokeDasharray="4 4" />
+              <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="#ffffff" strokeOpacity="0.05" strokeDasharray="4 4" />
               <text x={0} y={y + 3} fontSize="8" fill="#4b5563" fontWeight="bold">{v}%</text>
             </g>
           );
         })}
 
         {/* Area */}
-        <motion.path 
+        <motion.path
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1 }}
-          d={areaPath} fill="url(#areaGrad)" 
+          d={areaPath} fill="url(#areaGrad)"
         />
-        
+
         {/* Line */}
-        <motion.path 
+        <motion.path
           initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1.5, ease: "easeInOut" }}
-          d={linePath} fill="none" stroke="url(#lineGrad)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" 
+          d={linePath} fill="none" stroke="url(#lineGrad)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
         />
 
         {/* Points */}
         {points.map((p, i) => (
-          <motion.circle 
-            key={i} 
+          <motion.circle
+            key={i}
             initial={{ r: 0 }} animate={{ r: 4 }} transition={{ delay: 1 + i * 0.1 }}
-            cx={p.x} cy={p.y} fill="#1a1a1a" stroke="#6366f1" strokeWidth="2" 
+            cx={p.x} cy={p.y} fill="#1a1a1a" stroke="#6366f1" strokeWidth="2"
           />
         ))}
       </svg>
@@ -1054,18 +1045,18 @@ function HistoryDashboard({ history }) {
     <>
       <div className="bg-[#1a1a1a] border border-gray-800 rounded-3xl p-8 shadow-2xl w-full">
         <div className="flex items-center justify-between mb-8">
-           <div>
-             <h3 className="text-lg font-black text-white">Tiến trình học tập</h3>
-             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Sự thay đổi điểm số qua các lần kiểm tra</p>
-           </div>
-           <div className="text-right">
-             <div className="text-3xl font-black text-indigo-400">
-               {history.length > 0 ? `${Math.round(history.reduce((a,b)=>a+b.percentage,0)/history.length)}%` : '--'}
-             </div>
-             <div className="text-[9px] text-indigo-500/60 font-black uppercase tracking-wider">Tỉ lệ TB</div>
-           </div>
+          <div>
+            <h3 className="text-lg font-black text-white">Tiến trình học tập</h3>
+            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Sự thay đổi điểm số qua các lần kiểm tra</p>
+          </div>
+          <div className="text-right">
+            <div className="text-3xl font-black text-indigo-400">
+              {history.length > 0 ? `${Math.round(history.reduce((a, b) => a + b.percentage, 0) / history.length)}%` : '--'}
+            </div>
+            <div className="text-[9px] text-indigo-500/60 font-black uppercase tracking-wider">Tỉ lệ TB</div>
+          </div>
         </div>
-        
+
         {history.length > 1 ? (
           <QuizHistoryChart data={history} />
         ) : (
@@ -1082,11 +1073,10 @@ function HistoryDashboard({ history }) {
           [...history].reverse().slice(0, 5).map((h, i) => (
             <div key={i} className="bg-[#1a1a1a] border border-gray-800 rounded-2xl p-5 flex items-center justify-between hover:border-gray-700 transition-colors">
               <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-sm ${
-                  h.percentage >= 80 ? 'bg-green-500/20 text-green-500' :
-                  h.percentage >= 50 ? 'bg-yellow-500/20 text-yellow-500' :
-                  'bg-red-500/20 text-red-500'
-                }`}>
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-sm ${h.percentage >= 80 ? 'bg-green-500/20 text-green-500' :
+                    h.percentage >= 50 ? 'bg-yellow-500/20 text-yellow-500' :
+                      'bg-red-500/20 text-red-500'
+                  }`}>
                   {h.percentage}%
                 </div>
                 <div>
@@ -1110,7 +1100,7 @@ function StudyCard({ card, isFlipped, onFlip, onSwipe, onSpeak, isSpeaking }) {
   const rotate = useTransform(x, [-200, 200], [-25, 25]);
   const opacity = useTransform(x, [-250, -150, 0, 150, 250], [0, 1, 1, 1, 0]);
   const bgColor = useTransform(x, [-100, 0, 100], ['#ef4444', '#1a1a1a', '#22c55e']);
-  
+
   // Labels when dragging
   const labelOpacityRight = useTransform(x, [50, 100], [0, 1]);
   const labelOpacityLeft = useTransform(x, [-50, -100], [0, 1]);
@@ -1121,7 +1111,7 @@ function StudyCard({ card, isFlipped, onFlip, onSwipe, onSpeak, isSpeaking }) {
   };
 
   return (
-    <motion.div 
+    <motion.div
       style={{ x, rotate, opacity }}
       drag="x"
       dragConstraints={{ left: 0, right: 0 }}
@@ -1140,15 +1130,15 @@ function StudyCard({ card, isFlipped, onFlip, onSwipe, onSpeak, isSpeaking }) {
         </motion.div>
 
         {/* Front */}
-        <motion.div 
+        <motion.div
           style={{ backgroundColor: bgColor }}
           className="absolute inset-0 backface-hidden border-2 border-gray-800 rounded-[2.5rem] p-12 flex flex-col items-center justify-center text-center shadow-2xl"
         >
           <div className="absolute top-8 left-8 text-[10px] font-black text-gray-500 uppercase tracking-widest">Thuật ngữ</div>
           <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight leading-tight">{card.word}</h2>
           <div className="flex items-center gap-3 mt-4">
-            <button 
-              onClick={(e) => { e.stopPropagation(); onSpeak(card.word); }} 
+            <button
+              onClick={(e) => { e.stopPropagation(); onSpeak(card.word); }}
               className={`p-3 rounded-2xl transition-all ${isSpeaking === card.word ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/50' : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'}`}
             >
               <Volume2 className={`w-6 h-6 ${isSpeaking === card.word ? 'animate-pulse' : ''}`} />
@@ -1174,7 +1164,7 @@ function StudyCard({ card, isFlipped, onFlip, onSwipe, onSpeak, isSpeaking }) {
             </div>
           )}
           <div className="absolute bottom-10 flex items-center gap-3 text-[10px] font-black text-indigo-500/40 uppercase tracking-[0.3em]">
-             CHẠM ĐỂ QUAY LẠI
+            CHẠM ĐỂ QUAY LẠI
           </div>
         </div>
       </div>
