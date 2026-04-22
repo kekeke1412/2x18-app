@@ -18,7 +18,7 @@ const toArr = v => {
 };
 
 export default function Vocab() {
-  const { vocab = {}, currentUser, isSuperAdmin, isCore, members, addVocabSet, deleteVocabSet, userVocab = {} } = useApp();
+  const { vocab = {}, currentUser, isSuperAdmin, isCore, members, addVocabSet, deleteVocabSet, userVocab = {}, quizHistory = {} } = useApp();
   const canSeeStats = isSuperAdmin || isCore;
   const [activeTab, setActiveTab] = useState('sets'); // 'sets' | 'stats'
   const [showAddModal, setShowAddModal] = useState(false);
