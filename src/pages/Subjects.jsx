@@ -481,7 +481,10 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
                 {docs.map(d => (
                   <div key={d.id} className="flex items-center gap-3 p-2 bg-[#111] rounded-xl border border-gray-800">
                     <FileText className="w-4 h-4 text-blue-400"/>
-                    <a href={d.url} target="_blank" rel="noreferrer" className="text-xs font-medium text-blue-400 hover:underline truncate flex-1">{d.name}</a>
+                    <div className="flex-1 min-w-0">
+                      <a href={d.url} target="_blank" rel="noreferrer" className="text-xs font-bold text-blue-400 hover:underline truncate block">{d.name}</a>
+                      <div className="text-[10px] text-gray-600 mt-0.5">{d.type} · {d.uploadedByName || 'SME'} · {d.uploadedAt}</div>
+                    </div>
                     <div className="flex gap-1">
                       {[1,2,3,4,5].map(s=>(
                         <Star key={s} onClick={()=>rateDoc(sub.id,d.id,s)} className={`w-3 h-3 cursor-pointer ${s<=(d.ratings?.[currentUser?.id]||0)?'text-yellow-400':'text-gray-700'}`} fill={s<=(d.ratings?.[currentUser?.id]||0)?'currentColor':'none'}/>

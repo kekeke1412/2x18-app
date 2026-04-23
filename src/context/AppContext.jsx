@@ -483,15 +483,35 @@ export function AppProvider({ children }) {
       listen('2x18_notifs', 'notifications', toArr);
       listen('2x18_attendance', 'attendance', v => toArr(v).map(sess => ({ ...sess, present: Array.isArray(sess.present) ? sess.present.filter(Boolean) : toArr(sess.present), total: sess.total || 0 })));
       listen('2x18_contributions', 'contributions', v => v || {});
-      listen('2x18_docs', 'docs', v => v || {});
+      listen('2x18_docs', 'docs', v => {
+        if (!v) return {};
+        const obj = {};
+        Object.keys(v).forEach(sid => { obj[sid] = toArr(v[sid]); });
+        return obj;
+      });
       listen('2x18_audit', 'auditLogs', toArr);
-      listen('2x18_subject_tasks', 'subjectTasks', v => v || {});
-      listen('2x18_subject_comments', 'subjectComments', v => v || {});
+      listen('2x18_subject_tasks', 'subjectTasks', v => {
+        if (!v) return {};
+        const obj = {};
+        Object.keys(v).forEach(sid => { obj[sid] = toArr(v[sid]); });
+        return obj;
+      });
+      listen('2x18_subject_comments', 'subjectComments', v => {
+        if (!v) return {};
+        const obj = {};
+        Object.keys(v).forEach(sid => { obj[sid] = toArr(v[sid]); });
+        return obj;
+      });
       listen('2x18_semester_labels', 'semesterLabels', v => v || {});
       listen('2x18_trash', 'trash', toArr);
       listen('2x18_vocab', 'vocab', v => v || {});
       listen('2x18_user_vocab', 'userVocab', v => v || {});
-      listen('2x18_quiz_history', 'quizHistory', v => v || {});
+      listen('2x18_quiz_history', 'quizHistory', v => {
+        if (!v) return {};
+        const obj = {};
+        Object.keys(v).forEach(uid => { obj[uid] = toArr(v[uid]); });
+        return obj;
+      });
       listen('2x18_config', 'config', v => v || {});
 
       // 3. Isolated Reports Listener
@@ -576,16 +596,17 @@ export function AppProvider({ children }) {
     fbSet('2x18_notifs',           state.notifications);
     fbSet('2x18_attendance',       state.attendance);
     fbSet('2x18_contributions',    state.contributions);
-    fbSet('2x18_docs',             state.docs);
+    // Nodes below use direct writes in their respective services for reliability
+    // fbSet('2x18_docs',             state.docs);
+    // fbSet('2x18_vocab',            state.vocab);
+    // fbSet('2x18_subject_tasks',    state.subjectTasks);
+    // fbSet('2x18_subject_comments', state.subjectComments);
+    // fbSet('2x18_quiz_history',     state.quizHistory);
+    
     fbSet('2x18_audit',            state.auditLogs);
-    fbSet('2x18_subject_tasks',    state.subjectTasks);
-    fbSet('2x18_subject_comments', state.subjectComments);
     fbSet('2x18_semester_labels',  state.semesterLabels);
     fbSet('2x18_trash',            state.trash);
-    fbSet('2x18_vocab',            state.vocab);
     fbSet('2x18_user_vocab',       state.userVocab);
-    // fbSet('2x18_config',           state.config); // Handled by updateConfig to avoid loops
-    // fbSet('2x18_quiz_history',     state.quizHistory); // Removed from global sync for reliability
     Object.entries(state.grades).forEach(([uid, g]) => {
       if (uid && g) fbSet(`${uid}_grades`, g);
     });
@@ -927,21 +948,68 @@ export function AppProvider({ children }) {
     }
   }, [state.tasks, state.currentUser?.id, toast]);
 
-  const addSubjectTask    = useCallback((sid,t) => { dispatch({type:A.ADD_SUBJECT_TASK,payload:{subjectId:sid,task:{...t,id:uid(),doneBy:{}}}}); toast('Thêm mục!','success'); }, [toast]);
-  const editSubjectTask   = useCallback((sid,t) => dispatch({type:A.EDIT_SUBJECT_TASK,payload:{subjectId:sid,task:t}}), []);
-  const deleteSubjectTask = useCallback((sid,id) => { dispatch({ type:A.DELETE_SUBJECT_TASK, payload:{ subjectId:sid, taskId:id, ...trashMeta() } }); toast('Đã chuyển vào thùng rác.', 'info'); }, [trashMeta, toast]);
-  const tickSubjectTask   = useCallback((sid,tid,userId,done) => dispatch({type:A.TICK_SUBJECT_TASK,payload:{subjectId:sid,taskId:tid,userId,done}}), []);
+  const addSubjectTask = useCallback((sid, t) => {
+    const taskId = uid();
+    const task = { ...t, id: taskId, doneBy: {} };
+    dispatch({ type: A.ADD_SUBJECT_TASK, payload: { subjectId: sid, task } });
+    
+    // Direct Firebase update
+    const currentTasks = toArr(state.subjectTasks[sid]);
+    set(ref(db, `2x18_subject_tasks/${sid}`), [...currentTasks, task]);
+    
+    toast('Thêm mục!', 'success');
+  }, [state.subjectTasks, toast]);
+
+  const editSubjectTask = useCallback((sid, t) => {
+    dispatch({ type: A.EDIT_SUBJECT_TASK, payload: { subjectId: sid, task: t } });
+    
+    // Direct Firebase update for the specific task in the list
+    const currentTasks = toArr(state.subjectTasks[sid]);
+    const nextTasks = currentTasks.map(x => x.id === t.id ? { ...x, ...t } : x);
+    set(ref(db, `2x18_subject_tasks/${sid}`), nextTasks);
+  }, [state.subjectTasks]);
+
+  const deleteSubjectTask = useCallback((sid, id) => {
+    const meta = trashMeta();
+    const item = toArr(state.subjectTasks[sid]).find(t => t.id === id);
+    dispatch({ type: A.DELETE_SUBJECT_TASK, payload: { subjectId: sid, taskId: id, ...meta } });
+    
+    // Direct Firebase update
+    const nextTasks = toArr(state.subjectTasks[sid]).filter(t => t.id !== id);
+    set(ref(db, `2x18_subject_tasks/${sid}`), nextTasks);
+    
+    if (item) {
+      set(ref(db, `2x18_trash/${meta.trashId}`), { id: meta.trashId, type: 'subjectTask', data: item, meta });
+    }
+    
+    toast('Đã chuyển vào thùng rác.', 'info');
+  }, [state.subjectTasks, trashMeta, toast]);
+
+  const tickSubjectTask = useCallback((sid, tid, userId, done) => {
+    dispatch({ type: A.TICK_SUBJECT_TASK, payload: { subjectId: sid, taskId: tid, userId, done } });
+    
+    // Update specific task's doneBy in Firebase
+    // We update the whole array for simplicity and to match the listener structure
+    const currentTasks = toArr(state.subjectTasks[sid]);
+    const nextTasks = currentTasks.map(t => t.id === tid ? { ...t, doneBy: { ...(t.doneBy || {}), [userId]: done } } : t);
+    set(ref(db, `2x18_subject_tasks/${sid}`), nextTasks);
+  }, [state.subjectTasks]);
 
   const addSubjectComment = useCallback((subjectId, text) => {
+    const commentId = uid();
     const comment = {
-      id: uid(),
+      id: commentId,
       user: state.currentUser?.fullName || 'Ẩn danh',
       text,
       time: new Date().toLocaleTimeString('vi'),
       date: new Date().toLocaleDateString('vi-VN'),
     };
-    dispatch({ type:A.ADD_SUBJECT_COMMENT, payload:{ subjectId, comment } });
-  }, [state.currentUser]);
+    dispatch({ type: A.ADD_SUBJECT_COMMENT, payload: { subjectId, comment } });
+    
+    // Direct Firebase update
+    const currentComments = toArr(state.subjectComments[subjectId]);
+    set(ref(db, `2x18_subject_comments/${subjectId}`), [...currentComments, comment]);
+  }, [state.currentUser, state.subjectComments]);
 
   const setSme   = useCallback(p  => { dispatch({type:A.SET_SME,payload:p}); addAudit('Đổi SME',p.subjectId); toast('Cập nhật SME!','success'); }, [addAudit,toast]);
   const addEvent    = useCallback(e  => dispatch({type:A.ADD_EVENT,  payload:{...e,id:uid()}}), []);
@@ -1061,26 +1129,69 @@ export function AppProvider({ children }) {
     toast('Đã chuyển tài liệu vào thùng rác', 'info');
   }, [state.reports, trashMeta, addAudit, toast]);
 
-  const addDoc = useCallback((subjectId,doc) => {
-    const full = {...doc,id:uid(),uploadedBy:state.currentUser?.id,uploadedByName:state.currentUser?.fullName,uploadedAt:new Date().toLocaleDateString('vi-VN'),ratings:{},avgRating:0};
-    dispatch({type:A.ADD_DOC,payload:{subjectId,doc:full}});
-    addAudit('Upload tài liệu',subjectId,doc.name);
-    dispatch({type:A.ADD_CONTRIBUTION,payload:{userId:state.currentUser?.id,points:2000}});
+  const addDoc = useCallback((subjectId, doc) => {
+    const docId = uid();
+    const full = {
+      ...doc,
+      id: docId,
+      uploadedBy: state.currentUser?.id,
+      uploadedByName: state.currentUser?.fullName,
+      uploadedAt: new Date().toLocaleDateString('vi-VN'),
+      ratings: {},
+      avgRating: 0
+    };
+    
+    dispatch({ type: A.ADD_DOC, payload: { subjectId, doc: full } });
+    
+    // Direct Firebase update
+    const currentDocs = toArr(state.docs[subjectId]);
+    set(ref(db, `2x18_docs/${subjectId}`), [...currentDocs, full]);
+
+    addAudit('Upload tài liệu', subjectId, doc.name);
+    dispatch({ type: A.ADD_CONTRIBUTION, payload: { userId: state.currentUser?.id, points: 2000 } });
     pushNotif(`📄 Tài liệu mới: "${doc.name}" — môn ${subjectId}`, 'sme', '/subjects');
-    toast(`Thêm "${doc.name}"! +2000 điểm`,'success');
-  }, [addAudit, pushNotif, toast, state.currentUser]);
+    toast(`Thêm "${doc.name}"! +2000 điểm`, 'success');
+  }, [state.docs, state.currentUser, addAudit, pushNotif, toast]);
 
-  const deleteDoc = useCallback((sid,did) => { dispatch({ type:A.DELETE_DOC, payload:{ subjectId:sid, docId:did, ...trashMeta() } }); toast('Đã chuyển vào thùng rác.', 'info'); }, [trashMeta, toast]);
-
-  const rateDoc = useCallback((sid,did,stars) => {
-    dispatch({type:A.RATE_DOC,payload:{subjectId:sid,docId:did,userId:state.currentUser?.id,stars}});
-    if (stars===5) {
-      const doc=(state.docs[sid]||[]).find(d=>d.id===did);
-      if (doc?.uploadedBy && doc.uploadedBy!==state.currentUser?.id)
-        dispatch({type:A.ADD_CONTRIBUTION,payload:{userId:doc.uploadedBy,points:3000}});
+  const deleteDoc = useCallback((sid, did) => {
+    const meta = trashMeta();
+    const item = toArr(state.docs[sid]).find(d => d.id === did);
+    dispatch({ type: A.DELETE_DOC, payload: { subjectId: sid, docId: did, ...meta } });
+    
+    // Direct Firebase update
+    const nextDocs = toArr(state.docs[sid]).filter(x => x.id !== did);
+    set(ref(db, `2x18_docs/${sid}`), nextDocs);
+    
+    if (item) {
+      set(ref(db, `2x18_trash/${meta.trashId}`), { id: meta.trashId, type: 'doc', data: item, meta: { subjectId: sid } });
     }
-    toast(`Đánh giá ${stars} sao!`,'success');
-  }, [state.currentUser?.id,state.docs,toast]);
+    
+    toast('Đã chuyển vào thùng rác.', 'info');
+  }, [state.docs, trashMeta, toast]);
+
+  const rateDoc = useCallback((sid, did, stars) => {
+    dispatch({ type: A.RATE_DOC, payload: { subjectId: sid, docId: did, userId: state.currentUser?.id, stars } });
+    
+    // Calculate new ratings and average
+    const currentDocs = toArr(state.docs[sid]);
+    const nextDocs = currentDocs.map(doc => {
+      if (doc.id !== did) return doc;
+      const ratings = { ...(doc.ratings || {}), [state.currentUser?.id]: stars };
+      const vals = Object.values(ratings);
+      const avg = vals.reduce((a, v) => a + v, 0) / vals.length;
+      return { ...doc, ratings, avgRating: Math.round(avg * 10) / 10 };
+    });
+    
+    // Update Firebase
+    set(ref(db, `2x18_docs/${sid}`), nextDocs);
+
+    if (stars === 5) {
+      const doc = currentDocs.find(d => d.id === did);
+      if (doc?.uploadedBy && doc.uploadedBy !== state.currentUser?.id)
+        dispatch({ type: A.ADD_CONTRIBUTION, payload: { userId: doc.uploadedBy, points: 3000 } });
+    }
+    toast(`Đánh giá ${stars} sao!`, 'success');
+  }, [state.currentUser?.id, state.docs, toast]);
 
   const updateRole = useCallback(p => {
     dispatch({type:A.UPDATE_MEMBER_ROLE,payload:p});
@@ -1100,16 +1211,22 @@ export function AppProvider({ children }) {
   }, [state.currentUser, toast]);
 
   const editVocabSet = useCallback((setObj) => {
+    if (!setObj || !setObj.id) return;
     dispatch({ type: A.EDIT_VOCAB_SET, payload: setObj });
     set(ref(db, `2x18_vocab/${setObj.id}`), setObj);
     toast('Đã cập nhật học phần!', 'success');
   }, [toast]);
 
   const deleteVocabSet = useCallback((id) => {
-    dispatch({ type: A.DELETE_VOCAB_SET, payload: { id } });
+    const meta = trashMeta();
+    const item = state.vocab[id];
+    dispatch({ type: A.DELETE_VOCAB_SET, payload: { id, ...meta } });
     set(ref(db, `2x18_vocab/${id}`), null);
+    if (item) {
+      set(ref(db, `2x18_trash/${meta.trashId}`), { id: meta.trashId, type: 'vocabSet', data: item, meta });
+    }
     toast('Đã xóa học phần.', 'info');
-  }, [toast]);
+  }, [state.vocab, trashMeta, toast]);
 
   const markWordLearned = useCallback((setId, wordIndex, learned) => {
     if (!state.currentUser?.id) return;
@@ -1146,9 +1263,9 @@ export function AppProvider({ children }) {
     
     dispatch({ type: A.ADD_QUIZ_RESULT, payload: { userId, result: fullResult } });
     
-    const existingHistory = state.quizHistory[userId] || [];
+    const existingHistory = toArr(state.quizHistory[userId]);
     const newHistory = [fullResult, ...existingHistory].slice(0, 50);
-    fbSet(`2x18_quiz_history/${userId}`, newHistory);
+    set(ref(db, `2x18_quiz_history/${userId}`), newHistory);
   }, [state.currentUser, state.quizHistory]);
 
 
