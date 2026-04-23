@@ -569,7 +569,7 @@ export default function Dashboard() {
 
   const mySmeSubjects  = useMemo(() =>
     Object.entries(smeMap)
-      .filter(([, uid]) => uid === currentUser?.id)
+      .filter(([, name]) => name === currentUser?.fullName)
       .map(([id]) => subjectDatabase.find(s => s.id === id))
       .filter(Boolean),
     [smeMap, currentUser?.id]

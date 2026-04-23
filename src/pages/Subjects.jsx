@@ -393,9 +393,11 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
               ) : <span className="text-xs text-gray-400">{sme||'Chưa có SME'}</span>}
             </div>
           )}
-          <button onClick={()=>onUpload(sub)} className="flex items-center gap-1 text-[10px] font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-1 rounded-lg">
-            <Link className="w-3 h-3"/> Tài liệu
-          </button>
+          {(isSme || isCore) && (
+            <button onClick={()=>onUpload(sub)} className="flex items-center gap-1 text-[10px] font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-1 rounded-lg">
+              <Plus className="w-3 h-3"/> Thêm tài liệu
+            </button>
+          )}
         </div>
 
         {(learnerMap['Đang học'].length > 0 || learnerMap['Đã học'].length > 0) && (
