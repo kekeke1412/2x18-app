@@ -34,7 +34,7 @@ export default function FlashcardSet() {
   const [description, setDescription] = useState('');
   const [title, setTitle] = useState('');
 
-  const isOwner = set?.authorId === currentUser?.id || isSuperAdmin || isCore;
+  const canEdit = !!currentUser; // Everyone can edit
 
   // Study (Swipe + Flip) State
   const [studyIndex, setStudyIndex] = useState(0);
@@ -83,13 +83,13 @@ export default function FlashcardSet() {
   };
 
   useEffect(() => {
-    if (set) {
+    if (set && !isEditing) {
       setCards(toArr(set.terms));
       setExampleSource(set.exampleSource || '');
       setDescription(set.description || '');
       setTitle(set.title || '');
     }
-  }, [set]);
+  }, [set, isEditing]);
 
   if (!set) return <div className="p-10 text-center text-gray-500 font-bold">Học phần không tồn tại.</div>;
 
@@ -340,7 +340,7 @@ export default function FlashcardSet() {
               <Sparkles className="w-3.5 h-3.5" /> <span className="hidden md:inline">{hideMastered ? 'HIỆN TẤT CẢ' : 'ẨN TỪ ĐÃ THUỘC'}</span>
             </button>
           )}
-          {activeTab === 'list' && isOwner && (
+          {activeTab === 'list' && canEdit && (
             <>
               {isEditing ? (
                 <button onClick={handleSave} className="flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-xl text-xs font-black transition-all shadow-lg shadow-green-900/20">
