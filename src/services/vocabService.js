@@ -21,7 +21,7 @@ Provide: IPA, Type (n, v, adj, adv, phr v, idiom, collocation), Level (A1, A2, B
 
 STRICT REQUIREMENTS:
 1. Examples: ${exampleGuidance}
-2. Example Length: Under 15 words.
+2. Example Length: Under 12 words.
 3. Language: Professional and technical.
 
 Required JSON structure:
