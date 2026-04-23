@@ -924,8 +924,8 @@ export function AppProvider({ children }) {
     const prevValue = state.grades[userId]?.[subjectId]?.myProgress || 0;
     dispatch({ type:A.UPDATE_PROGRESS, payload:{ userId, subjectId, value } });
     if (value === 100 && prevValue < 100) {
-      dispatch({type:A.ADD_CONTRIBUTION, payload:{userId, points:3000}});
-      toast('Chúc mừng! Tiến độ môn học đạt 100%. +3000 điểm 🎓', 'success');
+      dispatch({type:A.ADD_CONTRIBUTION, payload:{userId, points:1000}});
+      toast('Chúc mừng! Tiến độ môn học đạt 100%. +1000 điểm 🎓', 'success');
     }
   }, [state.grades, toast]);
 
@@ -943,8 +943,8 @@ export function AppProvider({ children }) {
     const nextDone = !task.done;
     dispatch({type:A.TOGGLE_TASK,payload:id});
     if (nextDone) {
-      dispatch({type:A.ADD_CONTRIBUTION, payload:{userId:state.currentUser?.id, points:1500}});
-      toast('Hoàn thành task! +1500 điểm 🎉', 'success');
+      dispatch({type:A.ADD_CONTRIBUTION, payload:{userId:state.currentUser?.id, points:500}});
+      toast('Hoàn thành task! +500 điểm 🎉', 'success');
     }
   }, [state.tasks, state.currentUser?.id, toast]);
 
@@ -1028,9 +1028,9 @@ export function AppProvider({ children }) {
   }, [pushNotif]);
   const castVote      = useCallback(p => {
     dispatch({type:A.CAST_VOTE, payload:p});
-    // Award 500 points for voting
-    dispatch({type:A.ADD_CONTRIBUTION, payload:{userId:state.currentUser?.id, points:500}});
-    toast('Đã ghi nhận bình chọn! +500 điểm 🎉', 'success');
+    // Award 200 points for voting
+    dispatch({type:A.ADD_CONTRIBUTION, payload:{userId:state.currentUser?.id, points:200}});
+    toast('Đã ghi nhận bình chọn! +200 điểm 🎉', 'success');
   }, [state.currentUser?.id, toast]);
   const closeVote     = useCallback(id => {
     dispatch({type:A.CLOSE_VOTE, payload:id});
@@ -1057,7 +1057,7 @@ export function AppProvider({ children }) {
     if (!sess) return;
     
     if (checked && !sess.present?.includes(userId))
-      dispatch({ type: A.ADD_CONTRIBUTION, payload: { userId, points: 1000 } });
+      dispatch({ type: A.ADD_CONTRIBUTION, payload: { userId, points: 500 } });
     
     dispatch({ type: A.CHECK_ATTENDANCE, payload: { sessionId, userId, checked } });
     
@@ -1097,8 +1097,11 @@ export function AppProvider({ children }) {
     // Ghi vào bản ghi cụ thể, tránh ghi đè toàn bộ mảng
     set(ref(db, `2x18_reports/${id}`), newReport); 
     
+    // Cộng điểm cho việc đăng báo cáo
+    dispatch({ type: A.ADD_CONTRIBUTION, payload: { userId: state.currentUser?.id, points: 1000 } });
+
     addAudit('Đăng báo cáo', r.title, `Trạng thái: ${r.status}`);
-    toast(r.status === 'approved' ? 'Đã đăng và tự động duyệt!' : 'Đã gửi báo cáo, chờ phê duyệt.', 'success');
+    toast(r.status === 'approved' ? 'Đã đăng và tự động duyệt! +1000đ' : 'Đã gửi báo cáo, chờ phê duyệt. +1000đ', 'success');
   }, [addAudit, toast]);
 
   const approveReport = useCallback((id) => {
@@ -1148,9 +1151,9 @@ export function AppProvider({ children }) {
     set(ref(db, `2x18_docs/${subjectId}`), [...currentDocs, full]);
 
     addAudit('Upload tài liệu', subjectId, doc.name);
-    dispatch({ type: A.ADD_CONTRIBUTION, payload: { userId: state.currentUser?.id, points: 2000 } });
+    dispatch({ type: A.ADD_CONTRIBUTION, payload: { userId: state.currentUser?.id, points: 1000 } });
     pushNotif(`📄 Tài liệu mới: "${doc.name}" — môn ${subjectId}`, 'sme', '/subjects');
-    toast(`Thêm "${doc.name}"! +2000 điểm`, 'success');
+    toast(`Thêm "${doc.name}"! +1000 điểm`, 'success');
   }, [state.docs, state.currentUser, addAudit, pushNotif, toast]);
 
   const deleteDoc = useCallback((sid, did) => {
@@ -1188,7 +1191,7 @@ export function AppProvider({ children }) {
     if (stars === 5) {
       const doc = currentDocs.find(d => d.id === did);
       if (doc?.uploadedBy && doc.uploadedBy !== state.currentUser?.id)
-        dispatch({ type: A.ADD_CONTRIBUTION, payload: { userId: doc.uploadedBy, points: 3000 } });
+        dispatch({ type: A.ADD_CONTRIBUTION, payload: { userId: doc.uploadedBy, points: 1000 } });
     }
     toast(`Đánh giá ${stars} sao!`, 'success');
   }, [state.currentUser?.id, state.docs, toast]);
@@ -1207,7 +1210,10 @@ export function AppProvider({ children }) {
     const newSet = { ...setObj, id, authorId: state.currentUser?.id, authorName: state.currentUser?.fullName, createdAt: new Date().toISOString() };
     dispatch({ type: A.ADD_VOCAB_SET, payload: newSet });
     set(ref(db, `2x18_vocab/${id}`), newSet);
-    toast('Đã tạo học phần mới!', 'success');
+    
+    // Cộng điểm cho việc tạo học phần
+    dispatch({ type: A.ADD_CONTRIBUTION, payload: { userId: state.currentUser?.id, points: 500 } });
+    toast('Đã tạo học phần mới! +500đ', 'success');
   }, [state.currentUser, toast]);
 
   const editVocabSet = useCallback((setObj) => {
@@ -1249,6 +1255,11 @@ export function AppProvider({ children }) {
 
       // Update Firebase leaf node directly to prevent overwriting other word updates
       set(ref(db, `2x18_user_vocab/${userId}/${setId}/${wordIndex}`), newLevel);
+
+      // Cộng điểm khi nhớ sâu (Level 6)
+      if (newLevel === 6 && currentLevel < 6) {
+        dispatch({ type: A.ADD_CONTRIBUTION, payload: { userId, points: 500 } });
+      }
     } catch (e) {
       console.error('[incrementWordLevel]', e);
     }
@@ -1266,7 +1277,13 @@ export function AppProvider({ children }) {
     const existingHistory = toArr(state.quizHistory[userId]);
     const newHistory = [fullResult, ...existingHistory].slice(0, 50);
     set(ref(db, `2x18_quiz_history/${userId}`), newHistory);
-  }, [state.currentUser, state.quizHistory]);
+
+    // Cộng điểm khi đạt 100%
+    if (result.percentage === 100) {
+      dispatch({ type: A.ADD_CONTRIBUTION, payload: { userId, points: 1000 } });
+      toast('Tuyệt vời! 100% chính xác +1000đ', 'success');
+    }
+  }, [state.currentUser, state.quizHistory, toast]);
 
 
 
