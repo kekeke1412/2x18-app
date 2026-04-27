@@ -117,6 +117,78 @@ function MemberProgressModal({ member, subjectId, subjectName, onClose }) {
     </motion.div>
   );
 }
+// ── Group Progress Modal ──────────────────────────────────────────────
+function GroupProgressModal({ subjectId, subjectName, learners, onClose }) {
+  const { subjectTasks } = useApp();
+  const tasks = toArr(subjectTasks?.[subjectId]);
+  const totalLearners = learners.length;
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" 
+      onClick={onClose}
+    >
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="bg-[#1e1e1e] border border-gray-700 rounded-2xl w-full max-w-md shadow-2xl max-h-[80vh] flex flex-col"
+        onClick={e=>e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800 shrink-0">
+          <div>
+            <h3 className="font-bold text-white text-sm">Thống kê Checklist Nhóm</h3>
+            <div className="text-[10px] text-gray-500 mt-0.5">{subjectName} · {totalLearners} thành viên</div>
+          </div>
+          <button onClick={onClose} className="p-1 text-gray-500 hover:text-white shrink-0">
+            <X className="w-5 h-5"/>
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto custom-scrollbar px-5 py-4 space-y-4">
+          {tasks.length === 0 ? (
+            <div className="text-center py-8 text-gray-600 text-sm">Chưa có checklist.</div>
+          ) : totalLearners === 0 ? (
+            <div className="text-center py-8 text-gray-600 text-sm">Chưa có thành viên nào đang/đã học môn này.</div>
+          ) : (
+            tasks.map(t => {
+              const doneMembers = learners.filter(m => t.doneBy?.[m.id]);
+              const doneCount = doneMembers.length;
+              const pct = Math.round((doneCount / totalLearners) * 100);
+              return (
+                <div key={t.id} className="bg-[#111] p-3 rounded-xl border border-gray-800">
+                  <div className="flex justify-between items-start mb-2 gap-2">
+                    <span className="text-sm text-gray-300 font-medium leading-snug">{t.title}</span>
+                    <span className="text-xs font-bold shrink-0" style={{color:progressColor(pct)}}>{pct}%</span>
+                  </div>
+                  <ProgressBar value={pct} height={4} />
+                  <div className="mt-3 flex items-center justify-between">
+                    <span className="text-[10px] text-gray-500">{doneCount}/{totalLearners} đã hoàn thành</span>
+                    <div className="flex -space-x-1.5">
+                      {doneMembers.slice(0, 7).map(m => (
+                        <div key={m.id} title={m.fullName} className="relative">
+                          <UserAvatar user={m} size={20} className="border-2 border-[#111]" />
+                        </div>
+                      ))}
+                      {doneMembers.length > 7 && (
+                        <div className="w-5 h-5 rounded-full bg-gray-800 border-2 border-[#111] flex items-center justify-center text-[8px] font-bold text-gray-400">
+                          +{doneMembers.length - 7}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
 
 // ── Add Doc Modal ──────────────────────────────────────────────────────────
 function AddDocModal({ subject, onClose, onAdd }) {
@@ -220,7 +292,7 @@ function AddDocModal({ subject, onClose, onAdd }) {
 }
 
 // ── Subject Task Panel (Checklist) ─────────────────────────────────────────
-function SubjectTaskPanel({ subjectId, isSme, currentUser }) {
+function SubjectTaskPanel({ subjectId, isSme, currentUser, onOpenStats }) {
   const { subjectTasks, addSubjectTask, editSubjectTask, deleteSubjectTask, tickSubjectTask } = useApp();
   const tasks = toArr(subjectTasks[subjectId]);
 
@@ -251,6 +323,12 @@ function SubjectTaskPanel({ subjectId, isSme, currentUser }) {
             <button onClick={()=>setAdding(v=>!v)}
               className="text-[10px] text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-lg hover:bg-blue-500/10">
               <Plus className="w-3 h-3 inline"/> Thêm mục
+            </button>
+          )}
+          {onOpenStats && (
+            <button onClick={onOpenStats}
+              className="text-[10px] text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded-lg hover:bg-purple-500/10">
+              Thống kê
             </button>
           )}
         </div>
@@ -324,7 +402,7 @@ function SubjectTaskPanel({ subjectId, isSme, currentUser }) {
 }
 
 // ── Subject Card ───────────────────────────────────────────────────────────
-function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, docs: docsProp, members, currentUser, rateDoc, grades, onViewProgress }) {
+function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, docs: docsProp, members, currentUser, rateDoc, grades, onViewProgress, onOpenStats }) {
   const { subjectTasks, subjectComments, addSubjectComment, deleteDoc } = useApp();
   const [expanded,   setExpanded]   = useState(false);
   const [comment,    setComment]    = useState('');
@@ -417,7 +495,7 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
                 <span className="text-[10px] text-blue-400 font-bold uppercase tracking-tighter">Đang học:</span>
                 <div className="flex -space-x-1.5">
                   {learnerMap['Đang học'].slice(0, 5).map(m => (
-                    <div key={m.id} onClick={isCore ? () => onViewProgress(m) : undefined}
+                    <div key={m.id} onClick={isCore ? () => onViewProgress({ ...m, subjectId: sub.id, subjectName: sub.name }) : undefined}
                       className={`relative ${isCore ? 'cursor-pointer hover:z-10' : ''}`}>
                       <UserAvatar user={m} size={20} className="border-2 border-[#1a1a1a]" />
                     </div>
@@ -435,7 +513,7 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
                 <span className="text-[10px] text-green-400 font-bold uppercase tracking-tighter">Đã học:</span>
                 <div className="flex -space-x-1.5">
                   {learnerMap['Đã học'].slice(0, 5).map(m => (
-                    <div key={m.id} onClick={isCore ? () => onViewProgress(m) : undefined}
+                    <div key={m.id} onClick={isCore ? () => onViewProgress({ ...m, subjectId: sub.id, subjectName: sub.name }) : undefined}
                       className={`relative ${isCore ? 'cursor-pointer hover:z-10' : ''}`}>
                       <UserAvatar user={m} size={20} className="border-2 border-[#1a1a1a]" />
                       <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-[#1a1a1a] flex items-center justify-center">
@@ -458,7 +536,7 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
       <AnimatePresence>
         {expanded && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="border-t border-gray-800/60 bg-[#141414] overflow-hidden">
-            <SubjectTaskPanel subjectId={sub.id} isSme={isSme||isCore} currentUser={currentUser}/>
+            <SubjectTaskPanel subjectId={sub.id} isSme={isSme||isCore} currentUser={currentUser} onOpenStats={isCore || isSme ? () => onOpenStats({ subjectId: sub.id, subjectName: sub.name, learners: [...learnerMap['Đang học'], ...learnerMap['Đã học']] }) : undefined}/>
             
             {allLearners.length > 0 && (
               <div className="p-4 border-b border-gray-800/60 space-y-3">
@@ -473,7 +551,7 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
                       <div className={`text-[10px] font-black uppercase tracking-widest ${color}`}>{status}</div>
                       <div className="flex flex-wrap gap-1.5">
                         {list.map(m => (
-                          <div key={m.id} onClick={isCore ? () => onViewProgress(m) : undefined}
+                          <div key={m.id} onClick={isCore ? () => onViewProgress({ ...m, subjectId: sub.id, subjectName: sub.name }) : undefined}
                             className={`flex items-center gap-1.5 px-2 py-1 rounded-xl border border-gray-800 bg-[#111] ${isCore?'cursor-pointer hover:border-blue-500/30 transition-all':''}`}>
                             <UserAvatar user={m} size={16} />
                             <span className="text-[10px] text-gray-300">{m.fullName}</span>
@@ -535,6 +613,7 @@ export default function Subjects() {
   const [filterType,  setFilterType] = useState('learning');
   const [uploadSub,   setUploadSub]  = useState(null);
   const [memberProgress, setMemberProgress] = useState(null);
+  const [groupProgress, setGroupProgress] = useState(null);
 
   const filtered = subjectDatabase.filter(sub => {
     const q = search.toLowerCase();
@@ -569,7 +648,7 @@ export default function Subjects() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           <AnimatePresence mode="popLayout">
             {filtered.map(s => (
-              <SubjectCard key={s.id} sub={s} grade={myGrades[s.id]} sme={smeMap[s.id]} isCore={isCore} isSme={smeMap[s.id]===currentUser?.fullName} onChangeSme={(sid,n)=>setSme({subjectId:sid,userId:n})} onUpload={setUploadSub} docs={docs[s.id]} members={members} currentUser={currentUser} rateDoc={rateDoc} grades={grades} onViewProgress={setMemberProgress}/>
+              <SubjectCard key={s.id} sub={s} grade={myGrades[s.id]} sme={smeMap[s.id]} isCore={isCore} isSme={smeMap[s.id]===currentUser?.fullName} onChangeSme={(sid,n)=>setSme({subjectId:sid,userId:n})} onUpload={setUploadSub} docs={docs[s.id]} members={members} currentUser={currentUser} rateDoc={rateDoc} grades={grades} onViewProgress={setMemberProgress} onOpenStats={setGroupProgress}/>
             ))}
           </AnimatePresence>
         </div>
@@ -578,6 +657,7 @@ export default function Subjects() {
       <AnimatePresence>
         {uploadSub && <AddDocModal subject={uploadSub} onClose={()=>setUploadSub(null)} onAdd={(sid,f)=>addDoc(sid,f)} />}
         {memberProgress && <MemberProgressModal member={memberProgress} subjectId={memberProgress.subjectId} subjectName={memberProgress.subjectName} onClose={()=>setMemberProgress(null)} />}
+        {groupProgress && <GroupProgressModal subjectId={groupProgress.subjectId} subjectName={groupProgress.subjectName} learners={groupProgress.learners} onClose={()=>setGroupProgress(null)} />}
       </AnimatePresence>
     </motion.div>
   );

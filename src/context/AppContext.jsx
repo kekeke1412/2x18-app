@@ -594,9 +594,9 @@ export function AppProvider({ children }) {
     fbSet('2x18_roadmap',          state.roadmap);
     fbSet('2x18_votes',            state.votes);
     fbSet('2x18_notifs',           state.notifications);
-    fbSet('2x18_attendance',       state.attendance);
     fbSet('2x18_contributions',    state.contributions);
     // Nodes below use direct writes in their respective services for reliability
+    // fbSet('2x18_attendance',       state.attendance);
     // fbSet('2x18_docs',             state.docs);
     // fbSet('2x18_vocab',            state.vocab);
     // fbSet('2x18_subject_tasks',    state.subjectTasks);
@@ -1357,6 +1357,8 @@ export function AppProvider({ children }) {
       if (item.data.authorId) {
         dispatch({ type: A.ADD_CONTRIBUTION, payload: { userId: item.data.authorId, points: 500 } });
       }
+    } else if (item.type === 'attendanceSession') {
+      set(ref(db, `2x18_attendance/${item.data.sessionId}`), item.data);
     }
     // ... các loại khác tương tự
     
