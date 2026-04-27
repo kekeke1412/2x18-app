@@ -52,6 +52,7 @@ export async function createCalendarEvent(token, { title, description, date, sta
   });
 
   if (!response.ok) {
+    if (response.status === 401) throw new Error('EXPIRED_TOKEN');
     const err = await response.json();
     throw new Error(err.error?.message || 'Lỗi khi tạo sự kiện Calendar');
   }

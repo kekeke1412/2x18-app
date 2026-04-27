@@ -102,7 +102,7 @@ export default function Attendance() {
           setIsCreating(false);
           return;
         }
-        const eventRes = await createCalendarEvent(token, {
+        const eventPayload = {
           title: newTitle.trim(),
           description: 'Họp nhóm / Điểm danh 2X18',
           date: newDate,
@@ -110,13 +110,32 @@ export default function Attendance() {
           endTime: newEndTime || '',
           createMeetLink: true,
           reminderMinutes: newReminderMinutes || 0,
-        });
-        if (eventRes.meetLink) {
+        };
+        
+        let eventRes;
+        try {
+          eventRes = await createCalendarEvent(token, eventPayload);
+        } catch (apiErr) {
+          if (apiErr.message === 'EXPIRED_TOKEN') {
+            const newToken = await requireGoogleAuth(true);
+            if (newToken) {
+              eventRes = await createCalendarEvent(newToken, eventPayload);
+            } else {
+              throw new Error('Phiên Google hết hạn. Vui lòng đăng nhập lại.');
+            }
+          } else {
+            throw apiErr;
+          }
+        }
+        
+        if (eventRes && eventRes.meetLink) {
           finalUrl = eventRes.meetLink;
           toast('Đã tạo link Google Meet thành công!', 'success');
         }
       } catch (err) {
         toast(err.message || 'Lỗi khi tạo Google Meet', 'error');
+        setIsCreating(false);
+        return;
       }
       setIsCreating(false);
     }
