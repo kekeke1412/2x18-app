@@ -482,16 +482,7 @@ export function AppProvider({ children }) {
       listen('2x18_votes', 'votes', v => toArr(v).map(vt => ({ ...vt, options: toArr(vt.options).map(o => ({ ...o, votes: toArr(o.votes) })) })));
       listen('2x18_notifs', 'notifications', toArr);
       listen('2x18_attendance', 'attendance', v => {
-        const arr = toArr(v).map(sess => ({ ...sess, present: Array.isArray(sess.present) ? sess.present.filter(Boolean) : toArr(sess.present), total: sess.total || 0 }));
-        if (v) {
-          const hasIntKeys = Object.keys(v).some(k => /^\d+$/.test(k));
-          if (hasIntKeys) {
-            const fixedMap = {};
-            arr.forEach(a => { if (a.sessionId) fixedMap[a.sessionId] = a; });
-            set(ref(db, '2x18_attendance'), fixedMap);
-          }
-        }
-        return arr;
+        return toArr(v).map(sess => ({ ...sess, present: Array.isArray(sess.present) ? sess.present.filter(Boolean) : toArr(sess.present), total: sess.total || 0 }));
       });
       listen('2x18_contributions', 'contributions', v => v || {});
       listen('2x18_docs', 'docs', v => {
