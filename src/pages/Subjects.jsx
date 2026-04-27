@@ -135,7 +135,17 @@ function AddDocModal({ subject, onClose, onAdd }) {
       try {
         const token = await requireGoogleAuth();
         if (!token) return setIsUploading(false);
-        finalUrl = await uploadToDrive(token, selectedFile, `2X18_${subject.code}`);
+        try {
+          finalUrl = await uploadToDrive(token, selectedFile, `2X18_${subject.code}`);
+        } catch (uploadErr) {
+          if (uploadErr.message === 'EXPIRED_TOKEN') {
+            const newToken = await requireGoogleAuth(true);
+            if (newToken) finalUrl = await uploadToDrive(newToken, selectedFile, `2X18_${subject.code}`);
+            else throw new Error('Phiên Google hết hạn. Vui lòng đăng nhập lại.');
+          } else {
+            throw uploadErr;
+          }
+        }
       } catch (err) {
         setIsUploading(false);
         return toast(err.message || 'Lỗi upload Drive', 'error');
