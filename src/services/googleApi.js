@@ -94,7 +94,8 @@ export async function uploadToDrive(token, file, folderName = '2X18_Reports') {
   });
 
   if (!response.ok) {
-    const err = await response.json();
+    if (response.status === 401) throw new Error('EXPIRED_TOKEN');
+    const err = await response.json().catch(() => ({}));
     throw new Error(err.error?.message || 'Lỗi khi upload file lên Drive');
   }
 
@@ -139,8 +140,11 @@ async function getOrCreateFolder(token, folderName) {
       if (data.files && data.files.length > 0) {
         return data.files[0].id;
       }
+    } else if (searchRes.status === 401) {
+      throw new Error('EXPIRED_TOKEN');
     }
   } catch (err) {
+    if (err.message === 'EXPIRED_TOKEN') throw err;
     console.warn('Không thể tìm kiếm thư mục Drive:', err);
   }
 

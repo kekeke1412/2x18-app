@@ -926,6 +926,8 @@ export function AppProvider({ children }) {
     if (value === 100 && prevValue < 100) {
       dispatch({type:A.ADD_CONTRIBUTION, payload:{userId, points:1000}});
       toast('Chúc mừng! Tiến độ môn học đạt 100%. +1000 điểm 🎓', 'success');
+    } else if (value < 100 && prevValue === 100) {
+      dispatch({type:A.ADD_CONTRIBUTION, payload:{userId, points:-1000}});
     }
   }, [state.grades, toast]);
 
@@ -945,6 +947,8 @@ export function AppProvider({ children }) {
     if (nextDone) {
       dispatch({type:A.ADD_CONTRIBUTION, payload:{userId:state.currentUser?.id, points:500}});
       toast('Hoàn thành task! +500 điểm 🎉', 'success');
+    } else {
+      dispatch({type:A.ADD_CONTRIBUTION, payload:{userId:state.currentUser?.id, points:-500}});
     }
   }, [state.tasks, state.currentUser?.id, toast]);
 
@@ -1027,11 +1031,34 @@ export function AppProvider({ children }) {
     pushNotif(`🗳️ Bình chọn mới: "${v.title}"`, 'vote', '/voting');
   }, [pushNotif]);
   const castVote      = useCallback(p => {
+    const { voteId, optionId, userId, multiSelect } = p;
+    const vote = state.votes.find(v => v.id === voteId);
+    let currentOptionsVoted = 0;
+    let isRemoving = false;
+
+    if (vote) {
+      const optsVoted = (vote.options || []).filter(o => toArr(o.votes).includes(userId));
+      currentOptionsVoted = optsVoted.length;
+      if (multiSelect) {
+        const option = (vote.options || []).find(o => o.id === optionId);
+        if (option && toArr(option.votes).includes(userId)) {
+          isRemoving = true;
+        }
+      }
+    }
+
     dispatch({type:A.CAST_VOTE, payload:p});
-    // Award 200 points for voting
-    dispatch({type:A.ADD_CONTRIBUTION, payload:{userId:state.currentUser?.id, points:200}});
-    toast('Đã ghi nhận bình chọn! +200 điểm 🎉', 'success');
-  }, [state.currentUser?.id, toast]);
+    
+    if (currentOptionsVoted === 0 && !isRemoving) {
+      dispatch({type:A.ADD_CONTRIBUTION, payload:{userId:state.currentUser?.id, points:200}});
+      toast('Đã ghi nhận bình chọn! +200 điểm 🎉', 'success');
+    } else if (currentOptionsVoted === 1 && isRemoving) {
+      dispatch({type:A.ADD_CONTRIBUTION, payload:{userId:state.currentUser?.id, points:-200}});
+      toast('Đã hủy bình chọn!', 'info');
+    } else {
+      toast('Đã cập nhật bình chọn!', 'success');
+    }
+  }, [state.votes, state.currentUser?.id, toast]);
   const closeVote     = useCallback(id => {
     dispatch({type:A.CLOSE_VOTE, payload:id});
     pushNotif('🔒 Một bình chọn vừa được đóng lại.', 'vote', '/voting');
@@ -1056,8 +1083,13 @@ export function AppProvider({ children }) {
     const sess = state.attendance.find(a => a.sessionId === sessionId);
     if (!sess) return;
     
-    if (checked && !sess.present?.includes(userId))
+    const wasPresent = sess.present?.includes(userId);
+    
+    if (checked && !wasPresent) {
       dispatch({ type: A.ADD_CONTRIBUTION, payload: { userId, points: 500 } });
+    } else if (!checked && wasPresent) {
+      dispatch({ type: A.ADD_CONTRIBUTION, payload: { userId, points: -500 } });
+    }
     
     dispatch({ type: A.CHECK_ATTENDANCE, payload: { sessionId, userId, checked } });
     
@@ -1129,6 +1161,11 @@ export function AppProvider({ children }) {
     set(ref(db, `2x18_trash/${meta.trashId}`), trashItem);
     
     addAudit('Xóa báo cáo', report.title);
+    
+    if (report.authorId) {
+      dispatch({ type: A.ADD_CONTRIBUTION, payload: { userId: report.authorId, points: -1000 } });
+    }
+    
     toast('Đã chuyển tài liệu vào thùng rác', 'info');
   }, [state.reports, trashMeta, addAudit, toast]);
 
@@ -1167,6 +1204,9 @@ export function AppProvider({ children }) {
     
     if (item) {
       set(ref(db, `2x18_trash/${meta.trashId}`), { id: meta.trashId, type: 'doc', data: item, meta: { subjectId: sid } });
+      if (item.uploadedBy) {
+        dispatch({ type: A.ADD_CONTRIBUTION, payload: { userId: item.uploadedBy, points: -1000 } });
+      }
     }
     
     toast('Đã chuyển vào thùng rác.', 'info');
@@ -1230,6 +1270,9 @@ export function AppProvider({ children }) {
     set(ref(db, `2x18_vocab/${id}`), null);
     if (item) {
       set(ref(db, `2x18_trash/${meta.trashId}`), { id: meta.trashId, type: 'vocabSet', data: item, meta });
+      if (item.authorId) {
+        dispatch({ type: A.ADD_CONTRIBUTION, payload: { userId: item.authorId, points: -500 } });
+      }
     }
     toast('Đã xóa học phần.', 'info');
   }, [state.vocab, trashMeta, toast]);
@@ -1300,9 +1343,20 @@ export function AppProvider({ children }) {
     // Khôi phục về node gốc trên Firebase
     if (item.type === 'report') {
       set(ref(db, `2x18_reports/${item.data.id}`), item.data);
+      if (item.data.authorId) {
+        dispatch({ type: A.ADD_CONTRIBUTION, payload: { userId: item.data.authorId, points: 1000 } });
+      }
     } else if (item.type === 'doc') {
       const sid = item.meta.subjectId;
       // Docs vẫn dùng cơ chế cũ nên chỉ cần xóa trash, useEffect sẽ lo phần còn lại
+      if (item.data.uploadedBy) {
+        dispatch({ type: A.ADD_CONTRIBUTION, payload: { userId: item.data.uploadedBy, points: 1000 } });
+      }
+    } else if (item.type === 'vocabSet') {
+      set(ref(db, `2x18_vocab/${item.data.id}`), item.data);
+      if (item.data.authorId) {
+        dispatch({ type: A.ADD_CONTRIBUTION, payload: { userId: item.data.authorId, points: 500 } });
+      }
     }
     // ... các loại khác tương tự
     
