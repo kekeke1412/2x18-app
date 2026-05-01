@@ -482,6 +482,20 @@ export function AppProvider({ children }) {
       listen('2x18_votes', 'votes', v => toArr(v).map(vt => ({ ...vt, options: toArr(vt.options).map(o => ({ ...o, votes: toArr(o.votes) })) })));
       listen('2x18_notifs', 'notifications', toArr);
       listen('2x18_attendance', 'attendance', v => {
+        // Auto-migration script: convert array to object keyed by sessionId
+        if (v && (Array.isArray(v) || Object.keys(v).some(k => k === "0" || k === "1"))) {
+          const newObj = {};
+          let migrated = false;
+          Object.values(v).forEach(sess => {
+            if (sess && sess.sessionId) {
+              newObj[sess.sessionId] = sess;
+              migrated = true;
+            }
+          });
+          if (migrated) {
+            set(ref(db, '2x18_attendance'), newObj).catch(console.error);
+          }
+        }
         return toArr(v).map(sess => ({ ...sess, present: Array.isArray(sess.present) ? sess.present.filter(Boolean) : toArr(sess.present), total: sess.total || 0 }));
       });
       listen('2x18_contributions', 'contributions', v => v || {});
@@ -505,7 +519,19 @@ export function AppProvider({ children }) {
         return obj;
       });
       listen('2x18_semester_labels', 'semesterLabels', v => v || {});
-      listen('2x18_trash', 'trash', toArr);
+      listen('2x18_trash', 'trash', v => {
+        return toArr(v).map(t => {
+          if (t && !t.deletedByName && t.meta?.deletedByName) {
+            return {
+              ...t,
+              deletedAt: t.meta.deletedAt || t.deletedAt,
+              deletedBy: t.meta.deletedBy || t.deletedBy,
+              deletedByName: t.meta.deletedByName,
+            };
+          }
+          return t;
+        });
+      });
       listen('2x18_vocab', 'vocab', v => v || {});
       listen('2x18_user_vocab', 'userVocab', v => v || {});
       listen('2x18_quiz_history', 'quizHistory', v => {
@@ -607,7 +633,11 @@ export function AppProvider({ children }) {
     
     fbSet('2x18_audit',            state.auditLogs);
     fbSet('2x18_semester_labels',  state.semesterLabels);
-    fbSet('2x18_trash',            state.trash);
+    
+    // Convert arrays to maps before syncing to prevent Firebase array indices corruption
+    const trashMap = {};
+    (state.trash || []).forEach(t => { if (t.id) trashMap[t.id] = t; });
+    fbSet('2x18_trash', trashMap);
     fbSet('2x18_user_vocab',       state.userVocab);
     Object.entries(state.grades).forEach(([uid, g]) => {
       if (uid && g) fbSet(`${uid}_grades`, g);
@@ -985,7 +1015,7 @@ export function AppProvider({ children }) {
     set(ref(db, `2x18_subject_tasks/${sid}`), nextTasks);
     
     if (item) {
-      set(ref(db, `2x18_trash/${meta.trashId}`), { id: meta.trashId, type: 'subjectTask', data: item, meta });
+      set(ref(db, `2x18_trash/${meta.trashId}`), makeTrashItem('subjectTask', item, { subjectId: sid }, meta));
     }
     
     toast('Đã chuyển vào thùng rác.', 'info');
@@ -1109,7 +1139,7 @@ export function AppProvider({ children }) {
     
     set(ref(db, `2x18_attendance/${sessionId}`), null); // Xóa bản ghi
     if (sess) {
-      set(ref(db, `2x18_trash/${meta.trashId}`), { id: meta.trashId, type: 'attendanceSession', data: sess, meta });
+      set(ref(db, `2x18_trash/${meta.trashId}`), makeTrashItem('attendanceSession', sess, {}, meta));
     }
     toast('Đã chuyển vào thùng rác.', 'info');
   }, [state.attendance, trashMeta, toast]);
@@ -1159,7 +1189,7 @@ export function AppProvider({ children }) {
     
     // Xóa bản ghi cụ thể và đẩy vào trash
     set(ref(db, `2x18_reports/${id}`), null);
-    const trashItem = { id: meta.trashId, type: 'report', data: report, meta };
+    const trashItem = makeTrashItem('report', report, {}, meta);
     set(ref(db, `2x18_trash/${meta.trashId}`), trashItem);
     
     addAudit('Xóa báo cáo', report.title);
@@ -1205,7 +1235,7 @@ export function AppProvider({ children }) {
     set(ref(db, `2x18_docs/${sid}`), nextDocs);
     
     if (item) {
-      set(ref(db, `2x18_trash/${meta.trashId}`), { id: meta.trashId, type: 'doc', data: item, meta: { subjectId: sid } });
+      set(ref(db, `2x18_trash/${meta.trashId}`), makeTrashItem('doc', item, { subjectId: sid }, meta));
       if (item.uploadedBy) {
         dispatch({ type: A.ADD_CONTRIBUTION, payload: { userId: item.uploadedBy, points: -1000 } });
       }
@@ -1271,7 +1301,7 @@ export function AppProvider({ children }) {
     dispatch({ type: A.DELETE_VOCAB_SET, payload: { id, ...meta } });
     set(ref(db, `2x18_vocab/${id}`), null);
     if (item) {
-      set(ref(db, `2x18_trash/${meta.trashId}`), { id: meta.trashId, type: 'vocabSet', data: item, meta });
+      set(ref(db, `2x18_trash/${meta.trashId}`), makeTrashItem('vocabSet', item, {}, meta));
       if (item.authorId) {
         dispatch({ type: A.ADD_CONTRIBUTION, payload: { userId: item.authorId, points: -500 } });
       }
