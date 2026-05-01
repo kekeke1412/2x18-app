@@ -482,20 +482,6 @@ export function AppProvider({ children }) {
       listen('2x18_votes', 'votes', v => toArr(v).map(vt => ({ ...vt, options: toArr(vt.options).map(o => ({ ...o, votes: toArr(o.votes) })) })));
       listen('2x18_notifs', 'notifications', toArr);
       listen('2x18_attendance', 'attendance', v => {
-        // Auto-migration script: convert array to object keyed by sessionId
-        if (v && (Array.isArray(v) || Object.keys(v).some(k => k === "0" || k === "1"))) {
-          const newObj = {};
-          let migrated = false;
-          Object.values(v).forEach(sess => {
-            if (sess && sess.sessionId) {
-              newObj[sess.sessionId] = sess;
-              migrated = true;
-            }
-          });
-          if (migrated) {
-            set(ref(db, '2x18_attendance'), newObj).catch(console.error);
-          }
-        }
         return toArr(v).map(sess => ({ ...sess, present: Array.isArray(sess.present) ? sess.present.filter(Boolean) : toArr(sess.present), total: sess.total || 0 }));
       });
       listen('2x18_contributions', 'contributions', v => v || {});
@@ -633,11 +619,7 @@ export function AppProvider({ children }) {
     
     fbSet('2x18_audit',            state.auditLogs);
     fbSet('2x18_semester_labels',  state.semesterLabels);
-    
-    // Convert arrays to maps before syncing to prevent Firebase array indices corruption
-    const trashMap = {};
-    (state.trash || []).forEach(t => { if (t.id) trashMap[t.id] = t; });
-    fbSet('2x18_trash', trashMap);
+    fbSet('2x18_trash',            state.trash);
     fbSet('2x18_user_vocab',       state.userVocab);
     Object.entries(state.grades).forEach(([uid, g]) => {
       if (uid && g) fbSet(`${uid}_grades`, g);
@@ -1129,7 +1111,16 @@ export function AppProvider({ children }) {
     const nextPresent = checked 
       ? [...(sess.present || []), userId]
       : (sess.present || []).filter(id => id !== userId);
-    set(ref(db, `2x18_attendance/${sessionId}/present`), nextPresent);
+      
+    get(ref(db, '2x18_attendance')).then(snap => {
+      const val = snap.val();
+      let targetKey = sessionId;
+      if (val) {
+        const found = Object.entries(val).find(([k, v]) => v && v.sessionId === sessionId);
+        if (found) targetKey = found[0];
+      }
+      set(ref(db, `2x18_attendance/${targetKey}/present`), nextPresent);
+    });
   }, [state.attendance]);
 
   const deleteAttendanceSession = useCallback((sessionId) => {
@@ -1137,7 +1128,20 @@ export function AppProvider({ children }) {
     const sess = state.attendance.find(s => s.sessionId === sessionId);
     dispatch({ type: A.DELETE_ATTENDANCE_SESSION, payload: { sessionId, ...meta } });
     
-    set(ref(db, `2x18_attendance/${sessionId}`), null); // Xóa bản ghi
+    get(ref(db, '2x18_attendance')).then(snap => {
+      const val = snap.val();
+      if (!val) return;
+      const updates = {};
+      Object.entries(val).forEach(([k, s]) => {
+        if (s && s.sessionId === sessionId) updates[k] = null;
+      });
+      if (Object.keys(updates).length > 0) {
+        update(ref(db, '2x18_attendance'), updates);
+      } else {
+        set(ref(db, `2x18_attendance/${sessionId}`), null);
+      }
+    });
+
     if (sess) {
       set(ref(db, `2x18_trash/${meta.trashId}`), makeTrashItem('attendanceSession', sess, {}, meta));
     }
@@ -1149,7 +1153,16 @@ export function AppProvider({ children }) {
     // Merge với session hiện tại để không mất present/total
     const existing = state.attendance.find(s => s.sessionId === data.sessionId);
     const merged = { ...(existing || {}), ...data, present: existing?.present || [], total: existing?.total || 0 };
-    set(ref(db, `2x18_attendance/${data.sessionId}`), merged);
+    
+    get(ref(db, '2x18_attendance')).then(snap => {
+      const val = snap.val();
+      let targetKey = data.sessionId;
+      if (val) {
+        const found = Object.entries(val).find(([k, v]) => v && v.sessionId === data.sessionId);
+        if (found) targetKey = found[0];
+      }
+      set(ref(db, `2x18_attendance/${targetKey}`), merged);
+    });
     toast('Đã cập nhật thông tin!', 'success');
   }, [state.attendance, toast]);
 
