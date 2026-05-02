@@ -195,10 +195,14 @@ export default function FlashcardSet() {
         const shownDef = isMatch ? term.definition : (terms.find(t => t.word !== term.word)?.definition || '...');
         return { type, question: `"${term.word}" nghĩa là "${shownDef}"?`, answer: isMatch ? 'true' : 'false', term, wordIndex: term.originalIndex };
       } else if (type === 'fill') {
-        // Ưu tiên dùng example, nếu không có thì dùng định nghĩa nhưng phải che từ đi
-        const sourceText = term.example || `Nghĩa: ${term.definition}`;
-        const blanked = sourceText.replace(regex, '_____');
-        return { type, question: `Điền từ còn thiếu: ${blanked}`, answer: cleanWord, term, wordIndex: term.originalIndex };
+        let blanked = "_____";
+        if (term.example) {
+          const tempBlanked = term.example.replace(regex, '_____');
+          if (tempBlanked !== term.example) {
+            blanked = tempBlanked;
+          }
+        }
+        return { type, question: `Điền từ còn thiếu: ${blanked}`, hint: `Nghĩa: ${term.definition}`, answer: cleanWord, term, wordIndex: term.originalIndex };
       } else {
         // Đối với câu hỏi tự luận, cũng phải che từ đi nếu nó xuất hiện trong định nghĩa
         const hiddenDef = (term.definition || '').replace(regex, '_____');
@@ -793,9 +797,16 @@ export default function FlashcardSet() {
                         </div>
 
                         <div className="relative z-10 flex-1 flex flex-col">
-                          <h3 className="text-xl md:text-2xl font-bold text-white mb-10 leading-relaxed">
-                            {quizQuestions[quizIndex].question}
-                          </h3>
+                          <div className="mb-10">
+                            <h3 className="text-xl md:text-2xl font-bold text-white leading-relaxed">
+                              {quizQuestions[quizIndex].question}
+                            </h3>
+                            {quizQuestions[quizIndex].hint && (
+                              <p className="text-indigo-400 mt-3 font-medium italic text-lg">
+                                {quizQuestions[quizIndex].hint}
+                              </p>
+                            )}
+                          </div>
 
                           {/* Multiple Choice */}
                           {quizQuestions[quizIndex].type === 'choice' && (
