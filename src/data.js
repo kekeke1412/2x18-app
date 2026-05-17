@@ -86,7 +86,7 @@ export const electiveLimits = {
 };
 
 export const calculateHe10 = (cc, gk, ck) => {
-  if (!cc || !gk || !ck) return null;
+  if (isNaN(cc) || isNaN(gk) || isNaN(ck)) return null;
   return parseFloat((cc * 0.2 + gk * 0.2 + ck * 0.6).toFixed(1));
 };
 

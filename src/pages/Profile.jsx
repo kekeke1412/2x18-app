@@ -391,9 +391,9 @@ function GradeRow({ subject, grades, onGradeChange, isEditing, isDimmed }) {
       <td className="px-1 py-2.5 text-center">{canEnterGrades ? inp('cc') : <span className="text-xs text-gray-400">{g.cc||'—'}</span>}</td>
       <td className="px-1 py-2.5 text-center">{canEnterGrades ? inp('gk') : <span className="text-xs text-gray-400">{g.gk||'—'}</span>}</td>
       <td className="px-1 py-2.5 text-center">{canEnterGrades ? inp('ck') : <span className="text-xs text-gray-400">{g.ck||'—'}</span>}</td>
-      <td className={`px-2 py-2.5 text-center font-bold text-sm ${gradeColor(r.he10)}`}>{st==='Đã học' ? r.he10 : (isExclude && st==='Đạt' ? 'Đạt' : '—')}</td>
-      <td className={`px-2 py-2.5 text-center font-bold text-xs ${gradeColor(r.he10)}`}>{st==='Đã học' ? r.chu : '—'}</td>
-      <td className={`px-2 py-2.5 text-center font-bold text-xs ${gradeColor(r.he4)}`}>{st==='Đã học' ? r.he4 : '—'}</td>
+      <td className={`px-2 py-2.5 text-center font-bold text-sm ${gradeColor(r.he10)}`}>{(st==='Đã học' || st==='Đang học') && r.he10 !== '—' ? r.he10 : (isExclude && (st==='Đạt' || st==='Chưa đạt') ? st : '—')}</td>
+      <td className={`px-2 py-2.5 text-center font-bold text-xs ${gradeColor(r.he10)}`}>{(st==='Đã học' || st==='Đang học') && r.chu !== '—' ? r.chu : '—'}</td>
+      <td className={`px-2 py-2.5 text-center font-bold text-xs ${gradeColor(r.he4)}`}>{(st==='Đã học' || st==='Đang học') && r.he4 !== '—' ? r.he4 : '—'}</td>
     </tr>
   );
 }
