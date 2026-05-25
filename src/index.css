@@ -131,3 +131,69 @@
 /* ── Modal transition ── */
 .modal-enter { animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
 .backdrop-enter { animation: fadeIn 0.2s ease-out forwards; }
+
+/* ── UI/UX Color Synchronization & Design Upgrade ── */
+body, 
+.bg-\[\#121212\],
+.bg-zinc-950,
+.bg-black {
+  background-color: #0a0a0c !important;
+}
+
+aside.w-60,
+.bg-\[\#1a1a1a\],
+.bg-zinc-900 {
+  background-color: #111115 !important;
+}
+
+.bg-\[\#222\],
+.bg-\[\#252525\] {
+  background-color: #16161c !important;
+}
+
+/* Glassmorphism for sidebars and headers */
+aside.w-60 {
+  border-right: 1px solid rgba(255, 255, 255, 0.04) !important;
+}
+
+/* Input boxes styling */
+.input-dark,
+input,
+select,
+textarea {
+  background-color: #15151b !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+  color: #f4f4f5 !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15) !important;
+}
+
+/* Glass borders for cards */
+.border-gray-800\/60,
+.border-gray-800\/40,
+.border-gray-800 {
+  border-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+/* Modern shadows for cards */
+.shadow-sm,
+.shadow-md,
+.shadow-lg,
+.shadow-2xl {
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Scrollbar premium styling */
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
+}
+

@@ -387,10 +387,11 @@ export function AppProvider({ children }) {
     const el = document.createElement('style');
     el.id = '2x18-font-scale';
     el.textContent = `
-      html { font-size: 15.5px !important; }
-      .text-xs   { font-size: 0.82rem !important; }
-      .text-sm   { font-size: 0.92rem !important; }
-      .text-base { font-size: 1rem   !important; }
+      html { font-size: 17.0px !important; }
+      .text-xs   { font-size: 0.85rem !important; }
+      .text-sm   { font-size: 0.95rem !important; }
+      .text-base { font-size: 1.05rem   !important; }
+      body { line-height: 1.6 !important; letter-spacing: 0.012em !important; }
     `;
     document.head.appendChild(el);
     return () => { document.getElementById('2x18-font-scale')?.remove(); };
