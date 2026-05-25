@@ -389,6 +389,11 @@ function RadarChartCard({ myGrades }) {
       </div>
       <div className="p-4 flex flex-col items-center">
         <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
+          <defs>
+            <filter id="radarGlow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="#818cf8" floodOpacity="0.4"/>
+            </filter>
+          </defs>
           {/* Background circles */}
           {[0.25, 0.5, 0.75, 1.0].map((pct, i) => (
             <polygon key={i} points={bgPoly(pct)}
@@ -400,8 +405,8 @@ function RadarChartCard({ myGrades }) {
             return <line key={i} x1={CX} y1={CY} x2={outer.x} y2={outer.y} stroke="#1f2937" strokeWidth="1"/>;
           })}
           {/* Data polygon */}
-          <polygon points={dataPolygon}
-            fill="rgba(129,140,248,0.18)" stroke="#818cf8" strokeWidth="2" strokeLinejoin="round"/>
+          <polygon points={dataPolygon} filter="url(#radarGlow)"
+            fill="rgba(129,140,248,0.22)" stroke="#818cf8" strokeWidth="2" strokeLinejoin="round"/>
           {/* Data dots */}
           {dataPoints.map((p, i) => (
             <circle key={i} cx={p.x} cy={p.y} r="4" fill={AXIS_COLORS[i % AXIS_COLORS.length]} stroke="#1a1a1a" strokeWidth="1.5"/>

@@ -512,7 +512,15 @@ export default function Reports() {
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Tài liệu đính kèm <span className="text-red-500">*</span></label>
                   <div className="relative">
                     <input type="file" disabled={isUploading}
-                      onChange={e => { setSelectedFile(e.target.files[0]); setForm({...form, link: ''}); }}
+                      onChange={e => {
+                        const file = e.target.files[0];
+                        setSelectedFile(file);
+                        setForm(f=>({...f, link: ''}));
+                        if (file && !form.title.trim()) {
+                          const nameWithoutExt = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+                          setForm(f=>({...f, title: nameWithoutExt}));
+                        }
+                      }}
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                     />
                     <div className={`w-full h-10 px-4 flex items-center border rounded-xl text-sm transition-all ${

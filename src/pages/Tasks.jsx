@@ -453,27 +453,34 @@ export default function Tasks() {
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, scale: 0.95 }}
                                     transition={{ delay: dIdx * 0.03 }}
-                                    className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#222] transition-colors group mb-1"
+                                    className="flex items-center gap-2 px-2.5 py-1.5 bg-[#111] hover:bg-[#15151b] rounded-xl border border-gray-800/40 group/doc mb-1 transition-all"
                                   >
-                                    <div className="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center shrink-0">
-                                      <FileText className="w-4 h-4 text-blue-400"/>
-                                    </div>
+                                    <FileText className="w-3.5 h-3.5 text-blue-400 shrink-0"/>
                                     <div className="flex-1 min-w-0">
-                                      {d.url
-                                        ? <a href={d.url} target="_blank" rel="noreferrer"
-                                            className="text-sm font-medium text-blue-400 hover:underline truncate block">{d.name}</a>
-                                        : <div className="text-sm font-medium text-gray-200 truncate">{d.name}</div>
-                                      }
-                                      <div className="text-[10px] text-gray-600">{d.type} · {d.uploadedByName||'SME'} · {d.uploadedAt}</div>
+                                      {d.url ? (
+                                        <a href={d.url} target="_blank" rel="noreferrer"
+                                          className="text-[11px] font-bold text-gray-200 hover:text-blue-400 hover:underline truncate block">
+                                          {d.name}
+                                        </a>
+                                      ) : (
+                                        <div className="text-[11px] font-bold text-gray-200 truncate">{d.name}</div>
+                                      )}
                                     </div>
+                                    
+                                    {/* Hover delete button */}
                                     {(isCore || isMySme || currentUser?.id === d.uploadedBy) && (
                                       <button onClick={() => { if (window.confirm(`Xóa tài liệu "${d.name}"?`)) ctxDeleteDoc(sub.id, d.id); }}
-                                        className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 text-gray-600 transition-all"
+                                        className="md:opacity-0 md:group-hover/doc:opacity-100 p-1 hover:text-red-400 text-gray-500 transition-all shrink-0"
                                         title="Xóa tài liệu"
                                       >
-                                        <Trash2 className="w-3.5 h-3.5"/>
+                                        <Trash2 className="w-3 h-3"/>
                                       </button>
                                     )}
+                                    
+                                    {/* Compact uploader name */}
+                                    <span className="text-[9px] text-gray-600 shrink-0 md:group-hover/doc:hidden truncate max-w-[60px]">
+                                      {d.uploadedByName ? d.uploadedByName.split(' ').slice(-1)[0] : 'SME'}
+                                    </span>
                                   </motion.div>
                                 ))}
                               </AnimatePresence>

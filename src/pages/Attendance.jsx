@@ -342,13 +342,28 @@ export default function Attendance() {
                       </button>
                     )}
                   </div>
-                  <div className="p-4 grid grid-cols-2 md:grid-cols-3 gap-2">
+                  <div className="p-5 flex flex-wrap gap-3.5 justify-center sm:justify-start">
                     {members.map(m => {
                       const present = (session.present||[]).includes(m.id);
                       return (
-                        <div key={m.id} className={`flex items-center gap-2.5 p-2.5 rounded-xl border ${present ? 'border-green-500/25 bg-green-500/8' : 'border-gray-800/40 bg-[#111]'}`}>
-                          <UserAvatar user={m} size={28} isMe={m.id === currentUser?.id} />
-                          <div className="text-xs font-medium truncate text-gray-200">{m.fullName.split(' ').slice(-1)[0]}</div>
+                        <div key={m.id} title={`${m.fullName} (${present ? 'Có mặt' : 'Vắng'})`}
+                          className="relative group cursor-pointer transition-all duration-300">
+                          <div className={`p-0.5 rounded-full border-2 transition-all duration-300 ${
+                            present 
+                              ? 'border-green-500/80 shadow-md shadow-green-500/20' 
+                              : 'border-red-500/40 opacity-50 hover:opacity-100'
+                          }`}>
+                            <UserAvatar user={m} size={42} isMe={m.id === currentUser?.id} />
+                          </div>
+                          {/* Dot Indicator */}
+                          <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#1a1a1a] ${
+                            present ? 'bg-green-500' : 'bg-red-500'
+                          }`} />
+                          
+                          {/* Floating name tooltip on hover */}
+                          <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 bg-black/90 border border-gray-800/80 px-2 py-1 rounded-md text-[10px] text-gray-200 font-bold whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-10 shadow-xl">
+                            {m.fullName}
+                          </div>
                         </div>
                       );
                     })}
