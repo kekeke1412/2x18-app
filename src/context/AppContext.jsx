@@ -1393,9 +1393,28 @@ export function AppProvider({ children }) {
       }
     } else if (item.type === 'doc') {
       const sid = item.meta.subjectId;
-      // Docs vẫn dùng cơ chế cũ nên chỉ cần xóa trash, useEffect sẽ lo phần còn lại
+      try {
+        const snap = await get(ref(db, `2x18_docs/${sid}`));
+        const currentDocs = toArr(snap.val());
+        if (!currentDocs.some(d => d.id === item.data.id)) {
+          await set(ref(db, `2x18_docs/${sid}`), [...currentDocs, item.data]);
+        }
+      } catch (err) {
+        console.warn('[restoreFromTrash doc]', err);
+      }
       if (item.data.uploadedBy) {
         dispatch({ type: A.ADD_CONTRIBUTION, payload: { userId: item.data.uploadedBy, points: 1000 } });
+      }
+    } else if (item.type === 'subjectTask') {
+      const sid = item.meta.subjectId;
+      try {
+        const snap = await get(ref(db, `2x18_subject_tasks/${sid}`));
+        const currentTasks = toArr(snap.val());
+        if (!currentTasks.some(t => t.id === item.data.id)) {
+          await set(ref(db, `2x18_subject_tasks/${sid}`), [...currentTasks, item.data]);
+        }
+      } catch (err) {
+        console.warn('[restoreFromTrash subjectTask]', err);
       }
     } else if (item.type === 'vocabSet') {
       set(ref(db, `2x18_vocab/${item.data.id}`), item.data);
@@ -1405,7 +1424,6 @@ export function AppProvider({ children }) {
     } else if (item.type === 'attendanceSession') {
       set(ref(db, `2x18_attendance/${item.data.sessionId}`), item.data);
     }
-    // ... các loại khác tương tự
     
     toast('Đã khôi phục!', 'success');
   }, [state.trash, toast]);

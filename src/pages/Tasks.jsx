@@ -406,7 +406,10 @@ export default function Tasks() {
               ) : (
                     <div className="space-y-4">
                       {userSubjects.map((sub, idx) => {
-                        const subDocs = toArr(docs[sub.id]);
+                        const subDocs = toArr(docs[sub.id]).filter(d => {
+                          if (!d.private) return true;
+                          return isCore || isMySme || currentUser?.id === d.uploadedBy;
+                        });
                         const isMySme = smeMap[sub.id] === myName;
                         return (
                           <motion.div 
@@ -463,10 +466,14 @@ export default function Tasks() {
                                       }
                                       <div className="text-[10px] text-gray-600">{d.type} · {d.uploadedByName||'SME'} · {d.uploadedAt}</div>
                                     </div>
-                                    <button onClick={() => { if (window.confirm('Xóa tài liệu này?')) ctxDeleteDoc(sub.id, d.id); }}
-                                      className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 text-gray-600 transition-all">
-                                      <Trash2 className="w-3.5 h-3.5"/>
-                                    </button>
+                                    {(isCore || isMySme || currentUser?.id === d.uploadedBy) && (
+                                      <button onClick={() => { if (window.confirm(`Xóa tài liệu "${d.name}"?`)) ctxDeleteDoc(sub.id, d.id); }}
+                                        className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 text-gray-600 transition-all"
+                                        title="Xóa tài liệu"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5"/>
+                                      </button>
+                                    )}
                                   </motion.div>
                                 ))}
                               </AnimatePresence>
@@ -564,7 +571,15 @@ function AddDocForm({ onSubmit, onClose, subjectCode = 'Tasks' }) {
             Tài liệu đính kèm *
           </label>
           <div className="relative">
-            <input type="file" onChange={e => { setSelectedFile(e.target.files[0]); setForm(f=>({...f,url:''})) }}
+            <input type="file" onChange={e => {
+              const file = e.target.files[0];
+              setSelectedFile(file);
+              setForm(f=>({...f,url:''}));
+              if (file && !form.name.trim()) {
+                const nameWithoutExt = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+                setForm(f=>({...f,name:nameWithoutExt}));
+              }
+            }}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" disabled={isUploading}/>
             <div className={`w-full h-11 px-4 flex items-center border rounded-xl text-sm transition-all ${selectedFile ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' : 'bg-[#121212] border-gray-700 text-gray-500'}`}>
               <span className="truncate">{selectedFile ? selectedFile.name : 'Chọn file từ máy tính...'}</span>
