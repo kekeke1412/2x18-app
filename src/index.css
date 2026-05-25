@@ -133,21 +133,32 @@
 .backdrop-enter { animation: fadeIn 0.2s ease-out forwards; }
 
 /* ── UI/UX Color Synchronization & Design Upgrade ── */
+/* Deep backgrounds */
 body, 
 .bg-\[\#121212\],
+.bg-\[\#111\],
 .bg-zinc-950,
-.bg-black {
+.bg-black,
+.bg-gray-950 {
   background-color: #0a0a0c !important;
 }
 
+/* Panel backgrounds */
 aside.w-60,
 .bg-\[\#1a1a1a\],
-.bg-zinc-900 {
+.bg-\[\#141414\],
+.bg-\[\#181818\],
+.bg-zinc-900,
+.bg-gray-900 {
   background-color: #111115 !important;
 }
 
+/* Card & Modal backgrounds */
+.bg-\[\#1e1e1e\],
 .bg-\[\#222\],
-.bg-\[\#252525\] {
+.bg-\[\#252525\],
+.bg-zinc-800,
+.bg-gray-800 {
   background-color: #16161c !important;
 }
 
