@@ -12,9 +12,9 @@ import { Link } from 'react-router-dom';
 
 // ── Semester names — persisted via AppContext ──────────────────────────────
 const DEFAULT_SEM_NAMES = {
-  1: 'HKI 2024–25',  2: 'HKII 2024–25', 3: 'HK Hè 25',
-  4: 'HKI 2025–26',  5: 'HKII 2025–26', 6: 'HKI 2026–27',
-  7: 'HKII 2026–27', 8: 'HKI 2027–28',
+  1: 'HKI 2025–26',  2: 'HKII 2025–26', 3: 'HK Hè 26',
+  4: 'HKI 2026–27',  5: 'HKII 2026–27', 6: 'HKI 2027–28',
+  7: 'HKII 2027–28', 8: 'HKI 2028–29',
 };
 
 function useSemesterNames(semesterLabels, updateSemesterLabel) {

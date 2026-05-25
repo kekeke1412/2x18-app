@@ -778,7 +778,7 @@ export default function Gamification() {
                   </div>
                 </div>
                 <input value={seasonName} onChange={e=>setSeasonName(e.target.value)}
-                  placeholder="Tên kỳ học (vd: Kỳ I 2024-2025)…"
+                  placeholder="Tên kỳ học (vd: Kỳ I 2025-2026)…"
                   style={{ ...inputSt, marginBottom:10 }} />
                 {!confirmReset ? (
                   <button onClick={()=>seasonName.trim()&&setConfirmReset(true)} style={{
