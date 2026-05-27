@@ -328,10 +328,16 @@ function reducer(s, { type, payload }) {
     case A.ADD_VOCAB_SET: return { ...s, vocab:{...s.vocab, [payload.id]:payload} };
     case A.EDIT_VOCAB_SET: return { ...s, vocab:{...s.vocab, [payload.id]:{...s.vocab[payload.id], ...payload}} };
     case A.DELETE_VOCAB_SET: {
-      const {id} = payload;
+      const { id, trashId, deletedAt, deletedBy, deletedByName } = payload;
+      const item = s.vocab[id];
+      const trashItem = item ? makeTrashItem('vocabSet', item, {}, { trashId, deletedAt, deletedBy, deletedByName }) : null;
       const newVocab = {...s.vocab};
       delete newVocab[id];
-      return { ...s, vocab:newVocab };
+      return { 
+        ...s, 
+        vocab: newVocab,
+        trash: trashItem ? [...(s.trash||[]), trashItem] : (s.trash||[])
+      };
     }
     case A.MARK_WORD_LEARNED: {
       const {setId, wordIndex, userId, learned} = payload;
@@ -379,6 +385,7 @@ const timerMap  = {};
 
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, init);
+  const [selectedProfileUser, setSelectedProfileUser] = useState(null);
   const skipSyncRef     = useRef(false);
   const fromFirebaseRef = useRef(false);
 
@@ -1496,6 +1503,7 @@ export function AppProvider({ children }) {
   const value = {
     ...state, isCore, isSuperAdmin, myGrades, myGradesEnriched, myTasks,
     activeMembers, pendingMembers,
+    selectedProfileUser, setSelectedProfileUser,
     login, logout, loginWithGoogle, register,
     toast, rmToast, addAudit,
     updateProfile, updateMemberProfile, syncGrades, updateGrade, updateProgress,

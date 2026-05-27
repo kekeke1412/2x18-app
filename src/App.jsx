@@ -57,6 +57,70 @@ function ToastContainer() {
   );
 }
 
+// ── UserProfileModal ───────────────────────────────────────────────────────
+function UserProfileModal() {
+  const { selectedProfileUser, setSelectedProfileUser } = useApp();
+  if (!selectedProfileUser) return null;
+
+  const user = selectedProfileUser;
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" 
+      onClick={() => setSelectedProfileUser(null)}
+    >
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        className="bg-[#1e1e1e] border border-gray-700 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden" 
+        onClick={e=>e.stopPropagation()}
+      >
+        <div className="relative h-24 bg-gradient-to-r from-blue-600/40 to-purple-600/40">
+          <button onClick={() => setSelectedProfileUser(null)} className="absolute top-3 right-3 p-1.5 bg-black/40 hover:bg-black/60 rounded-full text-white/80 hover:text-white backdrop-blur-md transition-all">
+            <X className="w-4 h-4"/>
+          </button>
+        </div>
+        <div className="px-6 pb-6 pt-0 relative">
+          <div className="absolute -top-12 left-6 border-4 border-[#1e1e1e] rounded-full">
+            <UserAvatar user={user} size={80} className="shadow-xl" />
+          </div>
+          <div className="mt-12">
+            <div className="flex items-center gap-2 flex-wrap mb-1">
+              <h2 className="text-xl font-black text-white leading-none">{user.fullName}</h2>
+              {user.status === 'active' && <CheckCircle className="w-4 h-4 text-green-500"/>}
+            </div>
+            <div className="text-sm font-bold text-blue-400 uppercase tracking-widest">{user.role || 'Member'}</div>
+          </div>
+          
+          <div className="mt-6 space-y-3">
+            {user.mssv && (
+              <div className="flex items-center gap-3 text-sm text-gray-300">
+                <div className="w-8 h-8 rounded-xl bg-[#252525] flex items-center justify-center text-gray-500 shrink-0"><Info className="w-4 h-4"/></div>
+                <div><div className="text-[10px] text-gray-500 uppercase font-bold">MSSV</div><div>{user.mssv}</div></div>
+              </div>
+            )}
+            {(user.email || user.mailSchool) && (
+              <div className="flex items-center gap-3 text-sm text-gray-300">
+                <div className="w-8 h-8 rounded-xl bg-[#252525] flex items-center justify-center text-gray-500 shrink-0"><AlertCircleIcon className="w-4 h-4"/></div>
+                <div className="min-w-0"><div className="text-[10px] text-gray-500 uppercase font-bold">Email</div><div className="truncate">{user.mailSchool || user.email}</div></div>
+              </div>
+            )}
+            {user.gender && (
+              <div className="flex items-center gap-3 text-sm text-gray-300">
+                <div className="w-8 h-8 rounded-xl bg-[#252525] flex items-center justify-center text-gray-500 shrink-0"><User className="w-4 h-4"/></div>
+                <div><div className="text-[10px] text-gray-500 uppercase font-bold">Giới tính</div><div>{user.gender}</div></div>
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 // ── Error Boundary ─────────────────────────────────────────────────────────
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -307,6 +371,7 @@ function AppLayout() {
 
       <AIChatbot/>
       <ToastContainer/>
+      <UserProfileModal/>
     </div>
   );
 }

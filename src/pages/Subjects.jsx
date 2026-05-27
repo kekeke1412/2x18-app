@@ -606,9 +606,9 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
                       </div>
                       {(isCore || isSme || currentUser?.id === d.uploadedBy) && (
                         <button 
-                          onClick={() => { if (window.confirm(`Xóa tài liệu "${d.name}"?`)) deleteDoc(sub.id, d.id); }}
+                          onClick={() => { if (window.confirm(`Chuyển tài liệu "${d.name}" vào thùng rác?`)) deleteDoc(sub.id, d.id); }}
                           className="p-1 hover:text-red-400 text-gray-500 transition-colors"
-                          title="Xóa tài liệu"
+                          title="Chuyển vào thùng rác"
                         >
                           <Trash2 className="w-3 h-3"/>
                         </button>
