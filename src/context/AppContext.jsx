@@ -1,5 +1,5 @@
 // src/context/AppContext.jsx
-import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef, useMemo, useState } from 'react';
 import { subjectDatabase } from '../data';
 import { auth, db, ref, set, onValue } from '../firebase';
 import { get, update } from 'firebase/database';
