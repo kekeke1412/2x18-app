@@ -83,11 +83,11 @@ function UserProfileModal() {
             <X className="w-4 h-4"/>
           </button>
         </div>
-        <div className="px-6 pb-6 pt-0 relative">
+        <div className="px-6 pb-6 pt-14 relative">
           <div className="absolute -top-12 left-6 border-4 border-[#1e1e1e] rounded-full">
             <UserAvatar user={user} size={80} className="shadow-xl" />
           </div>
-          <div className="mt-12">
+          <div>
             <div className="flex items-center gap-2 flex-wrap mb-1">
               <h2 className="text-xl font-black text-white leading-none">{user.fullName}</h2>
               {user.status === 'active' && <CheckCircle className="w-4 h-4 text-green-500"/>}
