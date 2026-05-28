@@ -25,8 +25,8 @@ export function showNotification(title, body, options = {}) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   const n = new Notification(title, {
     body,
-    icon: '/icon-192.png', // Dùng icon app nếu có
-    badge: '/icon-192.png',
+    icon: '/icon-192.jpg', // Dùng icon app nếu có
+    badge: '/icon-192.jpg',
     tag: options.tag || title, // Tránh trùng lặp cùng loại
     requireInteraction: options.requireInteraction || false,
     ...options,

@@ -216,7 +216,7 @@ function reducer(s, { type, payload }) {
       return { ...s, notifications:n, unreadCount:n.filter(x=>!x.read).length };
     }
     case A.MARK_ALL_READ: return { ...s, notifications:s.notifications.map(x=>({...x,read:true})), unreadCount:0 };
-    case A.ADD_NOTIF:       return { ...s, notifications:[payload,...s.notifications], unreadCount:s.unreadCount+1 };
+    case A.ADD_NOTIF:       return { ...s, notifications:[{...payload, senderId: s.currentUser?.id || 'system'},...s.notifications], unreadCount:s.unreadCount+1 };
 
     case A.ADD_ATTENDANCE_SESSION: return { ...s, attendance:[payload,...s.attendance] };
     case A.CHECK_ATTENDANCE: {
@@ -669,17 +669,56 @@ export function AppProvider({ children }) {
   const pushNotif = useCallback((msg, type = 'system', link = '') => {
     const n = { id: uid(), msg, type, link, read: false, time: new Date().toISOString() };
     dispatch({ type: A.ADD_NOTIF, payload: n });
-    if ('Notification' in window && Notification.permission === 'granted' && document.visibilityState !== 'visible') {
-      try {
-        new Notification('2X18 — ' + (type === 'task' ? '📋' : type === 'vote' ? '🗳️' : type === 'calendar' ? '📅' : type === 'member' ? '👥' : type === 'sme' ? '📄' : '🔔') + ' Thông báo mới', {
-          body: msg,
-          icon: '/icon-192.png',
-          badge: '/icon-192.png',
-          tag: n.id,
-        });
-      } catch (e) { /* ignore */ }
-    }
   }, []);
+
+  // ── Watch new notifications & trigger browser push ────────────────────────
+  const knownNotifsRef = useRef(new Set());
+  const initialLoadRef = useRef(true);
+
+  useEffect(() => {
+    if (state.isLoading || !state.currentUser) return;
+    
+    if (initialLoadRef.current) {
+      initialLoadRef.current = false;
+      state.notifications.forEach(n => knownNotifsRef.current.add(n.id));
+      return;
+    }
+
+    const newNotifs = state.notifications.filter(n => !knownNotifsRef.current.has(n.id));
+    
+    newNotifs.forEach(n => {
+      knownNotifsRef.current.add(n.id);
+      
+      // Không thông báo cho chính mình (người tạo hành động)
+      if (n.senderId === state.currentUser.id) return;
+
+      if ('Notification' in window && Notification.permission === 'granted') {
+        const title = '2X18 — ' + (n.type === 'task' ? '📋' : n.type === 'vote' ? '🗳️' : n.type === 'calendar' ? '📅' : n.type === 'member' ? '👥' : n.type === 'sme' ? '📄' : '🔔') + ' Thông báo mới';
+        
+        const options = {
+          body: n.msg,
+          icon: '/icon-192.jpg',
+          badge: '/icon-192.jpg',
+          tag: n.id,
+          data: { url: n.link || '/' }
+        };
+
+        try {
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then(reg => {
+              reg.showNotification(title, options);
+            }).catch(() => {
+              new Notification(title, options);
+            });
+          } else {
+            new Notification(title, options);
+          }
+        } catch (e) {
+          console.warn('[Notification]', e);
+        }
+      }
+    });
+  }, [state.notifications, state.isLoading, state.currentUser]);
 
   // ── AUTH ──────────────────────────────────────────────────────────────────
   const login = useCallback(async (email, password) => {
@@ -1478,6 +1517,13 @@ export function AppProvider({ children }) {
   const isCore       = isSuperAdmin || state.currentUser?.role?.toLowerCase() === 'core';
   
   const myGrades     = state.grades[state.currentUser?.id] || {};
+  
+  const isLearningSme = useMemo(() => {
+    if (!state.currentUser || !state.smeMap) return false;
+    return Object.entries(state.smeMap).some(([subId, smeName]) => {
+      return smeName === state.currentUser.fullName && state.grades[state.currentUser.id]?.[subId]?.status === 'Đang học';
+    });
+  }, [state.currentUser, state.smeMap, state.grades]);
 
   // Enrich grades specifically for AI usage (Array format)
   const myGradesEnriched = useMemo(() => {
@@ -1501,7 +1547,7 @@ export function AppProvider({ children }) {
   const pendingMembers = state.members.filter(m => m.status === 'pending');
 
   const value = {
-    ...state, isCore, isSuperAdmin, myGrades, myGradesEnriched, myTasks,
+    ...state, isCore, isSuperAdmin, isLearningSme, myGrades, myGradesEnriched, myTasks,
     activeMembers, pendingMembers,
     selectedProfileUser, setSelectedProfileUser,
     login, logout, loginWithGoogle, register,

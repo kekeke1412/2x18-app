@@ -45,6 +45,7 @@ export default function Attendance() {
     editAttendanceSession,
     isCore,
     isSuperAdmin,
+    isLearningSme,
     members,
     toast,
     requireGoogleAuth
@@ -63,6 +64,7 @@ export default function Attendance() {
   const [isCreating, setIsCreating] = useState(false);
   const [confirmDel, setConfirmDel] = useState(null);
   const [editData, setEditData] = useState(null);
+  const canManage = isCore || isLearningSme;
 
   useEffect(() => {
     if (attendance.length > 0 && !selected) setSelected(attendance[0].sessionId);
@@ -203,7 +205,7 @@ export default function Attendance() {
               {attendance.length} buổi đã tổ chức · Theo dõi sự tham gia của từng thành viên
             </p>
           </div>
-          {isCore && (
+          {canManage && (
             <button onClick={() => setShowAdd(v => !v)}
               className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white transition-all">
               <Plus className="w-3.5 h-3.5"/> Tạo buổi mới
@@ -300,7 +302,7 @@ export default function Attendance() {
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="text-sm font-bold text-gray-200 leading-tight flex-1">{s.sessionTitle}</div>
-                      {isCore && (
+                      {canManage && (
                         <div className="flex gap-0.5">
                           <button onClick={e => { e.stopPropagation(); setEditData({...s}); }} className="p-1 text-gray-600 hover:text-blue-400 rounded-lg hover:bg-blue-500/10"><Pencil className="w-3.5 h-3.5"/></button>
                           <button onClick={e => { e.stopPropagation(); setConfirmDel(s.sessionId); }} className="p-1 text-gray-600 hover:text-red-400 rounded-lg hover:bg-red-500/10"><Trash2 className="w-3.5 h-3.5"/></button>

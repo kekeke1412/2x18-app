@@ -238,7 +238,8 @@ function NonVotersPanel({ vote, activeMembers }) {
 
 // ── Vote Card ──────────────────────────────────────────────────────────────
 function VoteCard({ vote, onDeleteRequest }) {
-  const { castVote, closeVote, addVoteOption, currentUser, isCore, getMemberById, members } = useApp();
+  const { castVote, closeVote, addVoteOption, currentUser, isCore, isLearningSme, getMemberById, members } = useApp();
+  const canManage = isCore || isLearningSme;
   const activeMembers = useMemo(() => (members || []).filter(m => m.status !== 'pending'), [members]);
   const [newOption, setNewOption] = useState('');
   const [showAdd,   setShowAdd]   = useState(false);
@@ -290,7 +291,7 @@ function VoteCard({ vote, onDeleteRequest }) {
               )}
             </div>
           </div>
-          {isCore && (
+          {canManage && (
             <div className="flex items-center gap-1.5 shrink-0">
               {!isClosed && (
                 <button onClick={()=>closeVote(vote.id)}
@@ -396,7 +397,8 @@ function VoteCard({ vote, onDeleteRequest }) {
 
 // ── Main ───────────────────────────────────────────────────────────────────
 export default function Voting() {
-  const { votes, isCore, deleteVote } = useApp();
+  const { votes, isCore, isLearningSme, deleteVote } = useApp();
+  const canManage = isCore || isLearningSme;
   const [showCreate, setShowCreate] = useState(false);
   const [filter,     setFilter]     = useState('all');
   const [delTarget,  setDelTarget]  = useState(null); // { id, title }
@@ -440,7 +442,7 @@ export default function Voting() {
                 </button>
               ))}
             </div>
-            {isCore && (
+            {canManage && (
               <button onClick={()=>setShowCreate(true)}
                 className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white transition-all">
                 <Plus className="w-3.5 h-3.5"/> Tạo vote
@@ -459,7 +461,7 @@ export default function Voting() {
           >
             <Vote className="w-12 h-12 text-gray-700 mb-3"/>
             <p className="text-gray-500 font-medium">Chưa có bình chọn nào</p>
-            {isCore && <button onClick={()=>setShowCreate(true)} className="mt-3 text-blue-400 text-sm hover:underline">Tạo bình chọn đầu tiên</button>}
+            {canManage && <button onClick={()=>setShowCreate(true)} className="mt-3 text-blue-400 text-sm hover:underline">Tạo bình chọn đầu tiên</button>}
           </motion.div>
         ) : (
           <div className="space-y-4 max-w-2xl mx-auto">

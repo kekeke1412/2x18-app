@@ -424,6 +424,7 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
   const myDone   = tasks.filter(t=>t.doneBy?.[currentUser?.id]).length;
   const progress = tasks.length > 0 ? Math.round(myDone / tasks.length * 100) : 0;
   const comments = toArr(subjectComments[sub.id]);
+  const isActiveSme = isSme && grade?.status === 'Đang học';
   const docs = toArr(docsProp).filter(d => {
     if (!d.private) return true;
     return isCore || isSme || currentUser?.id === d.uploadedBy;
@@ -497,7 +498,7 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
               ) : <span className="text-xs text-gray-400">{sme||'Chưa có SME'}</span>}
             </div>
           )}
-          {(isSme || isCore) && (
+          {(isActiveSme || isCore) && (
             <button onClick={()=>onUpload(sub)} className="flex items-center gap-1 text-[10px] font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-1 rounded-lg">
               <Plus className="w-3 h-3"/> Thêm tài liệu
             </button>
