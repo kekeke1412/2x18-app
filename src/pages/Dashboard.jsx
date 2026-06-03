@@ -274,10 +274,10 @@ function GroupGPACard({ myGrades, allGrades, members }) {
         </div>
         {/* Comparison result */}
         <div className={`text-center text-xs font-bold px-3 py-2 rounded-xl ${myVal === 0
-            ? 'text-gray-500 bg-[#252525]'
-            : isAbove
-              ? 'text-green-400 bg-green-500/10 border border-green-500/20'
-              : 'text-yellow-400 bg-yellow-500/10 border border-yellow-500/20'
+          ? 'text-gray-500 bg-[#252525]'
+          : isAbove
+            ? 'text-green-400 bg-green-500/10 border border-green-500/20'
+            : 'text-yellow-400 bg-yellow-500/10 border border-yellow-500/20'
           }`}>
           {myVal === 0
             ? '— Chưa có điểm để so sánh'
@@ -377,8 +377,8 @@ function LearningProgressCard({ myGrades, allGrades, members }) {
         {/* Comparison */}
         {myPct > 0 && (
           <div className={`text-center text-xs font-bold px-3 py-2 rounded-xl ${myPct >= groupPct
-              ? 'text-green-400 bg-green-500/10 border border-green-500/20'
-              : 'text-amber-400 bg-amber-500/10 border border-amber-500/20'
+            ? 'text-green-400 bg-green-500/10 border border-green-500/20'
+            : 'text-amber-400 bg-amber-500/10 border border-amber-500/20'
             }`}>
             {myPct >= groupPct
               ? `↑ Bạn học nhanh hơn TB nhóm ${myPct - groupPct}%`
@@ -678,7 +678,7 @@ export default function Dashboard() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-xl font-black text-white">Dashboard</h1>
-            <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Chào , {currentUser?.fullName?.split(' ').pop()}!</p>
+            <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Chào, {currentUser?.fullName?.split(' ').pop()}!</p>
           </div>
           {/* Tabs */}
           <div className="flex items-center gap-1 bg-[#1a1a1a] p-1 rounded-xl border border-gray-800">
@@ -691,8 +691,8 @@ export default function Dashboard() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === tab.id
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-                    : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                  : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
                   }`}
               >
                 <tab.icon className="w-3.5 h-3.5" />
@@ -906,7 +906,7 @@ export default function Dashboard() {
                     <div className="mt-4">
                       <div className="text-[10px] font-bold text-gray-600 mb-2 uppercase">Trạng thái chung</div>
                       <div className={`text-xs font-black uppercase tracking-widest ${aiAnalysis.overallHealth === 'good' ? 'text-green-400' :
-                          aiAnalysis.overallHealth === 'warning' ? 'text-yellow-400' : 'text-red-400'
+                        aiAnalysis.overallHealth === 'warning' ? 'text-yellow-400' : 'text-red-400'
                         }`}>
                         {aiAnalysis.overallHealth === 'good' ? 'ỔN ĐỊNH' :
                           aiAnalysis.overallHealth === 'warning' ? 'CẦN CHÚ Ý' : 'NGUY CẤP'}
