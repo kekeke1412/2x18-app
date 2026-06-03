@@ -123,7 +123,7 @@ function SemesterSelector({ semGPA, semesterNames, updateSemesterName }) {
         <h3 className="font-bold text-white text-sm">GPA theo học kỳ</h3>
         <span className="text-[10px] text-gray-600 ml-1">· Click tên kỳ để đổi tên</span>
       </div>
-      <div className="flex pt-5 pb-2">
+      <div className="flex pt-10 pb-2">
         {/* Fixed Y Axis */}
         <div className="w-10 shrink-0 relative h-[180px]">
           {yAxisTicks.map(v => {
