@@ -307,17 +307,25 @@ function PageTransition({ children }) {
   );
 }
 
+// ── Loading Screen ─────────────────────────────────────────────────────────
+function LoadingScreen() {
+  return (
+    <div className="min-h-screen bg-[#121212] flex flex-col items-center justify-center gap-5">
+      <img src="/icon-192.jpg" alt="Logo" className="w-24 h-24 rounded-3xl object-cover animate-pulse" />
+      <div className="text-sm font-black text-blue-400 tracking-widest uppercase animate-pulse text-center px-4">
+        2X18 - NÓI KHÔNG VỚI VÔ KỶ LUẬT
+      </div>
+    </div>
+  );
+}
+
 // ── Protected Layout ───────────────────────────────────────────────────────
 function AppLayout() {
   const { currentUser, isLoading } = useApp();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
 
-  if (isLoading) return (
-    <div className="min-h-screen bg-[#121212] flex items-center justify-center">
-      <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-black text-lg animate-pulse">2X</div>
-    </div>
-  );
+  if (isLoading) return <LoadingScreen />;
 
   if (!currentUser) return <Navigate to="/auth" replace />;
 
@@ -378,11 +386,7 @@ function AppLayout() {
 // ── Auth Wrapper ───────────────────────────────────────────────────────────
 function AuthWrapper() {
   const { currentUser, isLoading } = useApp();
-  if (isLoading) return (
-    <div className="min-h-screen bg-[#121212] flex items-center justify-center">
-      <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-black text-lg animate-pulse">2X</div>
-    </div>
-  );
+  if (isLoading) return <LoadingScreen />;
   if (currentUser) return <Navigate to="/dashboard" replace />;
   return <Auth />;
 }
