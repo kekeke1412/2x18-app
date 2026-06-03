@@ -135,11 +135,33 @@ function SemesterSelector({ semGPA, semesterNames, updateSemesterName }) {
                   <Edit3 className="w-2.5 h-2.5 text-gray-700 group-hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-all shrink-0"/>
                 </button>
               )}
-              <div className={`text-2xl font-black ${cpaColor(gpa)}`}>{gpa}</div>
-              <div className="text-[10px] text-gray-600 mt-0.5">/ 4.0</div>
-              <div className="mt-2 h-1 bg-gray-800 rounded-full overflow-hidden">
-                <div className="h-full bg-blue-500/60 rounded-full"
-                  style={{ width: `${Math.min(100, (parseFloat(gpa)/4)*100)}%` }}/>
+              <div className="flex flex-col items-center mt-2">
+                <div className={`text-sm font-black mb-1 ${cpaColor(gpa)}`}>{gpa}</div>
+                <div className="relative h-[80px] w-full flex justify-center">
+                  <div className="w-10 bg-gray-800/50 rounded-t-md overflow-hidden flex flex-col justify-end h-full z-20">
+                    <div className="w-full bg-blue-500/70 rounded-t-md transition-all duration-700"
+                      style={{ height: `${Math.min(100, (parseFloat(gpa)/4)*100)}%` }}/>
+                  </div>
+                  {i < sems.length - 1 && (
+                    <svg className="absolute top-0 left-1/2 w-full h-full pointer-events-none z-10" style={{ overflow: 'visible' }}>
+                       <line 
+                         x1="0" 
+                         y1={`${100 * (1 - parseFloat(gpa)/4)}%`} 
+                         x2="100%" 
+                         y2={`${100 * (1 - parseFloat(semGPA[sems[i+1]])/4)}%`} 
+                         stroke="#60a5fa" 
+                         strokeWidth="2" 
+                       />
+                       <circle cx="0" cy={`${100 * (1 - parseFloat(gpa)/4)}%`} r="4" fill="#60a5fa" stroke="#1a1a1a" strokeWidth="2" />
+                    </svg>
+                  )}
+                  {i === sems.length - 1 && (
+                    <svg className="absolute top-0 left-1/2 w-full h-full pointer-events-none z-10" style={{ overflow: 'visible' }}>
+                       <circle cx="0" cy={`${100 * (1 - parseFloat(gpa)/4)}%`} r="4" fill="#60a5fa" stroke="#1a1a1a" strokeWidth="2" />
+                    </svg>
+                  )}
+                </div>
+                <div className="text-[10px] text-gray-600 mt-2">/ 4.0</div>
               </div>
             </div>
           );

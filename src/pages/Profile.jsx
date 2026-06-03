@@ -402,7 +402,6 @@ function GradeRow({ subject, grades, onGradeChange, isEditing, isDimmed }) {
 function GradesTable({ profile, grades, onSave, canEdit }) {
   const [localGrades, setLocalGrades] = useState(grades);
   const [isEditing, setIsEditing]     = useState(false);
-  const [cpaGoal,   setCpaGoal]       = useState('');
   useEffect(() => { setLocalGrades(grades); }, [grades]);
 
   const handleChange = (subjectId, field, value) => {
@@ -418,17 +417,6 @@ function GradesTable({ profile, grades, onSave, canEdit }) {
 
   // Tổng tín chỉ chương trình — cố định 133 TC (theo chương trình đào tạo)
   const totalProgramCredits = 133;
-
-  // Tính điểm TB cần đạt mỗi kỳ để đạt mục tiêu CPA
-  const cpaGoalResult = useMemo(() => {
-    const goal = parseFloat(cpaGoal);
-    if (!cpaGoal || isNaN(goal) || goal <= 0 || goal > 4.0) return null;
-    const { rawPoints, rawCredits } = gpaStats;
-    const remaining = totalProgramCredits - rawCredits;
-    if (remaining <= 0) return { needed: null, remaining: 0 };
-    const needed = (goal * (rawCredits + remaining) - rawPoints) / remaining;
-    return { needed: Math.min(4.0, Math.max(0, needed)).toFixed(2), remaining };
-  }, [cpaGoal, gpaStats, totalProgramCredits]);
 
   return (
     <div>
@@ -473,49 +461,6 @@ function GradesTable({ profile, grades, onSave, canEdit }) {
         </div>
       </div>
 
-      {/* CPA Goal Panel */}
-      <div className="mb-5 bg-[#1a1a1a] border border-purple-500/20 rounded-2xl p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <GraduationCap className="w-4 h-4 text-purple-400"/>
-          <span className="text-sm font-bold text-purple-300">Mục tiêu CPA khi ra trường</span>
-        </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 flex-1 min-w-[180px]">
-            <label className="text-[10px] font-bold text-gray-500 uppercase whitespace-nowrap">CPA mục tiêu (hệ 4)</label>
-            <input
-              type="number" min="0" max="4" step="0.01"
-              placeholder="VD: 3.20"
-              value={cpaGoal}
-              onChange={e => setCpaGoal(e.target.value)}
-              className="w-24 text-sm bg-[#252525] border border-gray-700 rounded-xl px-3 py-1.5 text-white outline-none focus:border-purple-500 text-center"/>
-          </div>
-          {cpaGoalResult && cpaGoalResult.remaining > 0 && (
-            <div className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-center border ${
-              parseFloat(cpaGoalResult.needed) <= 4.0
-                ? 'bg-purple-500/10 border-purple-500/20 text-purple-300'
-                : 'bg-red-500/10 border-red-500/20 text-red-300'
-            }`}>
-              {parseFloat(cpaGoalResult.needed) <= 4.0
-                ? <>Cần duy trì TB <span className="text-lg font-black">{cpaGoalResult.needed}</span>/4.0 trong {cpaGoalResult.remaining} TC còn lại</>
-                : <>Mục tiêu này <span className="text-red-400 font-black">không khả thi</span> với điểm số hiện tại</>
-              }
-            </div>
-          )}
-          {cpaGoalResult && cpaGoalResult.remaining === 0 && (
-            <div className="flex-1 px-4 py-2.5 rounded-xl text-sm text-gray-500 text-center border border-gray-800">
-              Đã hoàn thành chương trình học.
-            </div>
-          )}
-          {!cpaGoalResult && cpaGoal && (
-            <div className="flex-1 px-4 py-2.5 rounded-xl text-xs text-amber-400 border border-amber-500/20 bg-amber-500/10">
-              Nhập CPA mục tiêu từ 0.00 đến 4.00
-            </div>
-          )}
-        </div>
-        <p className="text-[10px] text-gray-600 mt-2">
-          Tính dựa trên {gpaStats.rawCredits} TC đã có điểm và còn {Math.max(0, totalProgramCredits - gpaStats.rawCredits)} TC chưa được đánh giá.
-        </p>
-      </div>
 
       <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800/60 sticky top-0 bg-[#1a1a1a] z-10">
