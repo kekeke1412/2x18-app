@@ -1,5 +1,6 @@
 ---
-trigger: always_on
+trigger: model_decision
+description: Thực hiện khi có code
 ---
 
 "Khi hoàn thành một phiên vibe coding, khi một tính năng vừa được code chạy thành công, hoặc khi tôi yêu cầu 'xong', bạn phải tự động thực hiện chuỗi lệnh Git sau:
