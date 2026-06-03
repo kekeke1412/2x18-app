@@ -100,72 +100,102 @@ function SemesterSelector({ semGPA, semesterNames, updateSemesterName }) {
     setEditing(null);
   };
 
+  const N = sems.length;
+  const gpaValues = sems.map(s => parseFloat(semGPA[s]));
+  const minGpa = Math.min(...gpaValues);
+  const maxGpa = Math.max(...gpaValues);
+  
+  const chartMin = Math.max(0, minGpa - 0.4);
+  const chartMax = Math.min(4.0, maxGpa + 0.1);
+  const range = chartMax - chartMin || 1;
+
+  const getX = (i) => ((i + 0.5) / N) * 100;
+  const getY = (gpa) => 90 - ((parseFloat(gpa) - chartMin) / range) * 80;
+
+  const points = sems.map((sem, i) => `${getX(i)},${getY(semGPA[sem])}`).join(' ');
+  const polygonPoints = `${getX(0)},100 ${points} ${getX(N-1)},100`;
+
   return (
     <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl overflow-hidden mb-6">
       <div className="px-5 py-3.5 border-b border-gray-800/60 flex items-center gap-2">
-        <GraduationCap className="w-4 h-4 text-blue-400"/>
+        <TrendingUp className="w-4 h-4 text-red-400"/>
         <h3 className="font-bold text-white text-sm">GPA theo học kỳ</h3>
         <span className="text-[10px] text-gray-600 ml-1">· Click tên kỳ để đổi tên</span>
       </div>
-      <div className="flex overflow-x-auto custom-scrollbar">
-        {sems.map((sem, i) => {
-          const gpa = semGPA[sem];
-          const isEd = editing === sem;
-          return (
-            <div key={sem}
-              className={`flex-1 min-w-[130px] px-4 py-4 border-r border-gray-800/40 last:border-r-0 ${i % 2 === 0 ? 'bg-[#1a1a1a]' : 'bg-[#181818]'}`}>
-              {isEd ? (
-                <div className="flex items-center gap-1 mb-2">
-                  <input ref={inputRef}
-                    className="text-[10px] font-bold text-blue-300 bg-blue-500/10 border border-blue-500/30 rounded-lg px-2 py-1 w-full outline-none"
-                    value={draft}
-                    onChange={e => setDraft(e.target.value)}
-                    onKeyDown={e => { if (e.key==='Enter') commit(sem); if (e.key==='Escape') setEditing(null); }}
-                    maxLength={20}/>
-                  <button onClick={() => commit(sem)} className="p-1 text-green-400 shrink-0"><Check className="w-3 h-3"/></button>
-                  <button onClick={() => setEditing(null)} className="p-1 text-gray-600 hover:text-white shrink-0"><X className="w-3 h-3"/></button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => { setEditing(sem); setDraft(semesterNames[sem] || `Học kỳ ${sem}`); }}
-                  className="group flex items-center gap-1 mb-2" title="Click để đổi tên">
-                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide group-hover:text-blue-400 transition-colors truncate max-w-[90px]">
-                    {semesterNames[sem] || `Học kỳ ${sem}`}
-                  </span>
-                  <Edit3 className="w-2.5 h-2.5 text-gray-700 group-hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-all shrink-0"/>
-                </button>
-              )}
-              <div className="flex flex-col items-center mt-2">
-                <div className={`text-sm font-black mb-1 ${cpaColor(gpa)}`}>{gpa}</div>
-                <div className="relative h-[80px] w-full flex justify-center">
-                  <div className="w-10 bg-gray-800/50 rounded-t-md overflow-hidden flex flex-col justify-end h-full z-20">
-                    <div className="w-full bg-blue-500/70 rounded-t-md transition-all duration-700"
-                      style={{ height: `${Math.min(100, (parseFloat(gpa)/4)*100)}%` }}/>
+      <div className="p-5 overflow-x-auto custom-scrollbar">
+        <div className="relative min-w-[600px] h-[220px] mx-auto">
+          {/* Y Axis Grid Lines */}
+          <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-[40px] pt-[22px]">
+             <div className="w-full border-t border-gray-800/50"></div>
+             <div className="w-full border-t border-gray-800/50"></div>
+             <div className="w-full border-t border-gray-800/50"></div>
+             <div className="w-full border-t border-gray-800/50"></div>
+          </div>
+
+          {/* Chart SVG */}
+          <svg className="absolute top-0 left-0 w-full h-[180px]" viewBox="0 0 100 100" preserveAspectRatio="none">
+             <defs>
+               <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                 <stop offset="0%" stopColor="#ef4444" stopOpacity="0.4" />
+                 <stop offset="100%" stopColor="#ef4444" stopOpacity="0.0" />
+               </linearGradient>
+             </defs>
+             <polygon points={polygonPoints} fill="url(#areaGrad)" />
+             <polyline points={points} fill="none" stroke="#ef4444" strokeWidth="2.5" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+
+          {/* Data Points and Labels */}
+          <div className="absolute top-0 left-0 w-full h-[180px] pointer-events-none">
+            {sems.map((sem, i) => {
+              const gpa = semGPA[sem];
+              const x = getX(i);
+              const y = getY(gpa);
+              const isLast = i === N - 1;
+              return (
+                <div key={sem} className="absolute flex flex-col items-center" 
+                     style={{ left: `${x}%`, top: `${y}%`, transform: 'translate(-50%, -50%)' }}>
+                  <div className={`absolute bottom-3 text-sm font-black whitespace-nowrap drop-shadow-md ${isLast ? 'text-red-400' : 'text-gray-200'}`}>
+                    {gpa}
                   </div>
-                  {i < sems.length - 1 && (
-                    <svg className="absolute top-0 left-1/2 w-full h-full pointer-events-none z-10" style={{ overflow: 'visible' }}>
-                       <line 
-                         x1="0" 
-                         y1={`${100 * (1 - parseFloat(gpa)/4)}%`} 
-                         x2="100%" 
-                         y2={`${100 * (1 - parseFloat(semGPA[sems[i+1]])/4)}%`} 
-                         stroke="#60a5fa" 
-                         strokeWidth="2" 
-                       />
-                       <circle cx="0" cy={`${100 * (1 - parseFloat(gpa)/4)}%`} r="4" fill="#60a5fa" stroke="#1a1a1a" strokeWidth="2" />
-                    </svg>
-                  )}
-                  {i === sems.length - 1 && (
-                    <svg className="absolute top-0 left-1/2 w-full h-full pointer-events-none z-10" style={{ overflow: 'visible' }}>
-                       <circle cx="0" cy={`${100 * (1 - parseFloat(gpa)/4)}%`} r="4" fill="#60a5fa" stroke="#1a1a1a" strokeWidth="2" />
-                    </svg>
+                  <div className={`w-3.5 h-3.5 rounded-full border-[3px] shadow-[0_0_10px_rgba(239,68,68,0.6)] ${isLast ? 'bg-red-500 border-white' : 'bg-[#1a1a1a] border-red-500'}`} />
+                </div>
+              );
+            })}
+          </div>
+
+          {/* X Axis Semester Labels */}
+          <div className="absolute bottom-0 left-0 w-full flex h-[40px]">
+            {sems.map((sem, i) => {
+              const isEd = editing === sem;
+              const isLast = i === N - 1;
+              return (
+                <div key={sem} className="flex-1 flex justify-center items-end pb-1">
+                  {isEd ? (
+                    <div className="flex items-center gap-1">
+                      <input ref={inputRef}
+                        className="text-[10px] font-bold text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg px-2 py-1 w-20 outline-none text-center"
+                        value={draft}
+                        onChange={e => setDraft(e.target.value)}
+                        onKeyDown={e => { if (e.key==='Enter') commit(sem); if (e.key==='Escape') setEditing(null); }}
+                        maxLength={20}/>
+                      <button onClick={() => commit(sem)} className="p-1 text-green-400 shrink-0 pointer-events-auto"><Check className="w-3 h-3"/></button>
+                      <button onClick={() => setEditing(null)} className="p-1 text-gray-600 hover:text-white shrink-0 pointer-events-auto"><X className="w-3 h-3"/></button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { setEditing(sem); setDraft(semesterNames[sem] || `Học kỳ ${sem}`); }}
+                      className="group flex items-center gap-1 pointer-events-auto" title="Click để đổi tên">
+                      <span className={`text-[10px] font-bold uppercase tracking-wide group-hover:text-red-400 transition-colors truncate max-w-[90px] ${isLast ? 'text-red-400' : 'text-gray-500'}`}>
+                        {semesterNames[sem] || `Học kỳ ${sem}`}
+                      </span>
+                      <Edit3 className="w-2 h-2 text-gray-700 group-hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all shrink-0"/>
+                    </button>
                   )}
                 </div>
-                <div className="text-[10px] text-gray-600 mt-2">/ 4.0</div>
-              </div>
-            </div>
-          );
-        })}
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );
