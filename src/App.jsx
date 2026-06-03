@@ -203,7 +203,7 @@ function Sidebar({ onClose }) {
       {/* Logo */}
       <div className="px-5 py-4 border-b border-gray-800/60 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center font-black text-sm">2X</div>
+          <img src="/icon-192.jpg" alt="2X" className="w-9 h-9 rounded-xl object-cover"/>
           <div>
             <div className="text-white font-black text-base leading-none">2X18</div>
             <div className="text-gray-500 text-[10px] mt-0.5">HUS K70</div>
