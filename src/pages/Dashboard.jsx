@@ -86,6 +86,7 @@ const cpaColor = v => {
 function SemesterSelector({ semGPA, semesterNames, updateSemesterName }) {
   const [editing, setEditing] = useState(null);
   const [draft,   setDraft]   = useState('');
+  const [hoveredSem, setHoveredSem] = useState(null);
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -168,14 +169,16 @@ function SemesterSelector({ semGPA, semesterNames, updateSemesterName }) {
                 const gpa = semGPA[sem];
                 const x = getX(i);
                 const y = getY(gpa);
-                const isLast = i === N - 1;
+                const isHovered = hoveredSem === sem;
                 return (
-                  <div key={sem} className="absolute flex flex-col items-center" 
-                       style={{ left: `${x}%`, top: `${y}%`, transform: 'translate(-50%, -50%)' }}>
-                    <div className={`absolute bottom-3 text-sm font-black whitespace-nowrap drop-shadow-md ${isLast ? 'text-red-400' : 'text-gray-200'}`}>
+                  <div key={sem} className="absolute flex flex-col items-center justify-center w-10 h-10 pointer-events-auto cursor-pointer" 
+                       style={{ left: `${x}%`, top: `${y}%`, transform: 'translate(-50%, -50%)' }}
+                       onMouseEnter={() => setHoveredSem(sem)}
+                       onMouseLeave={() => setHoveredSem(null)}>
+                    <div className={`absolute bottom-8 text-sm font-black whitespace-nowrap drop-shadow-md transition-colors ${isHovered ? 'text-red-400' : 'text-white'}`}>
                       {gpa}
                     </div>
-                    <div className={`w-3.5 h-3.5 rounded-full border-[3px] shadow-[0_0_10px_rgba(239,68,68,0.6)] ${isLast ? 'bg-red-500 border-white' : 'bg-[#1a1a1a] border-red-500'}`} />
+                    <div className={`w-3.5 h-3.5 rounded-full border-[3px] transition-all duration-200 ${isHovered ? 'bg-red-500 border-white shadow-[0_0_12px_rgba(239,68,68,0.8)] scale-125' : 'bg-[#1a1a1a] border-red-500'}`} />
                   </div>
                 );
               })}
@@ -185,9 +188,11 @@ function SemesterSelector({ semGPA, semesterNames, updateSemesterName }) {
             <div className="absolute bottom-0 left-0 w-full flex h-[40px]">
               {sems.map((sem, i) => {
                 const isEd = editing === sem;
-                const isLast = i === N - 1;
+                const isHovered = hoveredSem === sem;
                 return (
-                  <div key={sem} className="flex-1 flex justify-center items-end pb-1">
+                  <div key={sem} className="flex-1 flex justify-center items-end pb-1"
+                       onMouseEnter={() => setHoveredSem(sem)}
+                       onMouseLeave={() => setHoveredSem(null)}>
                     {isEd ? (
                       <div className="flex items-center gap-1">
                         <input ref={inputRef}
@@ -203,7 +208,7 @@ function SemesterSelector({ semGPA, semesterNames, updateSemesterName }) {
                       <button
                         onClick={() => { setEditing(sem); setDraft(semesterNames[sem] || `Học kỳ ${sem}`); }}
                         className="group flex items-center gap-1 pointer-events-auto" title="Click để đổi tên">
-                        <span className={`text-[10px] font-bold uppercase tracking-wide group-hover:text-red-400 transition-colors truncate max-w-[90px] ${isLast ? 'text-red-400' : 'text-gray-500'}`}>
+                        <span className={`text-[10px] font-bold uppercase tracking-wide transition-colors truncate max-w-[90px] ${isHovered ? 'text-red-400' : 'text-gray-500'}`}>
                           {semesterNames[sem] || `Học kỳ ${sem}`}
                         </span>
                         <Edit3 className="w-2 h-2 text-gray-700 group-hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all shrink-0"/>
