@@ -8,7 +8,7 @@ Chạy git status để kiểm tra thay đổi.
 
 Chạy git add . để đưa tất cả thay đổi vào vùng staging.
 
-Tự động phân tích code diff để tạo một commit message ngắn gọn, tóm tắt chính xác những thay đổi vừa làm. Sau đó chạy git commit -m "<message>".
+Tự động phân tích code diff để tạo một commit message ngắn gọn, tóm tắt chính xác những thay đổi vừa làm. Sau đó chạy git commit -m "<message>" với message là ngày giờ đăng.
 
 Chạy git push để đẩy code lên remote repository.
 Hãy báo cáo lại trạng thái (thành công hoặc gặp lỗi conflict) sau khi hoàn thành chuỗi thao tác."
