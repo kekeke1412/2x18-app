@@ -775,18 +775,33 @@ export function AppProvider({ children }) {
       let member = snap.val();
 
       if (!member) {
-        member = {
-          id: fbUser.uid, uid: fbUser.uid,
-          email: fbUser.email, mailSchool: fbUser.email,
-          fullName: fbUser.displayName || 'Thành viên',
-          avatarUrl: fbUser.photoURL || '',
-          avatar: (fbUser.displayName || 'NT').split(' ').map(w => w[0]).slice(-2).join('').toUpperCase(),
-          role: isSA ? 'super_admin' : 'member',
-          status: isSA ? 'active' : 'pending',
-          mssv: '', phone: '', gender: '',
-          registeredAt: new Date().toISOString(),
-        };
-        await set(ref(db, `2x18_members/${fbUser.uid}`), member);
+        const snapAll = await get(ref(db, '2x18_members'));
+        const allMembers = toArr(snapAll.val());
+        member = allMembers.find(m => m.email === fbUser.email || m.mailSchool === fbUser.email);
+
+        if (member) {
+          // Found by email, need to migrate the record to the new uid or link it
+          // Since it's realtime DB, we can just update the existing member with the new uid
+          member = {
+            ...member,
+            uid: fbUser.uid,
+            avatarUrl: fbUser.photoURL || member.avatarUrl || '',
+          };
+          await set(ref(db, `2x18_members/${member.id}`), member);
+        } else {
+          member = {
+            id: fbUser.uid, uid: fbUser.uid,
+            email: fbUser.email, mailSchool: fbUser.email,
+            fullName: fbUser.displayName || 'Thành viên',
+            avatarUrl: fbUser.photoURL || '',
+            avatar: (fbUser.displayName || 'NT').split(' ').map(w => w[0]).slice(-2).join('').toUpperCase(),
+            role: isSA ? 'super_admin' : 'member',
+            status: isSA ? 'active' : 'pending',
+            mssv: '', phone: '', gender: '',
+            registeredAt: new Date().toISOString(),
+          };
+          await set(ref(db, `2x18_members/${fbUser.uid}`), member);
+        }
       } else {
         const googlePhoto = fbUser.photoURL || '';
         const needsAvatarSync = googlePhoto && member.avatarUrl !== googlePhoto;

@@ -5,6 +5,9 @@ import { Clock, ChevronLeft, ShieldCheck } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// Import ảnh trực tiếp để tránh lỗi đường dẫn
+import iconUrl from '/icon-192.jpg';
+
 // Google Logo SVG
 const GoogleLogo = () => (
   <svg width="18" height="18" viewBox="0 0 18 18">
@@ -54,7 +57,7 @@ export default function Auth() {
 
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-12">
-            <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center font-black text-white shadow-lg shadow-blue-600/30">2X</div>
+            <img src={iconUrl} alt="2X" className="w-10 h-10 rounded-2xl object-cover shadow-lg shadow-blue-600/30" />
             <span className="text-xl font-black text-white tracking-tight">2X18</span>
           </div>
 
@@ -96,7 +99,7 @@ export default function Auth() {
           </motion.div>
         </div>
 
-        <div className="text-gray-700 text-xs">© 2X18 K70 Cong nghệ bán dẫn &amp; Trường Đại học Khoa học tự nhiên - ĐHQGHN</div>
+        <div className="text-gray-700 text-xs">© 2X18 - K70 Công nghệ bán dẫn | Trường Đại học Khoa học tự nhiên - ĐHQGHN</div>
       </div>
 
       {/* ── Right panel ── */}
