@@ -12,9 +12,9 @@ import { useApp } from '../context/AppContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // ── Constants ──────────────────────────────────────────────────────────────
-const BLOOD_TYPES = ['A+','A−','B+','B−','AB+','AB−','O+','O−'];
-const GENDERS     = ['Nam','Nữ'];
-const SEMESTERS   = [1,2,3,4,5,6,7,8];
+const BLOOD_TYPES = ['A+', 'A−', 'B+', 'B−', 'AB+', 'AB−', 'O+', 'O−'];
+const GENDERS = ['Nam', 'Nữ'];
+const SEMESTERS = [1, 2, 3, 4, 5, 6, 7, 8];
 
 // Cập nhật danh sách 23 Tỉnh/Thành phố
 const PROVINCES = [
@@ -55,26 +55,26 @@ const PROVINCES = [
 ];
 
 const REQUIRED_FIELDS = [
-  { key: 'mssv',      label: 'Mã số sinh viên' },
-  { key: 'fullName',  label: 'Họ và tên' },
-  { key: 'gender',    label: 'Giới tính' },
-  { key: 'dob',       label: 'Ngày sinh' },
+  { key: 'mssv', label: 'Mã số sinh viên' },
+  { key: 'fullName', label: 'Họ và tên' },
+  { key: 'gender', label: 'Giới tính' },
+  { key: 'dob', label: 'Ngày sinh' },
   { key: 'ethnicity', label: 'Dân tộc' },
   { key: 'bloodType', label: 'Nhóm máu' },
-  { key: 'pob',       label: 'Nơi sinh' },
-  { key: 'phone',     label: 'Số điện thoại' },
-  { key: 'mailVnu',   label: 'Mail VNU' },
-  { key: 'mailSchool',label: 'Mail HUS' },
-  { key: 'facebook',  label: 'Facebook' },
+  { key: 'pob', label: 'Nơi sinh' },
+  { key: 'phone', label: 'Số điện thoại' },
+  { key: 'mailVnu', label: 'Mail VNU' },
+  { key: 'mailSchool', label: 'Mail HUS' },
+  { key: 'facebook', label: 'Facebook' },
 ];
 
 const ETHNICITIES = [
-  'Kinh','Tày','Thái','Mường','Khmer','Mông','Nùng','Dao','Gia-rai','Ngái',
-  'Ê-đê','Ba-na','Xơ-đăng','Sán Chay','Cơ-ho','Chăm','Sán Dìu','Hrê','Mnông',
-  'Ra-glai','Xtiêng','Bru-Vân Kiều','Thổ','Giáy','Cơ-tu','Gié-triêng','Mạ',
-  'Khơ-mú','Co','Tà-ôi','Chơ-ro','Kháng','Xinh-mun','Hà Nhì','Chu-ru','Lào',
-  'La Chí','La Ha','Phù Lá','La Hủ','Lự','Lô Lô','Chứt','Mảng','Pà Thẻn',
-  'Cơ Lao','Cống','Bố Y','Si La','Pu Péo','Rơ-măm','Brâu','Ơ-đu',
+  'Kinh', 'Tày', 'Thái', 'Mường', 'Khmer', 'Mông', 'Nùng', 'Dao', 'Gia-rai', 'Ngái',
+  'Ê-đê', 'Ba-na', 'Xơ-đăng', 'Sán Chay', 'Cơ-ho', 'Chăm', 'Sán Dìu', 'Hrê', 'Mnông',
+  'Ra-glai', 'Xtiêng', 'Bru-Vân Kiều', 'Thổ', 'Giáy', 'Cơ-tu', 'Gié-triêng', 'Mạ',
+  'Khơ-mú', 'Co', 'Tà-ôi', 'Chơ-ro', 'Kháng', 'Xinh-mun', 'Hà Nhì', 'Chu-ru', 'Lào',
+  'La Chí', 'La Ha', 'Phù Lá', 'La Hủ', 'Lự', 'Lô Lô', 'Chứt', 'Mảng', 'Pà Thẻn',
+  'Cơ Lao', 'Cống', 'Bố Y', 'Si La', 'Pu Péo', 'Rơ-măm', 'Brâu', 'Ơ-đu',
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -102,12 +102,12 @@ const calcResult = (cc, gk, ck) => {
 
 const roleLabel = (role) => {
   if (role === 'super_admin') return { text: 'Super Admin', cls: 'bg-purple-500/20 text-purple-300 border border-purple-500/30' };
-  if (role === 'core')        return { text: 'Core Team',   cls: 'bg-blue-500/20 text-blue-300 border border-blue-500/30' };
-  return                             { text: 'Thành viên',  cls: 'bg-gray-700/40 text-gray-400 border border-gray-700' };
+  if (role === 'core') return { text: 'Core Team', cls: 'bg-blue-500/20 text-blue-300 border border-blue-500/30' };
+  return { text: 'Thành viên', cls: 'bg-gray-700/40 text-gray-400 border border-gray-700' };
 };
 
-const getInitials = (name='') =>
-  name.split(' ').filter(Boolean).map(w=>w[0]).slice(-2).join('').toUpperCase() || '??';
+const getInitials = (name = '') =>
+  name.split(' ').filter(Boolean).map(w => w[0]).slice(-2).join('').toUpperCase() || '??';
 
 // ── Grade helpers ──────────────────────────────────────────────────────────
 function calcGpaStats(grades) {
@@ -135,17 +135,17 @@ function calcGpaStats(grades) {
     const limit = sub.electiveGroup ? electiveLimits[sub.electiveGroup] : 0;
     const currentCr = sub.electiveGroup ? (groupCredits[sub.electiveGroup] || 0) : 0;
     const isActive = st === 'Đã học' || st === 'Đang học' || st === 'Được miễn' || st === 'Đạt';
-    
+
     // Nếu khối đã đủ chỉ, và môn này chưa được chọn -> Mặc định là Không học
     if (sub.electiveGroup && currentCr >= limit && !isActive) {
       st = 'Không học';
     }
 
     if (st === 'Đang học') learning++;
-    
+
     if (st === 'Đã học' || st === 'Đạt' || st === 'Được miễn') {
       if (st === 'Đã học' || st === 'Đạt') done++;
-      
+
       // 3. Loại bỏ các môn Giáo dục thể chất, QPAN, Kỹ năng bổ trợ khỏi GPA và Tín chỉ
       if (!sub.excludeCPA) {
         // Môn được miễn luôn tính vào tín chỉ đạt
@@ -158,12 +158,12 @@ function calcGpaStats(grades) {
             if (he4 >= 1.0) {
               // Điểm từ D trở lên → tính vào CPA và tín chỉ đạt
               earnedCredits += sub.credits;
-              totalPoints  += he4 * sub.credits;
+              totalPoints += he4 * sub.credits;
               totalCredits += sub.credits;
               if (g.semester) {
-                if (!semGPA[g.semester]) semGPA[g.semester] = { pts:0, cr:0 };
+                if (!semGPA[g.semester]) semGPA[g.semester] = { pts: 0, cr: 0 };
                 semGPA[g.semester].pts += he4 * sub.credits;
-                semGPA[g.semester].cr  += sub.credits;
+                semGPA[g.semester].cr += sub.credits;
               }
             } else {
               // Điểm F → không tính CPA, không tính tín chỉ đạt
@@ -177,80 +177,82 @@ function calcGpaStats(grades) {
 
   const cpa = totalCredits ? (totalPoints / totalCredits).toFixed(2) : '—';
   const semGPAFmt = {};
-  Object.entries(semGPA).forEach(([k,v]) => {
-    semGPAFmt[k] = v.cr ? (v.pts/v.cr).toFixed(2) : '—';
+  Object.entries(semGPA).forEach(([k, v]) => {
+    semGPAFmt[k] = v.cr ? (v.pts / v.cr).toFixed(2) : '—';
   });
-  return { cpa, credits: earnedCredits, learning, done, semGPA: semGPAFmt,
-           failed, rawPoints: totalPoints, rawCredits: totalCredits };
+  return {
+    cpa, credits: earnedCredits, learning, done, semGPA: semGPAFmt,
+    failed, rawPoints: totalPoints, rawCredits: totalCredits
+  };
 }
 
 function exportGradesToCSV(profile, grades) {
-  const headers = ['STT','Mã môn','Tên môn','Số TC','Loại','Học kỳ','Trạng thái','CC','GK','CK','Hệ 10','Chữ','Hệ 4'];
+  const headers = ['STT', 'Mã môn', 'Tên môn', 'Số TC', 'Loại', 'Học kỳ', 'Trạng thái', 'CC', 'GK', 'CK', 'Hệ 10', 'Chữ', 'Hệ 4'];
   const rows = subjectDatabase.map((sub, i) => {
     const g = grades[sub.id] || {};
     let st = g.status || 'Chưa học';
     if (sub.excludeCPA && st === 'Đã học') st = 'Đạt'; // Fix export format
     const r = sub.excludeCPA ? { he10: '—', chu: '—', he4: '—' } : calcResult(g.cc, g.gk, g.ck);
-    return [i+1, sub.code, sub.name, sub.credits, sub.type,
-      g.semester ? `Kỳ ${g.semester}` : '—', st,
-      g.cc||'—', g.gk||'—', g.ck||'—', r.he10, r.chu, r.he4];
+    return [i + 1, sub.code, sub.name, sub.credits, sub.type,
+    g.semester ? `Kỳ ${g.semester}` : '—', st,
+    g.cc || '—', g.gk || '—', g.ck || '—', r.he10, r.chu, r.he4];
   });
-  const csv = [headers,...rows].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
-  const url  = URL.createObjectURL(blob);
-  const a    = Object.assign(document.createElement('a'),{href:url,download:`BangDiem_${profile.fullName||'SinhVien'}.csv`});
-  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = Object.assign(document.createElement('a'), { href: url, download: `BangDiem_${profile.fullName || 'SinhVien'}.csv` });
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
 // ── UI primitives ──────────────────────────────────────────────────────────
-const Field = ({ label, value, onChange, type='text', options, disabled, required, hint }) => (
+const Field = ({ label, value, onChange, type = 'text', options, disabled, required, hint }) => (
   <div className="flex flex-col gap-1">
     <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
       {label}
       {required && !disabled && <span className="text-red-400">*</span>}
     </label>
     {options ? (
-      <select value={value||''} onChange={e=>onChange(e.target.value)} disabled={disabled}
+      <select value={value || ''} onChange={e => onChange(e.target.value)} disabled={disabled}
         className={`text-sm px-3 py-2 rounded-xl outline-none transition-all
           ${disabled ? 'bg-transparent text-gray-300 border-transparent cursor-default'
-                     : 'bg-[#252525] border border-gray-700 text-white focus:border-blue-500'}`}>
+            : 'bg-[#252525] border border-gray-700 text-white focus:border-blue-500'}`}>
         <option value="">—</option>
-        {options.map(o=><option key={o} value={o}>{o}</option>)}
+        {options.map(o => <option key={o} value={o}>{o}</option>)}
       </select>
-    ) : type==='date' ? (
+    ) : type === 'date' ? (
       disabled
         ? <div className="text-sm px-3 py-2 text-gray-300">{toDisplay(value)}</div>
-        : <input type="date" value={value||''} onChange={e=>onChange(e.target.value)}
-            className="text-sm px-3 py-2 rounded-xl outline-none bg-[#252525] border border-gray-700 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"/>
+        : <input type="date" value={value || ''} onChange={e => onChange(e.target.value)}
+          className="text-sm px-3 py-2 rounded-xl outline-none bg-[#252525] border border-gray-700 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30" />
     ) : (
-      <input type={type} value={value||''} onChange={onChange ? e=>onChange(e.target.value) : undefined} disabled={disabled}
+      <input type={type} value={value || ''} onChange={onChange ? e => onChange(e.target.value) : undefined} disabled={disabled}
         className={`text-sm px-3 py-2 rounded-xl outline-none transition-all
           ${disabled ? 'bg-transparent text-gray-300 border-transparent cursor-default'
-                     : 'bg-[#252525] border border-gray-700 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30'}`}/>
+            : 'bg-[#252525] border border-gray-700 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30'}`} />
     )}
     {hint && <p className="text-[10px] text-gray-600 mt-0.5">{hint}</p>}
   </div>
 );
 
-const Section = ({ icon:Icon, title, children, defaultOpen=true, badge }) => {
+const Section = ({ icon: Icon, title, children, defaultOpen = true, badge }) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 10 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl overflow-hidden mb-4"
     >
-      <button onClick={()=>setOpen(v=>!v)}
+      <button onClick={() => setOpen(v => !v)}
         className="w-full flex items-center gap-3 px-5 py-3.5 bg-[#1e1e1e] hover:bg-[#222] transition-colors text-left">
-        <Icon className="w-4 h-4 text-gray-500 shrink-0"/>
+        <Icon className="w-4 h-4 text-gray-500 shrink-0" />
         <span className="text-sm font-bold text-gray-300 flex-1">{title}</span>
         {badge && <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/20">{badge}</span>}
-        {open ? <ChevronUp className="w-4 h-4 text-gray-600"/> : <ChevronDown className="w-4 h-4 text-gray-600"/>}
+        {open ? <ChevronUp className="w-4 h-4 text-gray-600" /> : <ChevronDown className="w-4 h-4 text-gray-600" />}
       </button>
       <AnimatePresence>
         {open && (
-          <motion.div 
+          <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -278,20 +280,20 @@ function ProfileCompletionBanner({ profile, isEditing, onStartEdit }) {
   const pct = Math.round((filled / total) * 100);
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, scale: 0.98 }}
       animate={{ opacity: 1, scale: 1 }}
       className="mb-5 bg-[#1a1a1a] border border-amber-500/20 rounded-2xl p-4"
     >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0"/>
+          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
           <span className="text-sm font-bold text-amber-300">Hoàn thiện hồ sơ để mở khóa tính năng</span>
         </div>
         <span className="text-sm font-black text-amber-400">{filled}/{total}</span>
       </div>
       <div className="h-1.5 bg-gray-800 rounded-full mb-3 overflow-hidden">
-        <motion.div 
+        <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}
           transition={{ duration: 0.8, ease: "easeOut" }}
@@ -326,12 +328,12 @@ function GradeRow({ subject, grades, onGradeChange, isEditing, isDimmed }) {
   if (isDimmed) st = 'Không học';
 
   // Menu thả xuống riêng cho môn Thể chất/QPAN
-  const statusOpts = isExclude 
+  const statusOpts = isExclude
     ? ['Chưa học', 'Đang học', 'Đạt', 'Chưa đạt', 'Không học']
     : ['Chưa học', 'Đang học', 'Đã học', 'Được miễn', 'Không học'];
 
   const r = isExclude ? { he10: '—', chu: '—', he4: '—' } : calcResult(g.cc, g.gk, g.ck);
-  
+
   const gradeColor = (v) => {
     const n = parseFloat(v);
     if (isNaN(n)) return 'text-gray-600';
@@ -341,8 +343,8 @@ function GradeRow({ subject, grades, onGradeChange, isEditing, isDimmed }) {
 
   const inp = (field) => (
     <input type="number" min="0" max="10" step="0.1"
-      value={g[field]||''} onChange={e=>onGradeChange(subject.id, field, e.target.value)}
-      className="w-14 text-center text-xs bg-[#252525] border border-gray-700 rounded-lg px-1 py-1 text-white outline-none focus:border-blue-500"/>
+      value={g[field] || ''} onChange={e => onGradeChange(subject.id, field, e.target.value)}
+      className="w-14 text-center text-xs bg-[#252525] border border-gray-700 rounded-lg px-1 py-1 text-white outline-none focus:border-blue-500" />
   );
 
   // Chỉ cho phép nhập điểm nếu không bị làm mờ, không phải môn loại trừ, và đang học/đã học
@@ -350,17 +352,17 @@ function GradeRow({ subject, grades, onGradeChange, isEditing, isDimmed }) {
 
   return (
     <tr className={`border-b border-gray-800/40 hover:bg-white/[0.02] transition-colors ${isDimmed ? 'opacity-30 grayscale pointer-events-none' : ''}`}>
-      <td className="px-3 py-2.5 text-center text-xs text-gray-600">{subject.idx||''}</td>
+      <td className="px-3 py-2.5 text-center text-xs text-gray-600">{subject.idx || ''}</td>
       <td className="px-4 py-2.5">
         <div className="text-xs font-semibold text-gray-200 leading-tight">{subject.name}</div>
         <div className="text-[10px] text-gray-600 mt-0.5">{subject.code} · {subject.credits}TC {isExclude && '· (Không tính CPA)'}</div>
       </td>
       <td className="px-2 py-2.5 text-center">
         {isEditing && !isDimmed ? (
-          <select value={g.semester||''} onChange={e=>onGradeChange(subject.id,'semester',e.target.value)}
+          <select value={g.semester || ''} onChange={e => onGradeChange(subject.id, 'semester', e.target.value)}
             className="text-xs bg-[#252525] border border-gray-700 rounded-lg px-1 py-1 text-white outline-none focus:border-blue-500 w-12">
             <option value="">—</option>
-            {SEMESTERS.map(s=><option key={s} value={s}>{s}</option>)}
+            {SEMESTERS.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         ) : <span className="text-xs text-gray-400">{g.semester ? `Kỳ ${g.semester}` : '—'}</span>}
       </td>
@@ -378,22 +380,21 @@ function GradeRow({ subject, grades, onGradeChange, isEditing, isDimmed }) {
           }}
             className="text-xs bg-[#252525] border border-gray-700 rounded-lg px-1 py-1 text-white outline-none focus:border-blue-500">
             <option value="">—</option>
-            {statusOpts.map(s=><option key={s} value={s}>{s}</option>)}
+            {statusOpts.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         ) : (
-          <span className={`text-xs font-medium ${
-            st==='Đã học' || st==='Đạt' ?'text-green-400' : st==='Đang học'?'text-yellow-400':
-            st==='Được miễn'?'text-blue-400':'text-gray-600'}`}>
+          <span className={`text-xs font-medium ${st === 'Đã học' || st === 'Đạt' ? 'text-green-400' : st === 'Đang học' ? 'text-yellow-400' :
+              st === 'Được miễn' ? 'text-blue-400' : 'text-gray-600'}`}>
             {st}
           </span>
         )}
       </td>
-      <td className="px-1 py-2.5 text-center">{canEnterGrades ? inp('cc') : <span className="text-xs text-gray-400">{g.cc||'—'}</span>}</td>
-      <td className="px-1 py-2.5 text-center">{canEnterGrades ? inp('gk') : <span className="text-xs text-gray-400">{g.gk||'—'}</span>}</td>
-      <td className="px-1 py-2.5 text-center">{canEnterGrades ? inp('ck') : <span className="text-xs text-gray-400">{g.ck||'—'}</span>}</td>
-      <td className={`px-2 py-2.5 text-center font-bold text-sm ${gradeColor(r.he10)}`}>{(st==='Đã học' || st==='Đang học') && r.he10 !== '—' ? r.he10 : (isExclude && (st==='Đạt' || st==='Chưa đạt') ? st : '—')}</td>
-      <td className={`px-2 py-2.5 text-center font-bold text-xs ${gradeColor(r.he10)}`}>{(st==='Đã học' || st==='Đang học') && r.chu !== '—' ? r.chu : '—'}</td>
-      <td className={`px-2 py-2.5 text-center font-bold text-xs ${gradeColor(r.he4)}`}>{(st==='Đã học' || st==='Đang học') && r.he4 !== '—' ? r.he4 : '—'}</td>
+      <td className="px-1 py-2.5 text-center">{canEnterGrades ? inp('cc') : <span className="text-xs text-gray-400">{g.cc || '—'}</span>}</td>
+      <td className="px-1 py-2.5 text-center">{canEnterGrades ? inp('gk') : <span className="text-xs text-gray-400">{g.gk || '—'}</span>}</td>
+      <td className="px-1 py-2.5 text-center">{canEnterGrades ? inp('ck') : <span className="text-xs text-gray-400">{g.ck || '—'}</span>}</td>
+      <td className={`px-2 py-2.5 text-center font-bold text-sm ${gradeColor(r.he10)}`}>{(st === 'Đã học' || st === 'Đang học') && r.he10 !== '—' ? r.he10 : (isExclude && (st === 'Đạt' || st === 'Chưa đạt') ? st : '—')}</td>
+      <td className={`px-2 py-2.5 text-center font-bold text-xs ${gradeColor(r.he10)}`}>{(st === 'Đã học' || st === 'Đang học') && r.chu !== '—' ? r.chu : '—'}</td>
+      <td className={`px-2 py-2.5 text-center font-bold text-xs ${gradeColor(r.he4)}`}>{(st === 'Đã học' || st === 'Đang học') && r.he4 !== '—' ? r.he4 : '—'}</td>
     </tr>
   );
 }
@@ -401,13 +402,13 @@ function GradeRow({ subject, grades, onGradeChange, isEditing, isDimmed }) {
 // ── GradesTable ───────────────────────────────────────────────────────────
 function GradesTable({ profile, grades, onSave, canEdit }) {
   const [localGrades, setLocalGrades] = useState(grades);
-  const [isEditing, setIsEditing]     = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   useEffect(() => { setLocalGrades(grades); }, [grades]);
 
   const handleChange = (subjectId, field, value) => {
     setLocalGrades(prev => ({
       ...prev,
-      [subjectId]: { ...(prev[subjectId]||{}), [field]: value },
+      [subjectId]: { ...(prev[subjectId] || {}), [field]: value },
     }));
   };
 
@@ -422,15 +423,17 @@ function GradesTable({ profile, grades, onSave, canEdit }) {
     <div>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-5">
         {[
-          { label:'CPA Tích lũy (Hệ 4)', value:gpaStats.cpa,                                             color:'text-green-400' },
-          { label:'Tín chỉ đạt',          value:`${gpaStats.credits}/133`,                               color:'text-blue-400'  },
-          { label:'TC trượt (Điểm F)',    value: gpaStats.failed?.length
-              ? `${gpaStats.failed.reduce((s,f)=>s+f.credits,0)} TC`
+          { label: 'CPA Tích lũy (Hệ 4)', value: gpaStats.cpa, color: 'text-green-400' },
+          { label: 'Tín chỉ đạt', value: `${gpaStats.credits}/133`, color: 'text-blue-400' },
+          {
+            label: 'TC trượt (Điểm F)', value: gpaStats.failed?.length
+              ? `${gpaStats.failed.reduce((s, f) => s + f.credits, 0)} TC`
               : '0 TC',
-            color: gpaStats.failed?.length ? 'text-red-400' : 'text-gray-500' },
-          { label:'Đang học',             value:`${gpaStats.learning} môn`,                              color:'text-yellow-400'},
-          { label:'Đã hoàn thành',        value:`${gpaStats.done} môn`,                                  color:'text-purple-400'},
-        ].map(s=>(
+            color: gpaStats.failed?.length ? 'text-red-400' : 'text-gray-500'
+          },
+          { label: 'Đang học', value: `${gpaStats.learning} môn`, color: 'text-yellow-400' },
+          { label: 'Đã hoàn thành', value: `${gpaStats.done} môn`, color: 'text-purple-400' },
+        ].map(s => (
           <div key={s.label} className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl p-4">
             <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">{s.label}</div>
             <div className={`text-2xl font-black ${s.color}`}>{s.value}</div>
@@ -440,7 +443,7 @@ function GradesTable({ profile, grades, onSave, canEdit }) {
 
       {Object.keys(gpaStats.semGPA).length > 0 && (
         <div className="flex gap-3 mb-5 overflow-x-auto pb-1 custom-scrollbar">
-          {Object.entries(gpaStats.semGPA).sort(([a],[b])=>a-b).map(([k,v])=>(
+          {Object.entries(gpaStats.semGPA).sort(([a], [b]) => a - b).map(([k, v]) => (
             <div key={k} className="bg-[#1a1a1a] border border-gray-800/60 rounded-xl px-5 py-3 text-center shrink-0">
               <div className="text-[10px] text-gray-500 font-bold uppercase">Học kỳ {k}</div>
               <div className="text-xl font-black text-green-400">{v}</div>
@@ -452,11 +455,11 @@ function GradesTable({ profile, grades, onSave, canEdit }) {
       {/* Note about CPA calculation */}
       <div className="mb-4 flex flex-col gap-1.5 text-[11px] text-gray-500 bg-[#1a1a1a] border border-gray-800/60 rounded-xl px-4 py-2.5">
         <div className="flex items-center gap-2">
-          <CheckCircle className="w-3.5 h-3.5 text-green-400 shrink-0"/>
+          <CheckCircle className="w-3.5 h-3.5 text-green-400 shrink-0" />
           <span>CPA tích lũy chỉ tính các môn có trạng thái <strong className="text-green-400">Đã học</strong> với điểm từ <strong className="text-green-400">D trở lên</strong> (hệ 4). Điểm F bị loại trừ.</span>
         </div>
         <div className="flex items-center gap-2">
-          <CheckCircle className="w-3.5 h-3.5 text-blue-400 shrink-0"/>
+          <CheckCircle className="w-3.5 h-3.5 text-blue-400 shrink-0" />
           <span>Các môn Thể chất, QPAN, Kỹ năng bổ trợ chỉ ghi nhận <strong className="text-blue-400">Đạt/Chưa đạt</strong> và không tính vào CPA.</span>
         </div>
       </div>
@@ -466,24 +469,24 @@ function GradesTable({ profile, grades, onSave, canEdit }) {
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800/60 sticky top-0 bg-[#1a1a1a] z-10">
           <h3 className="font-bold text-white text-sm">Bảng điểm · {subjectDatabase.length} môn</h3>
           <div className="flex items-center gap-3">
-            <button onClick={()=>exportGradesToCSV(profile, localGrades)}
+            <button onClick={() => exportGradesToCSV(profile, localGrades)}
               className="flex items-center gap-1.5 text-xs text-green-400 border border-green-500/20 px-3 py-1.5 rounded-xl hover:bg-green-500/10 transition-all font-bold">
-              <Download className="w-3.5 h-3.5"/> Xuất CSV
+              <Download className="w-3.5 h-3.5" /> Xuất CSV
             </button>
             {canEdit && !isEditing && (
-              <button onClick={()=>setIsEditing(true)}
+              <button onClick={() => setIsEditing(true)}
                 className="flex items-center gap-1.5 text-xs text-blue-400 border border-blue-500/20 px-3 py-1.5 rounded-xl hover:bg-blue-500/10 transition-all font-bold">
-                <Edit3 className="w-3.5 h-3.5"/> Sửa
+                <Edit3 className="w-3.5 h-3.5" /> Sửa
               </button>
             )}
             {canEdit && isEditing && (
               <button onClick={handleSave}
                 className="flex items-center gap-1.5 text-xs text-white bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded-xl transition-all font-bold">
-                <Save className="w-3.5 h-3.5"/> Lưu
+                <Save className="w-3.5 h-3.5" /> Lưu
               </button>
             )}
             <div className="flex items-center gap-2 text-xs text-gray-500">
-              <div className={`w-2 h-2 rounded-full ${isEditing?'bg-green-400 animate-pulse':'bg-gray-600'}`}/>
+              <div className={`w-2 h-2 rounded-full ${isEditing ? 'bg-green-400 animate-pulse' : 'bg-gray-600'}`} />
               {isEditing ? 'Đang chỉnh sửa' : 'Chỉ xem'}
             </div>
           </div>
@@ -561,13 +564,13 @@ function GradesTable({ profile, grades, onSave, canEdit }) {
                         const currentCr = sub.electiveGroup ? (groupCredits[sub.electiveGroup] || 0) : 0;
                         const st = localGrades[sub.id]?.status;
                         const isActive = st === 'Đã học' || st === 'Đang học' || st === 'Được miễn' || st === 'Đạt';
-                        
+
                         // Làm mờ nếu khối đã full tín chỉ, và môn này đang không được chọn
                         const isDimmed = sub.electiveGroup && currentCr >= limit && !isActive;
 
                         return (
                           <GradeRow key={sub.id} subject={sub} grades={localGrades}
-                            onGradeChange={handleChange} isEditing={isEditing} isDimmed={isDimmed}/>
+                            onGradeChange={handleChange} isEditing={isEditing} isDimmed={isDimmed} />
                         );
                       })}
                     </React.Fragment>
@@ -583,7 +586,7 @@ function GradesTable({ profile, grades, onSave, canEdit }) {
       {gpaStats.failed && gpaStats.failed.length > 0 && (
         <div className="mt-5 bg-[#1a1a1a] border border-red-500/20 rounded-2xl overflow-hidden">
           <div className="flex items-center gap-3 px-5 py-3.5 bg-red-500/5 border-b border-red-500/20">
-            <XCircle className="w-4 h-4 text-red-400"/>
+            <XCircle className="w-4 h-4 text-red-400" />
             <span className="font-bold text-red-300 text-sm">Môn trượt ({gpaStats.failed.length} môn · không tính CPA)</span>
             <span className="ml-auto text-[10px] text-red-500 font-medium">
               {gpaStats.failed.reduce((s, f) => s + f.credits, 0)} TC bị ảnh hưởng
@@ -634,7 +637,7 @@ function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfil
   return (
     <>
       {isOwnProfile && (
-        <ProfileCompletionBanner profile={profile} isEditing={isEditing} onStartEdit={onStartEdit}/>
+        <ProfileCompletionBanner profile={profile} isEditing={isEditing} onStartEdit={onStartEdit} />
       )}
 
 
@@ -644,17 +647,17 @@ function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfil
             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Ảnh đại diện</label>
             {isEditing ? (
               <>
-                <input type="url" value={profile.avatarUrl||''} onChange={e=>setProfile(p=>({...p,avatarUrl:e.target.value}))}
+                <input type="url" value={profile.avatarUrl || ''} onChange={e => setProfile(p => ({ ...p, avatarUrl: e.target.value }))}
                   placeholder="https://... (link ảnh trực tiếp)"
-                  className="text-sm px-3 py-2 rounded-xl bg-[#252525] border border-gray-700 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 outline-none w-full"/>
+                  className="text-sm px-3 py-2 rounded-xl bg-[#252525] border border-gray-700 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 outline-none w-full" />
                 {profile.avatarUrl && (
                   <img src={profile.avatarUrl} alt="preview"
                     className="w-12 h-12 rounded-xl object-cover border border-gray-700"
-                    onError={e=>{ e.target.style.display='none'; }}/>
+                    onError={e => { e.target.style.display = 'none'; }} />
                 )}
               </>
             ) : profile.avatarUrl ? (
-              <img src={profile.avatarUrl} alt="" className="w-12 h-12 rounded-xl object-cover border border-gray-700"/>
+              <img src={profile.avatarUrl} alt="" className="w-12 h-12 rounded-xl object-cover border border-gray-700" />
             ) : (
               <div className="w-12 h-12 bg-blue-600/20 border border-blue-500/30 rounded-xl flex items-center justify-center text-blue-400 font-bold text-sm">
                 {getInitials(profile.fullName)}
@@ -662,20 +665,20 @@ function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfil
             )}
           </div>
           <div className="md:col-span-2">
-            <Field label="Biệt danh" value={profile.nickname} onChange={v=>setProfile(p=>({...p,nickname:v}))} disabled={!isEditing}/>
+            <Field label="Biệt danh" value={profile.nickname} onChange={v => setProfile(p => ({ ...p, nickname: v }))} disabled={!isEditing} />
           </div>
         </div>
       </Section>
 
       <Section icon={User} title="Thông tin cơ bản">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Field label="STT"        value={profile.stt}      onChange={v=>setProfile(p=>({...p,stt:v}))}      disabled={!isEditing || !isSuperAdmin}/>
-          <Field label="MSV" required value={profile.mssv||profile.msv} onChange={v=>setProfile(p=>({...p,mssv:v,msv:v}))} disabled={!isEditing}/>
+          <Field label="STT" value={profile.stt} onChange={v => setProfile(p => ({ ...p, stt: v }))} disabled={!isEditing || !isSuperAdmin} />
+          <Field label="MSV" required value={profile.mssv || profile.msv} onChange={v => setProfile(p => ({ ...p, mssv: v, msv: v }))} disabled={!isEditing} />
 
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Chức vụ</label>
             {isSuperAdmin && isEditing && profile.role !== 'super_admin' ? (
-              <select value={profile.role||'member'} onChange={e=>setProfile(p=>({...p,role:e.target.value}))}
+              <select value={profile.role || 'member'} onChange={e => setProfile(p => ({ ...p, role: e.target.value }))}
                 className="text-sm px-3 py-2 rounded-xl outline-none bg-[#252525] border border-gray-700 text-white focus:border-blue-500">
                 <option value="member">Thành viên</option>
                 <option value="core">Core Team</option>
@@ -687,41 +690,41 @@ function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfil
             )}
           </div>
 
-          <Field label="Họ và tên" required value={profile.fullName}  onChange={v=>setProfile(p=>({...p,fullName:v}))}  disabled={!isEditing}/>
-          <Field label="Giới tính" required value={profile.gender}    onChange={v=>setProfile(p=>({...p,gender:v}))}    options={GENDERS}    disabled={!isEditing}/>
-          <Field label="Ngày sinh" required value={profile.dob}       onChange={v=>setProfile(p=>({...p,dob:v}))}       type="date"          disabled={!isEditing}/>
-          <Field label="Dân tộc"   required value={profile.ethnicity} onChange={v=>setProfile(p=>({...p,ethnicity:v}))} options={ETHNICITIES} disabled={!isEditing}/>
-          <Field label="Nhóm máu"  required value={profile.bloodType} onChange={v=>setProfile(p=>({...p,bloodType:v}))} options={BLOOD_TYPES} disabled={!isEditing}/>
-          <Field label="Nơi sinh"  required value={profile.pob}       onChange={v=>setProfile(p=>({...p,pob:v}))}       options={PROVINCES} disabled={!isEditing}/>
+          <Field label="Họ và tên" required value={profile.fullName} onChange={v => setProfile(p => ({ ...p, fullName: v }))} disabled={!isEditing} />
+          <Field label="Giới tính" required value={profile.gender} onChange={v => setProfile(p => ({ ...p, gender: v }))} options={GENDERS} disabled={!isEditing} />
+          <Field label="Ngày sinh" required value={profile.dob} onChange={v => setProfile(p => ({ ...p, dob: v }))} type="date" disabled={!isEditing} />
+          <Field label="Dân tộc" required value={profile.ethnicity} onChange={v => setProfile(p => ({ ...p, ethnicity: v }))} options={ETHNICITIES} disabled={!isEditing} />
+          <Field label="Nhóm máu" required value={profile.bloodType} onChange={v => setProfile(p => ({ ...p, bloodType: v }))} options={BLOOD_TYPES} disabled={!isEditing} />
+          <Field label="Nơi sinh" required value={profile.pob} onChange={v => setProfile(p => ({ ...p, pob: v }))} options={PROVINCES} disabled={!isEditing} />
         </div>
       </Section>
 
       <Section icon={Calendar} title="Đoàn – Đảng" defaultOpen={false}>
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Ngày vào Đoàn" value={profile.joinedYouth} onChange={v=>setProfile(p=>({...p,joinedYouth:v}))} type="date" disabled={!isEditing}/>
-          <Field label="Ngày vào Đảng" value={profile.joinedParty} onChange={v=>setProfile(p=>({...p,joinedParty:v}))} type="date" disabled={!isEditing}/>
+          <Field label="Ngày vào Đoàn" value={profile.joinedYouth} onChange={v => setProfile(p => ({ ...p, joinedYouth: v }))} type="date" disabled={!isEditing} />
+          <Field label="Ngày vào Đảng" value={profile.joinedParty} onChange={v => setProfile(p => ({ ...p, joinedParty: v }))} type="date" disabled={!isEditing} />
         </div>
       </Section>
 
       <Section icon={CreditCard} title="Giấy tờ & Ngân hàng" defaultOpen={false}>
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Số CCCD"              value={profile.cccd} onChange={v=>setProfile(p=>({...p,cccd:v}))} disabled={!isEditing}/>
-          <Field label="STK ngân hàng (BIDV)" value={profile.bank} onChange={v=>setProfile(p=>({...p,bank:v}))} disabled={!isEditing}/>
+          <Field label="Số CCCD" value={profile.cccd} onChange={v => setProfile(p => ({ ...p, cccd: v }))} disabled={!isEditing} />
+          <Field label="STK ngân hàng (BIDV)" value={profile.bank} onChange={v => setProfile(p => ({ ...p, bank: v }))} disabled={!isEditing} />
         </div>
       </Section>
 
       <Section icon={Phone} title="Liên hệ">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Field label="SĐT" required          value={profile.phone}        onChange={v=>setProfile(p=>({...p,phone:v}))}        type="tel"   disabled={!isEditing}/>
-          <Field label="SĐT người thân"        value={profile.phoneFamily}  onChange={v=>setProfile(p=>({...p,phoneFamily:v}))}  type="tel"   disabled={!isEditing}/>
-          <Field label="Mail HUS" required     value={profile.mailSchool}   onChange={v=>setProfile(p=>({...p,mailSchool:v}))}   type="email" disabled={!isEditing}/>
-          <Field label="Mail VNU" required     value={profile.mailVnu}      onChange={v=>setProfile(p=>({...p,mailVnu:v}))}      type="email" disabled={!isEditing}/>
-          <Field label="Facebook" required     value={profile.facebook}     onChange={v=>setProfile(p=>({...p,facebook:v}))}                 disabled={!isEditing}/>
+          <Field label="SĐT" required value={profile.phone} onChange={v => setProfile(p => ({ ...p, phone: v }))} type="tel" disabled={!isEditing} />
+          <Field label="SĐT người thân" value={profile.phoneFamily} onChange={v => setProfile(p => ({ ...p, phoneFamily: v }))} type="tel" disabled={!isEditing} />
+          <Field label="Mail HUS" required value={profile.mailSchool} onChange={v => setProfile(p => ({ ...p, mailSchool: v }))} type="email" disabled={!isEditing} />
+          <Field label="Mail VNU" required value={profile.mailVnu} onChange={v => setProfile(p => ({ ...p, mailVnu: v }))} type="email" disabled={!isEditing} />
+          <Field label="Facebook" required value={profile.facebook} onChange={v => setProfile(p => ({ ...p, facebook: v }))} disabled={!isEditing} />
 
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
               Mail đăng nhập
-              <Lock className="w-2.5 h-2.5 text-gray-600"/>
+              <Lock className="w-2.5 h-2.5 text-gray-600" />
             </label>
             <div className="flex items-center gap-2 text-sm px-3 py-2 rounded-xl bg-[#1a1a1a] border border-gray-800 text-gray-400">
               <span className="flex-1 truncate">{loginEmail || '—'}</span>
@@ -734,9 +737,9 @@ function ProfileForm({ profile, setProfile, isEditing, isSuperAdmin, isOwnProfil
 
       <Section icon={MapPin} title="Địa chỉ" defaultOpen={false}>
         <div className="grid grid-cols-1 gap-4">
-          <Field label="Quê quán"       value={profile.hometown}         onChange={v=>setProfile(p=>({...p,hometown:v}))}         options={PROVINCES} disabled={!isEditing}/>
-          <Field label="Nơi thường trú" value={profile.permanentAddress} onChange={v=>setProfile(p=>({...p,permanentAddress:v}))} disabled={!isEditing}/>
-          <Field label="Nơi ở hiện tại" value={profile.currentAddress}   onChange={v=>setProfile(p=>({...p,currentAddress:v}))}   disabled={!isEditing}/>
+          <Field label="Quê quán" value={profile.hometown} onChange={v => setProfile(p => ({ ...p, hometown: v }))} options={PROVINCES} disabled={!isEditing} />
+          <Field label="Nơi thường trú" value={profile.permanentAddress} onChange={v => setProfile(p => ({ ...p, permanentAddress: v }))} disabled={!isEditing} />
+          <Field label="Nơi ở hiện tại" value={profile.currentAddress} onChange={v => setProfile(p => ({ ...p, currentAddress: v }))} disabled={!isEditing} />
         </div>
       </Section>
     </>
@@ -750,9 +753,9 @@ function MemberDetail({ member, onBack, canEdit }) {
   const { grades, updateMemberProfile, syncGrades, isSuperAdmin, kickMember } = useApp();
   const memberGrades = grades[member.id] || {};
 
-  const [tab,       setTab]       = useState('profile');
+  const [tab, setTab] = useState('profile');
   const [isEditing, setIsEditing] = useState(false);
-  const [profile,   setProfile]   = useState({ ...member });
+  const [profile, setProfile] = useState({ ...member });
 
   useEffect(() => { setProfile({ ...member }); }, [member]);
 
@@ -773,16 +776,16 @@ function MemberDetail({ member, onBack, canEdit }) {
       <div className="flex flex-wrap items-center gap-3 md:gap-4 p-4 md:p-6 border-b border-gray-800/60 bg-[#1a1a1a] sticky top-0 z-10">
         <button onClick={onBack}
           className="p-2 rounded-xl hover:bg-[#252525] text-gray-400 hover:text-white transition-colors shrink-0">
-          <ChevronLeft className="w-5 h-5"/>
+          <ChevronLeft className="w-5 h-5" />
         </button>
         <div className="flex items-center gap-3 flex-1 min-w-0">
           {member.avatarUrl
-            ? <img src={member.avatarUrl} alt="" className="w-10 h-10 rounded-xl object-cover border border-gray-700 shrink-0"/>
+            ? <img src={member.avatarUrl} alt="" className="w-10 h-10 rounded-xl object-cover border border-gray-700 shrink-0" />
             : <div className="w-10 h-10 bg-blue-600/20 border border-blue-500/30 rounded-xl flex items-center justify-center text-blue-400 font-bold text-sm shrink-0">{initials}</div>
           }
           <div className="min-w-0 flex-1">
-            <div className="font-bold text-white truncate text-sm md:text-base">{member.fullName||'—'}</div>
-            <div className="text-[10px] md:text-xs text-gray-500 truncate">{member.mssv||member.msv||'MSSV chưa cập nhật'}</div>
+            <div className="font-bold text-white truncate text-sm md:text-base">{member.fullName || '—'}</div>
+            <div className="text-[10px] md:text-xs text-gray-500 truncate">{member.mssv || member.msv || 'MSSV chưa cập nhật'}</div>
           </div>
         </div>
         <div className="flex items-center gap-2 w-full md:w-auto md:justify-end border-t md:border-none border-gray-800 pt-3 md:pt-0 mt-1 md:mt-0">
@@ -795,24 +798,24 @@ function MemberDetail({ member, onBack, canEdit }) {
               }
             }}
               className="flex items-center gap-1.5 text-xs text-red-400 border border-red-500/20 px-3 py-2 rounded-xl hover:bg-red-500/10 transition-all font-bold">
-              <Trash2 className="w-3.5 h-3.5"/> Kick
+              <Trash2 className="w-3.5 h-3.5" /> Kick
             </button>
           )}
           {canEdit && tab === 'profile' && !isEditing && (
-            <button onClick={()=>setIsEditing(true)}
+            <button onClick={() => setIsEditing(true)}
               className="flex items-center gap-1.5 text-xs text-blue-400 border border-blue-500/20 px-3 py-2 rounded-xl hover:bg-blue-500/10 transition-all font-bold">
-              <Edit3 className="w-3.5 h-3.5"/> Chỉnh sửa
+              <Edit3 className="w-3.5 h-3.5" /> Chỉnh sửa
             </button>
           )}
           {canEdit && tab === 'profile' && isEditing && (
             <>
-              <button onClick={()=>{setProfile({...member});setIsEditing(false);}}
+              <button onClick={() => { setProfile({ ...member }); setIsEditing(false); }}
                 className="flex items-center gap-1.5 text-xs text-gray-400 border border-gray-700 px-3 py-2 rounded-xl hover:bg-[#252525] transition-all font-bold">
-                <X className="w-3.5 h-3.5"/> Huỷ
+                <X className="w-3.5 h-3.5" /> Huỷ
               </button>
               <button onClick={handleSaveProfile}
                 className="flex items-center gap-1.5 text-xs text-white bg-blue-600 hover:bg-blue-500 px-3 py-2 rounded-xl transition-all font-bold">
-                <Save className="w-3.5 h-3.5"/> Lưu
+                <Save className="w-3.5 h-3.5" /> Lưu
               </button>
             </>
           )}
@@ -820,11 +823,11 @@ function MemberDetail({ member, onBack, canEdit }) {
       </div>
 
       <div className="flex gap-1 px-6 pt-4">
-        {[['profile','Hồ sơ'],['grades','Bảng điểm']].map(([k,v])=>(
-          <button key={k} onClick={()=>{setTab(k);setIsEditing(false);}}
+        {[['profile', 'Hồ sơ'], ['grades', 'Bảng điểm']].map(([k, v]) => (
+          <button key={k} onClick={() => { setTab(k); setIsEditing(false); }}
             className={`px-4 py-2 rounded-xl text-sm font-bold transition-all
-              ${tab===k ? 'bg-blue-600/15 text-blue-400 border border-blue-500/20'
-                       : 'text-gray-500 hover:text-gray-300 hover:bg-[#252525]'}`}>
+              ${tab === k ? 'bg-blue-600/15 text-blue-400 border border-blue-500/20'
+                : 'text-gray-500 hover:text-gray-300 hover:bg-[#252525]'}`}>
             {v}
           </button>
         ))}
@@ -833,11 +836,11 @@ function MemberDetail({ member, onBack, canEdit }) {
       <div className="p-6">
         {tab === 'profile' && (
           <ProfileForm profile={profile} setProfile={setProfile}
-            isEditing={isEditing} isSuperAdmin={isSuperAdmin} isOwnProfile={false}/>
+            isEditing={isEditing} isSuperAdmin={isSuperAdmin} isOwnProfile={false} />
         )}
         {tab === 'grades' && (
           <GradesTable profile={member} grades={memberGrades}
-            onSave={handleSaveGrades} canEdit={canEdit}/>
+            onSave={handleSaveGrades} canEdit={canEdit} />
         )}
       </div>
     </div>
@@ -848,40 +851,40 @@ function MemberDetail({ member, onBack, canEdit }) {
 function MemberCard({ member, onClick, index }) {
   const { userVocab, quizHistory, isCore, isSuperAdmin } = useApp();
   const rl = roleLabel(member.role);
-  
+
   // Calculate Learning Stats
   const memberVocab = userVocab[member.id] || {};
   const totalLearned = Object.values(memberVocab).reduce((sum, set) => {
     return sum + Object.values(set).filter(lv => lv >= 3).length;
   }, 0);
-  
+
   const history = quizHistory[member.id] || [];
-  const avgScore = history.length > 0 
-    ? Math.round(history.reduce((a, b) => a + b.percentage, 0) / history.length) 
+  const avgScore = history.length > 0
+    ? Math.round(history.reduce((a, b) => a + b.percentage, 0) / history.length)
     : 0;
 
   return (
-    <motion.button 
+    <motion.button
       layout
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.03 }}
       onClick={onClick}
       className="w-full flex flex-col gap-3 p-4 bg-[#1a1a1a] border border-gray-800/60 rounded-2xl hover:bg-[#1e1e1e] hover:border-blue-500/30 transition-all text-left group">
-      
+
       <div className="flex items-center gap-3 w-full">
         {member.avatarUrl
-          ? <img src={member.avatarUrl} alt="" className="w-10 h-10 rounded-xl object-cover border border-gray-700 shrink-0"/>
+          ? <img src={member.avatarUrl} alt="" className="w-10 h-10 rounded-xl object-cover border border-gray-700 shrink-0" />
           : <div className="w-10 h-10 bg-blue-600/20 border border-blue-500/30 rounded-xl flex items-center justify-center text-blue-400 font-bold text-sm shrink-0">
-              {getInitials(member.fullName)}
-            </div>
+            {getInitials(member.fullName)}
+          </div>
         }
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-gray-200 text-sm truncate group-hover:text-white">{member.fullName||'—'}</div>
-          <div className="text-xs text-gray-600 truncate">{member.mssv||member.msv||'Chưa cập nhật MSSV'}</div>
+          <div className="font-semibold text-gray-200 text-sm truncate group-hover:text-white">{member.fullName || '—'}</div>
+          <div className="text-xs text-gray-600 truncate">{member.mssv || member.msv || 'Chưa cập nhật MSSV'}</div>
         </div>
         <span className={`text-[10px] font-bold px-2 py-1 rounded-lg shrink-0 ${rl.cls}`}>{rl.text}</span>
-        <Eye className="w-4 h-4 text-gray-700 group-hover:text-blue-400 shrink-0 transition-colors"/>
+        <Eye className="w-4 h-4 text-gray-700 group-hover:text-blue-400 shrink-0 transition-colors" />
       </div>
 
       {(isCore || isSuperAdmin) && (
@@ -906,7 +909,7 @@ function MembersTab() {
   const [selectedMember, setSelectedMember] = useState(null);
   const [search, setSearch] = useState('');
   const [approvingId, setApprovingId] = useState(null);
-  const [rejectingId,  setRejectingId] = useState(null);
+  const [rejectingId, setRejectingId] = useState(null);
   const [viewMode, setViewMode] = useState('table'); // 'grid' | 'table'
   const [tableDataType, setTableDataType] = useState('info'); // 'info' | 'grades'
   const [isTableEditing, setIsTableEditing] = useState(false);
@@ -927,10 +930,10 @@ function MembersTab() {
     const q = search.toLowerCase();
     const result = activeMembers.filter(m =>
       m.fullName?.toLowerCase().includes(q) ||
-      (m.mssv||m.msv||'').includes(q) ||
+      (m.mssv || m.msv || '').includes(q) ||
       m.email?.toLowerCase().includes(q)
     );
-    
+
     result.sort((a, b) => {
       const parse = (name) => {
         const parts = (name || '').trim().split(/\s+/);
@@ -944,7 +947,7 @@ function MembersTab() {
       };
       const pa = parse(a.fullName);
       const pb = parse(b.fullName);
-      
+
       const comp1 = pa.first.localeCompare(pb.first, 'vi');
       if (comp1 !== 0) return comp1;
       const comp2 = pa.middle.localeCompare(pb.middle, 'vi');
@@ -983,13 +986,13 @@ function MembersTab() {
 
   const handleApprove = async (id) => {
     setApprovingId(id);
-    if(approveUser) await approveUser(id);
+    if (approveUser) await approveUser(id);
     setApprovingId(null);
   };
   const handleReject = async (id) => {
     if (!window.confirm('Từ chối và xoá đơn này?')) return;
     setRejectingId(id);
-    if(rejectUser) await rejectUser(id);
+    if (rejectUser) await rejectUser(id);
     setRejectingId(null);
   };
 
@@ -1008,9 +1011,9 @@ function MembersTab() {
     <div className="space-y-5">
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label:'Tổng thành viên',   value: activeMembers.length, color:'text-white' },
-          { label:'Core Team',          value: activeMembers.filter(m=>m.role==='core'||m.role==='super_admin').length, color:'text-blue-400' },
-          { label:'Chờ duyệt',          value: pendingMembers.length, color: pendingMembers.length ? 'text-amber-400' : 'text-gray-600' },
+          { label: 'Tổng thành viên', value: activeMembers.length, color: 'text-white' },
+          { label: 'Core Team', value: activeMembers.filter(m => m.role === 'core' || m.role === 'super_admin').length, color: 'text-blue-400' },
+          { label: 'Chờ duyệt', value: pendingMembers.length, color: pendingMembers.length ? 'text-amber-400' : 'text-gray-600' },
         ].map(s => (
           <div key={s.label} className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl p-4 text-center">
             <div className={`text-3xl font-black mb-1 ${s.color}`}>{s.value}</div>
@@ -1022,7 +1025,7 @@ function MembersTab() {
       {pendingMembers.length > 0 && (
         <div className="bg-[#1a1a1a] border border-amber-500/20 rounded-2xl overflow-hidden">
           <div className="flex items-center gap-2 px-5 py-3 bg-amber-500/8 border-b border-amber-500/20">
-            <Clock className="w-4 h-4 text-amber-400"/>
+            <Clock className="w-4 h-4 text-amber-400" />
             <span className="font-bold text-amber-300 text-sm">Chờ xét duyệt ({pendingMembers.length})</span>
           </div>
           <div className="divide-y divide-gray-800/60">
@@ -1032,8 +1035,8 @@ function MembersTab() {
                   {getInitials(m.fullName)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-white text-sm">{m.fullName||'—'}</div>
-                  <div className="text-xs text-gray-500 mt-0.5">{m.email} · MSSV: {m.mssv||'—'}</div>
+                  <div className="font-semibold text-white text-sm">{m.fullName || '—'}</div>
+                  <div className="text-xs text-gray-500 mt-0.5">{m.email} · MSSV: {m.mssv || '—'}</div>
                   {m.reason && (
                     <div className="mt-1.5 text-xs text-gray-400 bg-[#252525] rounded-xl px-3 py-2 leading-relaxed">
                       "{m.reason}"
@@ -1042,13 +1045,13 @@ function MembersTab() {
                 </div>
                 {(isSuperAdmin || isCore) && (
                   <div className="flex gap-2 shrink-0">
-                    <button onClick={()=>handleApprove(m.id)} disabled={approvingId===m.id}
+                    <button onClick={() => handleApprove(m.id)} disabled={approvingId === m.id}
                       className="flex items-center gap-1 text-xs text-green-400 border border-green-500/30 px-3 py-1.5 rounded-xl hover:bg-green-500/10 transition-all font-bold disabled:opacity-50">
-                      {approvingId===m.id ? '...' : <><Check className="w-3.5 h-3.5"/> Duyệt</>}
+                      {approvingId === m.id ? '...' : <><Check className="w-3.5 h-3.5" /> Duyệt</>}
                     </button>
-                    <button onClick={()=>handleReject(m.id)} disabled={rejectingId===m.id}
+                    <button onClick={() => handleReject(m.id)} disabled={rejectingId === m.id}
                       className="flex items-center gap-1 text-xs text-red-400 border border-red-500/30 px-3 py-1.5 rounded-xl hover:bg-red-500/10 transition-all font-bold disabled:opacity-50">
-                      {rejectingId===m.id ? '...' : <><X className="w-3.5 h-3.5"/> Từ chối</>}
+                      {rejectingId === m.id ? '...' : <><X className="w-3.5 h-3.5" /> Từ chối</>}
                     </button>
                   </div>
                 )}
@@ -1060,50 +1063,50 @@ function MembersTab() {
 
       <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl overflow-hidden">
         <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-800/60">
-          <Users className="w-4 h-4 text-gray-500"/>
+          <Users className="w-4 h-4 text-gray-500" />
           <span className="font-bold text-gray-300 text-sm flex-1">Thành viên đang hoạt động</span>
-          
+
           <div className="flex bg-[#252525] rounded-xl p-1">
             <button onClick={() => { setViewMode('grid'); setIsTableEditing(false); }}
               className={`p-1.5 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}>
-              <LayoutGrid className="w-4 h-4"/>
+              <LayoutGrid className="w-4 h-4" />
             </button>
             <button onClick={() => setViewMode('table')}
               className={`p-1.5 rounded-lg transition-colors ${viewMode === 'table' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}>
-              <List className="w-4 h-4"/>
+              <List className="w-4 h-4" />
             </button>
           </div>
 
           {viewMode === 'table' && tableDataType === 'info' && (isCore || isSuperAdmin) && !isTableEditing && (
             <button onClick={handleEditTable}
               className="flex items-center gap-1.5 text-xs text-blue-400 border border-blue-500/20 px-3 py-1.5 rounded-xl hover:bg-blue-500/10 transition-all font-bold">
-              <Edit3 className="w-3.5 h-3.5"/> Sửa bảng
+              <Edit3 className="w-3.5 h-3.5" /> Sửa bảng
             </button>
           )}
           {viewMode === 'table' && tableDataType === 'info' && isTableEditing && (
             <div className="flex gap-2">
               <button onClick={() => setIsTableEditing(false)}
                 className="flex items-center gap-1.5 text-xs text-gray-400 border border-gray-700 px-3 py-1.5 rounded-xl hover:bg-[#252525] transition-all font-bold">
-                <X className="w-3.5 h-3.5"/> Huỷ
+                <X className="w-3.5 h-3.5" /> Huỷ
               </button>
               <button onClick={handleSaveTable}
                 className="flex items-center gap-1.5 text-xs text-white bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded-xl transition-all font-bold">
-                <Save className="w-3.5 h-3.5"/> Lưu
+                <Save className="w-3.5 h-3.5" /> Lưu
               </button>
             </div>
           )}
 
           <button onClick={exportMembersCSV}
             className="flex items-center gap-1.5 text-xs text-green-400 border border-green-500/20 px-3 py-1.5 rounded-xl hover:bg-green-500/10 transition-all font-bold">
-            <Download className="w-3.5 h-3.5"/> Xuất CSV
+            <Download className="w-3.5 h-3.5" /> Xuất CSV
           </button>
         </div>
         <div className="px-4 py-3 border-b border-gray-800/60 flex flex-col md:flex-row gap-3">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600"/>
-            <input value={search} onChange={e=>setSearch(e.target.value)}
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600" />
+            <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Tìm theo tên, MSSV, email..."
-              className="w-full pl-9 pr-4 py-2 text-sm bg-[#252525] border border-gray-700 rounded-xl text-white placeholder:text-gray-600 outline-none focus:border-blue-500 transition-all"/>
+              className="w-full pl-9 pr-4 py-2 text-sm bg-[#252525] border border-gray-700 rounded-xl text-white placeholder:text-gray-600 outline-none focus:border-blue-500 transition-all" />
           </div>
           {viewMode === 'table' && (
             <div className="flex bg-[#252525] rounded-xl p-1 shrink-0 h-fit">
@@ -1143,99 +1146,99 @@ function MembersTab() {
                 {filtered.map((m, i) => {
                   const draft = tableData[m.id] || m;
                   return (
-                  <tr key={m.id} className="hover:bg-[#252525] transition-colors group">
-                    <td className="px-4 py-3 text-gray-500 text-xs text-center font-medium">
-                      {isTableEditing && isSuperAdmin ? (
-                        <input value={draft.stt || ''} onChange={e => handleTableChange(m.id, 'stt', e.target.value)} className="w-10 bg-transparent border-b border-gray-700 text-center outline-none focus:border-blue-500" />
-                      ) : (m.stt || i + 1)}
-                    </td>
-                    <td className="px-4 py-3 font-semibold text-gray-200 text-sm">
-                      <div className="flex items-center gap-3">
-                        {m.avatarUrl
-                          ? <img src={m.avatarUrl} alt="" className="w-7 h-7 rounded-lg object-cover border border-gray-700"/>
-                          : <div className="w-7 h-7 bg-blue-600/20 border border-blue-500/30 text-blue-400 font-bold text-xs flex items-center justify-center rounded-lg">{getInitials(m.fullName)}</div>
-                        }
-                        {isTableEditing ? (
-                          <input value={draft.fullName || ''} onChange={e => handleTableChange(m.id, 'fullName', e.target.value)} className="w-32 bg-transparent border-b border-gray-700 outline-none focus:border-blue-500 text-sm text-gray-200" />
+                    <tr key={m.id} className="hover:bg-[#252525] transition-colors group">
+                      <td className="px-4 py-3 text-gray-500 text-xs text-center font-medium">
+                        {isTableEditing && isSuperAdmin ? (
+                          <input value={draft.stt || ''} onChange={e => handleTableChange(m.id, 'stt', e.target.value)} className="w-10 bg-transparent border-b border-gray-700 text-center outline-none focus:border-blue-500" />
+                        ) : (m.stt || i + 1)}
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-gray-200 text-sm">
+                        <div className="flex items-center gap-3">
+                          {m.avatarUrl
+                            ? <img src={m.avatarUrl} alt="" className="w-7 h-7 rounded-lg object-cover border border-gray-700" />
+                            : <div className="w-7 h-7 bg-blue-600/20 border border-blue-500/30 text-blue-400 font-bold text-xs flex items-center justify-center rounded-lg">{getInitials(m.fullName)}</div>
+                          }
+                          {isTableEditing ? (
+                            <input value={draft.fullName || ''} onChange={e => handleTableChange(m.id, 'fullName', e.target.value)} className="w-32 bg-transparent border-b border-gray-700 outline-none focus:border-blue-500 text-sm text-gray-200" />
+                          ) : (
+                            <span className="whitespace-nowrap">{m.fullName || '—'}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {isTableEditing && isSuperAdmin && m.role !== 'super_admin' ? (
+                          <select value={draft.role || 'member'} onChange={e => handleTableChange(m.id, 'role', e.target.value)} className="bg-[#252525] border border-gray-700 rounded text-xs p-1 outline-none text-gray-300">
+                            <option value="member">Thành viên</option>
+                            <option value="core">Core Team</option>
+                          </select>
                         ) : (
-                          <span className="whitespace-nowrap">{m.fullName||'—'}</span>
+                          <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${roleLabel(m.role).cls}`}>{roleLabel(m.role).text}</span>
                         )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      {isTableEditing && isSuperAdmin && m.role !== 'super_admin' ? (
-                        <select value={draft.role || 'member'} onChange={e => handleTableChange(m.id, 'role', e.target.value)} className="bg-[#252525] border border-gray-700 rounded text-xs p-1 outline-none text-gray-300">
-                          <option value="member">Thành viên</option>
-                          <option value="core">Core Team</option>
-                        </select>
-                      ) : (
-                        <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${roleLabel(m.role).cls}`}>{roleLabel(m.role).text}</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-gray-400 text-xs">
-                      {isTableEditing ? <input value={draft.mssv || draft.msv || ''} onChange={e => {handleTableChange(m.id, 'mssv', e.target.value); handleTableChange(m.id, 'msv', e.target.value);}} className="w-20 bg-transparent border-b border-gray-700 outline-none focus:border-blue-500 text-gray-300" /> : (m.mssv||m.msv||'—')}
-                    </td>
-                    <td className="px-4 py-3 text-gray-400 text-xs">
-                      {isTableEditing ? (
-                        <select value={draft.gender || ''} onChange={e => handleTableChange(m.id, 'gender', e.target.value)} className="bg-[#252525] border border-gray-700 rounded text-xs p-1 outline-none text-gray-300">
-                          <option value="">—</option>
-                          <option value="Nam">Nam</option>
-                          <option value="Nữ">Nữ</option>
-                        </select>
-                      ) : (m.gender||'—')}
-                    </td>
-                    <td className="px-4 py-3 text-gray-400 text-xs">
-                      {isTableEditing ? <input type="date" value={draft.dob || ''} onChange={e => handleTableChange(m.id, 'dob', e.target.value)} className="bg-[#252525] border border-gray-700 rounded text-xs p-1 outline-none text-gray-300" /> : (m.dob ? toDisplay(m.dob) : '—')}
-                    </td>
-                    <td className="px-4 py-3 text-gray-400 text-xs">
-                      {isTableEditing ? (
-                        <select value={draft.ethnicity || ''} onChange={e => handleTableChange(m.id, 'ethnicity', e.target.value)} className="bg-[#252525] border border-gray-700 rounded text-xs p-1 outline-none w-20 text-gray-300">
-                          <option value="">—</option>
-                          {ETHNICITIES.map(e => <option key={e} value={e}>{e}</option>)}
-                        </select>
-                      ) : (m.ethnicity||'—')}
-                    </td>
-                    <td className="px-4 py-3 text-gray-400 text-xs">
-                      {isTableEditing ? (
-                        <select value={draft.bloodType || ''} onChange={e => handleTableChange(m.id, 'bloodType', e.target.value)} className="bg-[#252525] border border-gray-700 rounded text-xs p-1 outline-none text-gray-300">
-                          <option value="">—</option>
-                          {BLOOD_TYPES.map(b => <option key={b} value={b}>{b}</option>)}
-                        </select>
-                      ) : (m.bloodType||'—')}
-                    </td>
-                    <td className="px-4 py-3 text-gray-400 text-xs truncate max-w-[150px]">
-                      {isTableEditing ? (
-                        <select value={draft.pob || ''} onChange={e => handleTableChange(m.id, 'pob', e.target.value)} className="bg-[#252525] border border-gray-700 rounded text-xs p-1 outline-none w-24 text-gray-300">
-                          <option value="">—</option>
-                          {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
-                        </select>
-                      ) : (m.pob||'—')}
-                    </td>
-                    <td className="px-4 py-3 text-gray-400 text-xs">
-                      {isTableEditing ? <input value={draft.phone || ''} onChange={e => handleTableChange(m.id, 'phone', e.target.value)} className="w-24 bg-transparent border-b border-gray-700 outline-none focus:border-blue-500 text-gray-300" /> : (m.phone||'—')}
-                    </td>
-                    <td className="px-4 py-3 text-gray-400 text-xs">
-                      {isTableEditing ? <input value={draft.mailSchool || ''} onChange={e => handleTableChange(m.id, 'mailSchool', e.target.value)} className="w-32 bg-transparent border-b border-gray-700 outline-none focus:border-blue-500 text-gray-300" /> : (m.mailSchool||'—')}
-                    </td>
-                    <td className="px-4 py-3 text-gray-400 text-xs">
-                      {isTableEditing ? <input value={draft.mailVnu || ''} onChange={e => handleTableChange(m.id, 'mailVnu', e.target.value)} className="w-32 bg-transparent border-b border-gray-700 outline-none focus:border-blue-500 text-gray-300" /> : (m.mailVnu||'—')}
-                    </td>
-                    <td className="px-4 py-3 text-gray-400 text-xs">
-                      {isTableEditing ? <input value={draft.facebook || ''} onChange={e => handleTableChange(m.id, 'facebook', e.target.value)} className="w-24 bg-transparent border-b border-gray-700 outline-none focus:border-blue-500 text-gray-300" /> : (
-                        m.facebook ? (
-                          <a href={m.facebook} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline truncate inline-block max-w-[120px]">
-                            {m.facebook}
-                          </a>
-                        ) : '—'
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-center sticky right-0 bg-[#1a1a1a] group-hover:bg-[#252525] border-l border-gray-800/60 transition-colors shadow-[-10px_0_15px_-5px_rgba(0,0,0,0.5)]">
-                      <button onClick={()=>setSelectedMember(m)} className="p-1.5 bg-gray-800 rounded-lg text-gray-400 hover:text-white hover:bg-blue-600 transition-all shadow-sm">
-                        <Eye className="w-4 h-4"/>
-                      </button>
-                    </td>
-                  </tr>
-                );
+                      </td>
+                      <td className="px-4 py-3 text-gray-400 text-xs">
+                        {isTableEditing ? <input value={draft.mssv || draft.msv || ''} onChange={e => { handleTableChange(m.id, 'mssv', e.target.value); handleTableChange(m.id, 'msv', e.target.value); }} className="w-20 bg-transparent border-b border-gray-700 outline-none focus:border-blue-500 text-gray-300" /> : (m.mssv || m.msv || '—')}
+                      </td>
+                      <td className="px-4 py-3 text-gray-400 text-xs">
+                        {isTableEditing ? (
+                          <select value={draft.gender || ''} onChange={e => handleTableChange(m.id, 'gender', e.target.value)} className="bg-[#252525] border border-gray-700 rounded text-xs p-1 outline-none text-gray-300">
+                            <option value="">—</option>
+                            <option value="Nam">Nam</option>
+                            <option value="Nữ">Nữ</option>
+                          </select>
+                        ) : (m.gender || '—')}
+                      </td>
+                      <td className="px-4 py-3 text-gray-400 text-xs">
+                        {isTableEditing ? <input type="date" value={draft.dob || ''} onChange={e => handleTableChange(m.id, 'dob', e.target.value)} className="bg-[#252525] border border-gray-700 rounded text-xs p-1 outline-none text-gray-300" /> : (m.dob ? toDisplay(m.dob) : '—')}
+                      </td>
+                      <td className="px-4 py-3 text-gray-400 text-xs">
+                        {isTableEditing ? (
+                          <select value={draft.ethnicity || ''} onChange={e => handleTableChange(m.id, 'ethnicity', e.target.value)} className="bg-[#252525] border border-gray-700 rounded text-xs p-1 outline-none w-20 text-gray-300">
+                            <option value="">—</option>
+                            {ETHNICITIES.map(e => <option key={e} value={e}>{e}</option>)}
+                          </select>
+                        ) : (m.ethnicity || '—')}
+                      </td>
+                      <td className="px-4 py-3 text-gray-400 text-xs">
+                        {isTableEditing ? (
+                          <select value={draft.bloodType || ''} onChange={e => handleTableChange(m.id, 'bloodType', e.target.value)} className="bg-[#252525] border border-gray-700 rounded text-xs p-1 outline-none text-gray-300">
+                            <option value="">—</option>
+                            {BLOOD_TYPES.map(b => <option key={b} value={b}>{b}</option>)}
+                          </select>
+                        ) : (m.bloodType || '—')}
+                      </td>
+                      <td className="px-4 py-3 text-gray-400 text-xs truncate max-w-[150px]">
+                        {isTableEditing ? (
+                          <select value={draft.pob || ''} onChange={e => handleTableChange(m.id, 'pob', e.target.value)} className="bg-[#252525] border border-gray-700 rounded text-xs p-1 outline-none w-24 text-gray-300">
+                            <option value="">—</option>
+                            {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
+                          </select>
+                        ) : (m.pob || '—')}
+                      </td>
+                      <td className="px-4 py-3 text-gray-400 text-xs">
+                        {isTableEditing ? <input value={draft.phone || ''} onChange={e => handleTableChange(m.id, 'phone', e.target.value)} className="w-24 bg-transparent border-b border-gray-700 outline-none focus:border-blue-500 text-gray-300" /> : (m.phone || '—')}
+                      </td>
+                      <td className="px-4 py-3 text-gray-400 text-xs">
+                        {isTableEditing ? <input value={draft.mailSchool || ''} onChange={e => handleTableChange(m.id, 'mailSchool', e.target.value)} className="w-32 bg-transparent border-b border-gray-700 outline-none focus:border-blue-500 text-gray-300" /> : (m.mailSchool || '—')}
+                      </td>
+                      <td className="px-4 py-3 text-gray-400 text-xs">
+                        {isTableEditing ? <input value={draft.mailVnu || ''} onChange={e => handleTableChange(m.id, 'mailVnu', e.target.value)} className="w-32 bg-transparent border-b border-gray-700 outline-none focus:border-blue-500 text-gray-300" /> : (m.mailVnu || '—')}
+                      </td>
+                      <td className="px-4 py-3 text-gray-400 text-xs">
+                        {isTableEditing ? <input value={draft.facebook || ''} onChange={e => handleTableChange(m.id, 'facebook', e.target.value)} className="w-24 bg-transparent border-b border-gray-700 outline-none focus:border-blue-500 text-gray-300" /> : (
+                          m.facebook ? (
+                            <a href={m.facebook} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline truncate inline-block max-w-[120px]">
+                              {m.facebook}
+                            </a>
+                          ) : '—'
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center sticky right-0 bg-[#1a1a1a] group-hover:bg-[#252525] border-l border-gray-800/60 transition-colors shadow-[-10px_0_15px_-5px_rgba(0,0,0,0.5)]">
+                        <button onClick={() => setSelectedMember(m)} className="p-1.5 bg-gray-800 rounded-lg text-gray-400 hover:text-white hover:bg-blue-600 transition-all shadow-sm">
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
                 })}
                 {filtered.length === 0 && (
                   <tr>
@@ -1259,7 +1262,7 @@ function MembersTab() {
                       <th key={m.id} className="px-3 py-2 text-center min-w-[70px]">
                         <div className="flex flex-col items-center gap-1.5 cursor-pointer hover:opacity-80" onClick={() => setSelectedMember(m)} title={m.fullName}>
                           {m.avatarUrl
-                            ? <img src={m.avatarUrl} alt="" className="w-6 h-6 rounded-md object-cover border border-gray-700"/>
+                            ? <img src={m.avatarUrl} alt="" className="w-6 h-6 rounded-md object-cover border border-gray-700" />
                             : <div className="w-6 h-6 bg-blue-600/20 border border-blue-500/30 text-blue-400 font-bold text-[10px] flex items-center justify-center rounded-md shrink-0">{getInitials(m.fullName)}</div>
                           }
                           <span className="text-[9px] text-gray-400 truncate max-w-[60px] leading-tight">{firstName}</span>
@@ -1275,8 +1278,8 @@ function MembersTab() {
                     <td className="px-4 py-3 text-gray-500 text-xs text-center font-medium sticky left-0 bg-[#1a1a1a] group-hover:bg-[#252525] border-r border-gray-800/60 z-10 transition-colors">{i + 1}</td>
                     <td className="px-4 py-3 font-semibold text-gray-200 text-sm sticky left-[50px] bg-[#1a1a1a] group-hover:bg-[#252525] border-r border-gray-800/60 z-10 transition-colors shadow-[10px_0_15px_-5px_rgba(0,0,0,0.5)]">
                       <div className="flex flex-col max-w-[200px]">
-                         <span className="truncate" title={sub.name}>{sub.name}</span>
-                         <span className="text-[10px] text-gray-500 font-normal mt-0.5">{sub.code} · {sub.credits} TC</span>
+                        <span className="truncate" title={sub.name}>{sub.name}</span>
+                        <span className="text-[10px] text-gray-500 font-normal mt-0.5">{sub.code} · {sub.credits} TC</span>
                       </div>
                     </td>
                     {filtered.map(m => {
@@ -1285,22 +1288,22 @@ function MembersTab() {
                       let cellContent = <span className="text-gray-600">—</span>;
 
                       if (sub.excludeCPA) {
-                         if (st === 'Đạt') cellContent = <span className="text-green-400 font-bold">Đạt</span>;
-                         else if (st === 'Chưa đạt') cellContent = <span className="text-red-400 font-bold">C.Đạt</span>;
-                         else if (st === 'Được miễn') cellContent = <span className="text-blue-400 font-bold">Miễn</span>;
-                         else if (st === 'Đang học') cellContent = <span className="text-yellow-400 font-bold">Đang</span>;
+                        if (st === 'Đạt') cellContent = <span className="text-green-400 font-bold">Đạt</span>;
+                        else if (st === 'Chưa đạt') cellContent = <span className="text-red-400 font-bold">C.Đạt</span>;
+                        else if (st === 'Được miễn') cellContent = <span className="text-blue-400 font-bold">Miễn</span>;
+                        else if (st === 'Đang học') cellContent = <span className="text-yellow-400 font-bold">Đang</span>;
                       } else {
-                         if (st === 'Được miễn') cellContent = <span className="text-blue-400 font-bold">Miễn</span>;
-                         else if (st === 'Đang học') cellContent = <span className="text-yellow-400 font-bold">Đang</span>;
-                         else if (st === 'Đã học') {
-                           const r = calcResult(g.cc, g.gk, g.ck);
-                           if (r.chu !== '—') {
-                             const color = gradeColor(r.he10);
-                             cellContent = <span className={`font-bold ${color}`}>{r.chu}</span>;
-                           }
-                         }
+                        if (st === 'Được miễn') cellContent = <span className="text-blue-400 font-bold">Miễn</span>;
+                        else if (st === 'Đang học') cellContent = <span className="text-yellow-400 font-bold">Đang</span>;
+                        else if (st === 'Đã học') {
+                          const r = calcResult(g.cc, g.gk, g.ck);
+                          if (r.chu !== '—') {
+                            const color = gradeColor(r.he10);
+                            cellContent = <span className={`font-bold ${color}`}>{r.chu}</span>;
+                          }
+                        }
                       }
-                      
+
                       return (
                         <td key={m.id} className="px-3 py-3 text-center text-xs">
                           {cellContent}
@@ -1325,7 +1328,7 @@ function MembersTab() {
             )}
             <AnimatePresence>
               {filtered.map((m, i) => (
-                <MemberCard key={m.id} member={m} onClick={()=>setSelectedMember(m)} index={i}/>
+                <MemberCard key={m.id} member={m} onClick={() => setSelectedMember(m)} index={i} />
               ))}
             </AnimatePresence>
           </div>
@@ -1350,9 +1353,9 @@ export default function Profile() {
     if (!isEditing) setProfileState({ ...currentUser });
   }, [currentUser, isEditing]);
 
-  const complete  = isProfileComplete(currentUser);
-  const initials  = getInitials(currentUser?.fullName);
-  const rl        = roleLabel(currentUser?.role);
+  const complete = isProfileComplete(currentUser);
+  const initials = getInitials(currentUser?.fullName);
+  const rl = roleLabel(currentUser?.role);
   const activeMembers = members?.filter(m => m.status !== 'pending') || [];
 
   const handleSaveProfile = () => {
@@ -1368,9 +1371,9 @@ export default function Profile() {
   };
 
   const tabs = [
-    { key:'profile', label:'Hồ sơ',      icon:User     },
-    { key:'grades',  label:'Bảng điểm',  icon:BookOpen },
-    ...(isCore||isSuperAdmin ? [{ key:'members', label:'Thành viên', icon:Users }] : []),
+    { key: 'profile', label: 'Hồ sơ', icon: User },
+    { key: 'grades', label: 'Bảng điểm', icon: BookOpen },
+    ...(isCore || isSuperAdmin ? [{ key: 'members', label: 'Thành viên', icon: Users }] : []),
 
   ];
 
@@ -1379,40 +1382,40 @@ export default function Profile() {
       <div className="px-6 pt-6 pb-4 border-b border-gray-800/60 bg-[#121212] sticky top-0 z-20">
         <div className="flex items-center gap-4 mb-4">
           {currentUser?.avatarUrl
-            ? <img src={currentUser.avatarUrl} alt="" className="w-14 h-14 rounded-2xl object-cover border border-gray-700"/>
+            ? <img src={currentUser.avatarUrl} alt="" className="w-14 h-14 rounded-2xl object-cover border border-gray-700" />
             : <div className="w-14 h-14 bg-blue-600/20 border border-blue-500/30 rounded-2xl flex items-center justify-center text-blue-400 font-bold text-lg">
-                {initials}
-              </div>
+              {initials}
+            </div>
           }
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-xl font-black text-white">{currentUser?.fullName||'Thành viên'}</h1>
+              <h1 className="text-xl font-black text-white">{currentUser?.fullName || 'Thành viên'}</h1>
               <span className={`text-xs font-bold px-2.5 py-1 rounded-xl ${rl.cls}`}>{rl.text}</span>
               {complete
-                ? <span className="flex items-center gap-1 text-xs text-green-400"><CheckCircle2 className="w-3.5 h-3.5"/> Hồ sơ đầy đủ</span>
-                : <span className="flex items-center gap-1 text-xs text-amber-400"><AlertTriangle className="w-3.5 h-3.5"/> Hồ sơ chưa đầy đủ</span>
+                ? <span className="flex items-center gap-1 text-xs text-green-400"><CheckCircle2 className="w-3.5 h-3.5" /> Hồ sơ đầy đủ</span>
+                : <span className="flex items-center gap-1 text-xs text-amber-400"><AlertTriangle className="w-3.5 h-3.5" /> Hồ sơ chưa đầy đủ</span>
               }
             </div>
-            <div className="text-sm text-gray-500 mt-0.5">{currentUser?.mssv||currentUser?.msv||'MSSV chưa cập nhật'} · {currentUser?.mailSchool||currentUser?.email||''}</div>
+            <div className="text-sm text-gray-500 mt-0.5">{currentUser?.mssv || currentUser?.msv || 'MSSV chưa cập nhật'} · {currentUser?.mailSchool || currentUser?.email || ''}</div>
           </div>
 
           {activeTab === 'profile' && (
             <div className="flex gap-2">
               {!isEditing && (
-                <button onClick={()=>setIsEditing(true)}
+                <button onClick={() => setIsEditing(true)}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl transition-all">
-                  <Edit3 className="w-3.5 h-3.5"/> Chỉnh sửa
+                  <Edit3 className="w-3.5 h-3.5" /> Chỉnh sửa
                 </button>
               )}
               {isEditing && (
                 <>
                   <button onClick={handleCancelEdit}
                     className="flex items-center gap-2 px-4 py-2 border border-gray-700 hover:border-gray-600 hover:bg-[#252525] text-gray-300 text-sm font-bold rounded-xl transition-all">
-                    <X className="w-3.5 h-3.5"/> Huỷ
+                    <X className="w-3.5 h-3.5" /> Huỷ
                   </button>
                   <button onClick={handleSaveProfile}
                     className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl transition-all">
-                    <Save className="w-3.5 h-3.5"/> Lưu
+                    <Save className="w-3.5 h-3.5" /> Lưu
                   </button>
                 </>
               )}
@@ -1423,14 +1426,14 @@ export default function Profile() {
         <div className="flex gap-1">
           {tabs.map(t => (
             <button key={t.key}
-              onClick={()=>{ setActiveTab(t.key); setIsEditing(false); }}
+              onClick={() => { setActiveTab(t.key); setIsEditing(false); }}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all
-                ${activeTab===t.key
+                ${activeTab === t.key
                   ? 'bg-blue-600/15 text-blue-400 border border-blue-500/20'
                   : 'text-gray-500 hover:text-gray-300 hover:bg-[#252525]'}`}>
-              <t.icon className="w-3.5 h-3.5"/>
+              <t.icon className="w-3.5 h-3.5" />
               {t.label}
-              {t.key==='members' && activeTab!=='members' && (
+              {t.key === 'members' && activeTab !== 'members' && (
                 <span className="text-[10px] bg-gray-700 px-1.5 py-0.5 rounded-full">
                   {activeMembers.length}
                 </span>
@@ -1456,7 +1459,7 @@ export default function Profile() {
                 isEditing={isEditing}
                 isSuperAdmin={isSuperAdmin}
                 isOwnProfile={true}
-                onStartEdit={()=>setIsEditing(true)}
+                onStartEdit={() => setIsEditing(true)}
               />
             )}
 
@@ -1469,8 +1472,8 @@ export default function Profile() {
               />
             )}
 
-            {activeTab === 'members' && (isCore||isSuperAdmin) && (
-              <MembersTab/>
+            {activeTab === 'members' && (isCore || isSuperAdmin) && (
+              <MembersTab />
             )}
 
 
