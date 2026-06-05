@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   User, CreditCard, Calendar, Phone, MapPin,
   Save, Edit3, ChevronDown, ChevronUp, AlertTriangle, CheckCircle2,
-  Download, Users, ChevronLeft, Search, Check, X,
+  Download, Users, ChevronLeft, Search, Check, X, LayoutGrid, List,
   Clock, Eye, BookOpen, Lock, CheckCircle, GraduationCap, XCircle, Trash2, Key,
   Shield, Settings, ShieldCheck, Zap, Database, Sparkles
 } from 'lucide-react';
@@ -902,11 +902,22 @@ function MemberCard({ member, onClick, index }) {
 
 // ── Members Management Tab ─────────────────────────────────────────────────
 function MembersTab() {
-  const { members, isCore, isSuperAdmin, approveUser, rejectUser, exportMembersCSV } = useApp();
+  const { members, isCore, isSuperAdmin, approveUser, rejectUser, exportMembersCSV, updateMemberProfile, grades } = useApp();
   const [selectedMember, setSelectedMember] = useState(null);
   const [search, setSearch] = useState('');
   const [approvingId, setApprovingId] = useState(null);
   const [rejectingId,  setRejectingId] = useState(null);
+  const [viewMode, setViewMode] = useState('table'); // 'grid' | 'table'
+  const [tableDataType, setTableDataType] = useState('info'); // 'info' | 'grades'
+  const [isTableEditing, setIsTableEditing] = useState(false);
+  const [tableData, setTableData] = useState({});
+
+  const gradeColor = (v) => {
+    const n = parseFloat(v);
+    if (isNaN(n)) return 'text-gray-600';
+    if (n >= 8.5) return 'text-green-400'; if (n >= 7.0) return 'text-blue-400';
+    if (n >= 5.5) return 'text-yellow-400'; return 'text-red-400';
+  };
 
   // Phân loại thành viên
   const activeMembers = members.filter(m => m.status !== 'pending');
@@ -914,12 +925,61 @@ function MembersTab() {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return activeMembers.filter(m =>
+    const result = activeMembers.filter(m =>
       m.fullName?.toLowerCase().includes(q) ||
       (m.mssv||m.msv||'').includes(q) ||
       m.email?.toLowerCase().includes(q)
     );
+    
+    result.sort((a, b) => {
+      const parse = (name) => {
+        const parts = (name || '').trim().split(/\s+/);
+        if (parts.length === 0) return { first: '', middle: '', last: '' };
+        if (parts.length === 1) return { first: parts[0], middle: '', last: '' };
+        return {
+          first: parts[parts.length - 1],
+          last: parts[0],
+          middle: parts.slice(1, -1).join(' ')
+        };
+      };
+      const pa = parse(a.fullName);
+      const pb = parse(b.fullName);
+      
+      const comp1 = pa.first.localeCompare(pb.first, 'vi');
+      if (comp1 !== 0) return comp1;
+      const comp2 = pa.middle.localeCompare(pb.middle, 'vi');
+      if (comp2 !== 0) return comp2;
+      return pa.last.localeCompare(pb.last, 'vi');
+    });
+
+    return result;
   }, [activeMembers, search]);
+
+  const handleEditTable = () => {
+    const initData = {};
+    activeMembers.forEach(m => initData[m.id] = { ...m });
+    setTableData(initData);
+    setIsTableEditing(true);
+  };
+
+  const handleSaveTable = () => {
+    activeMembers.forEach(m => {
+      const draft = tableData[m.id];
+      if (!draft) return;
+      const isChanged = Object.keys(draft).some(k => draft[k] !== m[k]);
+      if (isChanged && updateMemberProfile) {
+        updateMemberProfile(m.id, draft);
+      }
+    });
+    setIsTableEditing(false);
+  };
+
+  const handleTableChange = (id, field, value) => {
+    setTableData(prev => ({
+      ...prev,
+      [id]: { ...prev[id], [field]: value }
+    }));
+  };
 
   const handleApprove = async (id) => {
     setApprovingId(id);
@@ -1002,29 +1062,274 @@ function MembersTab() {
         <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-800/60">
           <Users className="w-4 h-4 text-gray-500"/>
           <span className="font-bold text-gray-300 text-sm flex-1">Thành viên đang hoạt động</span>
+          
+          <div className="flex bg-[#252525] rounded-xl p-1">
+            <button onClick={() => { setViewMode('grid'); setIsTableEditing(false); }}
+              className={`p-1.5 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}>
+              <LayoutGrid className="w-4 h-4"/>
+            </button>
+            <button onClick={() => setViewMode('table')}
+              className={`p-1.5 rounded-lg transition-colors ${viewMode === 'table' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}>
+              <List className="w-4 h-4"/>
+            </button>
+          </div>
+
+          {viewMode === 'table' && tableDataType === 'info' && (isCore || isSuperAdmin) && !isTableEditing && (
+            <button onClick={handleEditTable}
+              className="flex items-center gap-1.5 text-xs text-blue-400 border border-blue-500/20 px-3 py-1.5 rounded-xl hover:bg-blue-500/10 transition-all font-bold">
+              <Edit3 className="w-3.5 h-3.5"/> Sửa bảng
+            </button>
+          )}
+          {viewMode === 'table' && tableDataType === 'info' && isTableEditing && (
+            <div className="flex gap-2">
+              <button onClick={() => setIsTableEditing(false)}
+                className="flex items-center gap-1.5 text-xs text-gray-400 border border-gray-700 px-3 py-1.5 rounded-xl hover:bg-[#252525] transition-all font-bold">
+                <X className="w-3.5 h-3.5"/> Huỷ
+              </button>
+              <button onClick={handleSaveTable}
+                className="flex items-center gap-1.5 text-xs text-white bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded-xl transition-all font-bold">
+                <Save className="w-3.5 h-3.5"/> Lưu
+              </button>
+            </div>
+          )}
+
           <button onClick={exportMembersCSV}
             className="flex items-center gap-1.5 text-xs text-green-400 border border-green-500/20 px-3 py-1.5 rounded-xl hover:bg-green-500/10 transition-all font-bold">
             <Download className="w-3.5 h-3.5"/> Xuất CSV
           </button>
         </div>
-        <div className="px-4 py-3 border-b border-gray-800/60">
-          <div className="relative">
+        <div className="px-4 py-3 border-b border-gray-800/60 flex flex-col md:flex-row gap-3">
+          <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600"/>
             <input value={search} onChange={e=>setSearch(e.target.value)}
               placeholder="Tìm theo tên, MSSV, email..."
               className="w-full pl-9 pr-4 py-2 text-sm bg-[#252525] border border-gray-700 rounded-xl text-white placeholder:text-gray-600 outline-none focus:border-blue-500 transition-all"/>
           </div>
-        </div>
-        <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-2">
-          {filtered.length === 0 && (
-            <div className="md:col-span-2 text-center py-8 text-gray-600 text-sm">Không tìm thấy thành viên nào.</div>
+          {viewMode === 'table' && (
+            <div className="flex bg-[#252525] rounded-xl p-1 shrink-0 h-fit">
+              <button onClick={() => { setTableDataType('info'); setIsTableEditing(false); }}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-colors ${tableDataType === 'info' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}>
+                Thông tin
+              </button>
+              <button onClick={() => { setTableDataType('grades'); setIsTableEditing(false); }}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-colors ${tableDataType === 'grades' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-300'}`}>
+                Bảng điểm
+              </button>
+            </div>
           )}
-          <AnimatePresence>
-            {filtered.map((m, i) => (
-              <MemberCard key={m.id} member={m} onClick={()=>setSelectedMember(m)} index={i}/>
-            ))}
-          </AnimatePresence>
         </div>
+        {viewMode === 'table' && tableDataType === 'info' && (
+          <div className="overflow-x-auto pb-4">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead className="text-[10px] font-black uppercase text-gray-500 bg-[#1e1e1e] border-y border-gray-800">
+                <tr>
+                  <th className="px-4 py-3 text-center">STT</th>
+                  <th className="px-4 py-3">Họ và tên</th>
+                  <th className="px-4 py-3">Vai trò</th>
+                  <th className="px-4 py-3">MSSV</th>
+                  <th className="px-4 py-3">Giới tính</th>
+                  <th className="px-4 py-3">Ngày sinh</th>
+                  <th className="px-4 py-3">Dân tộc</th>
+                  <th className="px-4 py-3">Nhóm máu</th>
+                  <th className="px-4 py-3">Nơi sinh</th>
+                  <th className="px-4 py-3">Số ĐT</th>
+                  <th className="px-4 py-3">Mail HUS</th>
+                  <th className="px-4 py-3">Mail VNU</th>
+                  <th className="px-4 py-3">Facebook</th>
+                  <th className="px-4 py-3 text-center sticky right-0 bg-[#1e1e1e] border-l border-gray-800/60 shadow-[-10px_0_15px_-5px_rgba(0,0,0,0.5)]">Hành động</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800/60">
+                {filtered.map((m, i) => {
+                  const draft = tableData[m.id] || m;
+                  return (
+                  <tr key={m.id} className="hover:bg-[#252525] transition-colors group">
+                    <td className="px-4 py-3 text-gray-500 text-xs text-center font-medium">
+                      {isTableEditing && isSuperAdmin ? (
+                        <input value={draft.stt || ''} onChange={e => handleTableChange(m.id, 'stt', e.target.value)} className="w-10 bg-transparent border-b border-gray-700 text-center outline-none focus:border-blue-500" />
+                      ) : (m.stt || i + 1)}
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-gray-200 text-sm">
+                      <div className="flex items-center gap-3">
+                        {m.avatarUrl
+                          ? <img src={m.avatarUrl} alt="" className="w-7 h-7 rounded-lg object-cover border border-gray-700"/>
+                          : <div className="w-7 h-7 bg-blue-600/20 border border-blue-500/30 text-blue-400 font-bold text-xs flex items-center justify-center rounded-lg">{getInitials(m.fullName)}</div>
+                        }
+                        {isTableEditing ? (
+                          <input value={draft.fullName || ''} onChange={e => handleTableChange(m.id, 'fullName', e.target.value)} className="w-32 bg-transparent border-b border-gray-700 outline-none focus:border-blue-500 text-sm text-gray-200" />
+                        ) : (
+                          <span className="whitespace-nowrap">{m.fullName||'—'}</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {isTableEditing && isSuperAdmin && m.role !== 'super_admin' ? (
+                        <select value={draft.role || 'member'} onChange={e => handleTableChange(m.id, 'role', e.target.value)} className="bg-[#252525] border border-gray-700 rounded text-xs p-1 outline-none text-gray-300">
+                          <option value="member">Thành viên</option>
+                          <option value="core">Core Team</option>
+                        </select>
+                      ) : (
+                        <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${roleLabel(m.role).cls}`}>{roleLabel(m.role).text}</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-gray-400 text-xs">
+                      {isTableEditing ? <input value={draft.mssv || draft.msv || ''} onChange={e => {handleTableChange(m.id, 'mssv', e.target.value); handleTableChange(m.id, 'msv', e.target.value);}} className="w-20 bg-transparent border-b border-gray-700 outline-none focus:border-blue-500 text-gray-300" /> : (m.mssv||m.msv||'—')}
+                    </td>
+                    <td className="px-4 py-3 text-gray-400 text-xs">
+                      {isTableEditing ? (
+                        <select value={draft.gender || ''} onChange={e => handleTableChange(m.id, 'gender', e.target.value)} className="bg-[#252525] border border-gray-700 rounded text-xs p-1 outline-none text-gray-300">
+                          <option value="">—</option>
+                          <option value="Nam">Nam</option>
+                          <option value="Nữ">Nữ</option>
+                        </select>
+                      ) : (m.gender||'—')}
+                    </td>
+                    <td className="px-4 py-3 text-gray-400 text-xs">
+                      {isTableEditing ? <input type="date" value={draft.dob || ''} onChange={e => handleTableChange(m.id, 'dob', e.target.value)} className="bg-[#252525] border border-gray-700 rounded text-xs p-1 outline-none text-gray-300" /> : (m.dob ? toDisplay(m.dob) : '—')}
+                    </td>
+                    <td className="px-4 py-3 text-gray-400 text-xs">
+                      {isTableEditing ? (
+                        <select value={draft.ethnicity || ''} onChange={e => handleTableChange(m.id, 'ethnicity', e.target.value)} className="bg-[#252525] border border-gray-700 rounded text-xs p-1 outline-none w-20 text-gray-300">
+                          <option value="">—</option>
+                          {ETHNICITIES.map(e => <option key={e} value={e}>{e}</option>)}
+                        </select>
+                      ) : (m.ethnicity||'—')}
+                    </td>
+                    <td className="px-4 py-3 text-gray-400 text-xs">
+                      {isTableEditing ? (
+                        <select value={draft.bloodType || ''} onChange={e => handleTableChange(m.id, 'bloodType', e.target.value)} className="bg-[#252525] border border-gray-700 rounded text-xs p-1 outline-none text-gray-300">
+                          <option value="">—</option>
+                          {BLOOD_TYPES.map(b => <option key={b} value={b}>{b}</option>)}
+                        </select>
+                      ) : (m.bloodType||'—')}
+                    </td>
+                    <td className="px-4 py-3 text-gray-400 text-xs truncate max-w-[150px]">
+                      {isTableEditing ? (
+                        <select value={draft.pob || ''} onChange={e => handleTableChange(m.id, 'pob', e.target.value)} className="bg-[#252525] border border-gray-700 rounded text-xs p-1 outline-none w-24 text-gray-300">
+                          <option value="">—</option>
+                          {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
+                        </select>
+                      ) : (m.pob||'—')}
+                    </td>
+                    <td className="px-4 py-3 text-gray-400 text-xs">
+                      {isTableEditing ? <input value={draft.phone || ''} onChange={e => handleTableChange(m.id, 'phone', e.target.value)} className="w-24 bg-transparent border-b border-gray-700 outline-none focus:border-blue-500 text-gray-300" /> : (m.phone||'—')}
+                    </td>
+                    <td className="px-4 py-3 text-gray-400 text-xs">
+                      {isTableEditing ? <input value={draft.mailSchool || ''} onChange={e => handleTableChange(m.id, 'mailSchool', e.target.value)} className="w-32 bg-transparent border-b border-gray-700 outline-none focus:border-blue-500 text-gray-300" /> : (m.mailSchool||'—')}
+                    </td>
+                    <td className="px-4 py-3 text-gray-400 text-xs">
+                      {isTableEditing ? <input value={draft.mailVnu || ''} onChange={e => handleTableChange(m.id, 'mailVnu', e.target.value)} className="w-32 bg-transparent border-b border-gray-700 outline-none focus:border-blue-500 text-gray-300" /> : (m.mailVnu||'—')}
+                    </td>
+                    <td className="px-4 py-3 text-gray-400 text-xs">
+                      {isTableEditing ? <input value={draft.facebook || ''} onChange={e => handleTableChange(m.id, 'facebook', e.target.value)} className="w-24 bg-transparent border-b border-gray-700 outline-none focus:border-blue-500 text-gray-300" /> : (
+                        m.facebook ? (
+                          <a href={m.facebook} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline truncate inline-block max-w-[120px]">
+                            {m.facebook}
+                          </a>
+                        ) : '—'
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-center sticky right-0 bg-[#1a1a1a] group-hover:bg-[#252525] border-l border-gray-800/60 transition-colors shadow-[-10px_0_15px_-5px_rgba(0,0,0,0.5)]">
+                      <button onClick={()=>setSelectedMember(m)} className="p-1.5 bg-gray-800 rounded-lg text-gray-400 hover:text-white hover:bg-blue-600 transition-all shadow-sm">
+                        <Eye className="w-4 h-4"/>
+                      </button>
+                    </td>
+                  </tr>
+                );
+                })}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={14} className="text-center py-8 text-gray-600 text-sm">Không tìm thấy thành viên nào.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {viewMode === 'table' && tableDataType === 'grades' && (
+          <div className="overflow-x-auto pb-4 custom-scrollbar">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead className="text-[10px] font-black uppercase text-gray-500 bg-[#1e1e1e] border-y border-gray-800">
+                <tr>
+                  <th className="px-4 py-3 text-center sticky left-0 bg-[#1e1e1e] z-20 border-r border-gray-800/60">STT</th>
+                  <th className="px-4 py-3 sticky left-[50px] bg-[#1e1e1e] z-20 border-r border-gray-800/60 shadow-[10px_0_15px_-5px_rgba(0,0,0,0.5)]">Môn học</th>
+                  {filtered.map(m => {
+                    const firstName = m.fullName ? m.fullName.split(' ').pop() : '—';
+                    return (
+                      <th key={m.id} className="px-3 py-2 text-center min-w-[70px]">
+                        <div className="flex flex-col items-center gap-1.5 cursor-pointer hover:opacity-80" onClick={() => setSelectedMember(m)} title={m.fullName}>
+                          {m.avatarUrl
+                            ? <img src={m.avatarUrl} alt="" className="w-6 h-6 rounded-md object-cover border border-gray-700"/>
+                            : <div className="w-6 h-6 bg-blue-600/20 border border-blue-500/30 text-blue-400 font-bold text-[10px] flex items-center justify-center rounded-md shrink-0">{getInitials(m.fullName)}</div>
+                          }
+                          <span className="text-[9px] text-gray-400 truncate max-w-[60px] leading-tight">{firstName}</span>
+                        </div>
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800/60">
+                {subjectDatabase.map((sub, i) => (
+                  <tr key={sub.id} className="hover:bg-[#252525] transition-colors group">
+                    <td className="px-4 py-3 text-gray-500 text-xs text-center font-medium sticky left-0 bg-[#1a1a1a] group-hover:bg-[#252525] border-r border-gray-800/60 z-10 transition-colors">{i + 1}</td>
+                    <td className="px-4 py-3 font-semibold text-gray-200 text-sm sticky left-[50px] bg-[#1a1a1a] group-hover:bg-[#252525] border-r border-gray-800/60 z-10 transition-colors shadow-[10px_0_15px_-5px_rgba(0,0,0,0.5)]">
+                      <div className="flex flex-col max-w-[200px]">
+                         <span className="truncate" title={sub.name}>{sub.name}</span>
+                         <span className="text-[10px] text-gray-500 font-normal mt-0.5">{sub.code} · {sub.credits} TC</span>
+                      </div>
+                    </td>
+                    {filtered.map(m => {
+                      const g = (grades[m.id] || {})[sub.id] || {};
+                      let st = g.status || 'Chưa học';
+                      let cellContent = <span className="text-gray-600">—</span>;
+
+                      if (sub.excludeCPA) {
+                         if (st === 'Đạt') cellContent = <span className="text-green-400 font-bold">Đạt</span>;
+                         else if (st === 'Chưa đạt') cellContent = <span className="text-red-400 font-bold">C.Đạt</span>;
+                         else if (st === 'Được miễn') cellContent = <span className="text-blue-400 font-bold">Miễn</span>;
+                         else if (st === 'Đang học') cellContent = <span className="text-yellow-400 font-bold">Đang</span>;
+                      } else {
+                         if (st === 'Được miễn') cellContent = <span className="text-blue-400 font-bold">Miễn</span>;
+                         else if (st === 'Đang học') cellContent = <span className="text-yellow-400 font-bold">Đang</span>;
+                         else if (st === 'Đã học') {
+                           const r = calcResult(g.cc, g.gk, g.ck);
+                           if (r.chu !== '—') {
+                             const color = gradeColor(r.he10);
+                             cellContent = <span className={`font-bold ${color}`}>{r.chu}</span>;
+                           }
+                         }
+                      }
+                      
+                      return (
+                        <td key={m.id} className="px-3 py-3 text-center text-xs">
+                          {cellContent}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+                {subjectDatabase.length === 0 && (
+                  <tr>
+                    <td colSpan={filtered.length + 2} className="text-center py-8 text-gray-600 text-sm">Chưa có môn học nào.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {viewMode === 'grid' && (
+          <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-2">
+            {filtered.length === 0 && (
+              <div className="md:col-span-2 text-center py-8 text-gray-600 text-sm">Không tìm thấy thành viên nào.</div>
+            )}
+            <AnimatePresence>
+              {filtered.map((m, i) => (
+                <MemberCard key={m.id} member={m} onClick={()=>setSelectedMember(m)} index={i}/>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
       </div>
     </div>
   );
