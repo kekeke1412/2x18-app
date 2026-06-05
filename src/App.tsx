@@ -195,101 +195,136 @@ function Sidebar({ onClose }) {
   const complete = isProfileComplete(currentUser);
   const initials = (currentUser?.fullName || 'NT').split(' ').filter(Boolean).map(w => w[0]).slice(-2).join('').toUpperCase();
   const trashCount = (trash || []).length;
+  
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
-  const handleLogout = () => { logout(); navigate('/auth', { replace: true }); onClose?.(); };
+  const handleLogout = () => { setShowLogoutConfirm(true); };
+  const confirmLogout = () => { logout(); navigate('/auth', { replace: true }); onClose?.(); };
 
   return (
-    <aside className="w-60 shrink-0 h-full bg-[#1a1a1a] border-r border-gray-800/60 flex flex-col">
-      {/* Logo */}
-      <div className="px-5 py-4 border-b border-gray-800/60 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <img src="/icon-192.jpg" alt="2X" className="w-9 h-9 rounded-xl object-cover" />
-          <div>
-            <div className="text-white font-black text-base leading-none">2X18</div>
-            <div className="text-gray-500 text-[10px] mt-0.5">K70 CNBD</div>
+    <>
+      <aside className="w-60 shrink-0 h-full bg-[#1a1a1a] border-r border-gray-800/60 flex flex-col relative z-10">
+        {/* Logo */}
+        <div className="px-5 py-4 border-b border-gray-800/60 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img src="/icon-192.jpg" alt="2X" className="w-9 h-9 rounded-xl object-cover" />
+            <div>
+              <div className="text-white font-black text-base leading-none">2X18</div>
+              <div className="text-gray-500 text-[10px] mt-0.5">K70 CNBD</div>
+            </div>
           </div>
+          {onClose && (
+            <button onClick={onClose} className="lg:hidden p-1 text-gray-500 hover:text-white">
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
-        {onClose && (
-          <button onClick={onClose} className="lg:hidden p-1 text-gray-500 hover:text-white">
-            <X className="w-5 h-5" />
-          </button>
+
+        <nav className="flex-1 px-3 py-3 overflow-y-auto custom-scrollbar">
+          {/* Chính */}
+          <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest px-4 mb-1.5">Chính</div>
+          <ul className="space-y-0.5">
+            <NavItem to="/dashboard" icon={LayoutDashboard} label="Dashboard" disabled={!complete} onClick={onClose} />
+            <NavItem to="/profile" icon={User} label="Hồ sơ & GPA" onClick={onClose} />
+            <NavItem to="/subjects" icon={BookOpen} label="Môn học & SME" disabled={!complete} onClick={onClose} />
+            <NavItem to="/tasks" icon={ClipboardList} label="Tiến độ & Task" disabled={!complete} onClick={onClose} />
+            <NavItem to="/vocab" icon={Layers} label="Vocabulary" disabled={!complete} onClick={onClose} />
+            <NavItem to="/roadmap" icon={Map} label="Lộ trình" disabled={!complete} onClick={onClose} />
+            <NavItem to="/calendar" icon={Calendar} label="Lịch trình" disabled={!complete} onClick={onClose} />
+          </ul>
+
+          {/* Nhóm */}
+          <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest px-4 mb-1.5 mt-4">Nhóm</div>
+          <ul className="space-y-0.5">
+            <NavItem to="/reports" icon={FileText} label="Báo cáo & Sự kiện" disabled={!complete} onClick={onClose} />
+            <NavItem to="/voting" icon={Vote} label="Bình chọn" badge={0} disabled={!complete} onClick={onClose} />
+            <NavItem to="/attendance" icon={Users} label="Điểm danh" disabled={!complete} onClick={onClose} />
+            <NavItem to="/gamification" icon={Trophy} label="Vinh danh" disabled={!complete} onClick={onClose} />
+            <NavItem to="/notifications" icon={Bell} label="Thông báo" badge={unreadCount} disabled={!complete} onClick={onClose} />
+          </ul>
+
+          {/* Core */}
+          {(isCore || isSuperAdmin) && (
+            <>
+              <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest px-4 mb-1.5 mt-4">Core</div>
+              <ul className="space-y-0.5">
+                <li>
+                  <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-500 text-sm">
+                    <ShieldCheck className="w-4 h-4 text-blue-500 shrink-0" />
+                    <span className="font-medium flex-1">Quản trị</span>
+                    <span className="badge badge-blue">{isSuperAdmin ? 'Super' : 'Core'}</span>
+                  </div>
+                </li>
+                <NavItem
+                  to="/trash"
+                  icon={Trash2}
+                  label="Thùng rác"
+                  badge={trashCount}
+                  danger
+                  onClick={onClose}
+                />
+              </ul>
+            </>
+          )}
+        </nav>
+
+        {/* Profile incomplete warning */}
+        {!complete && (
+          <div className="mx-3 mb-2 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+            <div className="flex gap-2 items-start">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+              <p className="text-[10px] text-amber-400 leading-tight">
+                Vào <strong>Hồ sơ</strong> điền đủ 5 trường cơ bản để mở khóa
+              </p>
+            </div>
+          </div>
         )}
-      </div>
 
-      <nav className="flex-1 px-3 py-3 overflow-y-auto custom-scrollbar">
-        {/* Chính */}
-        <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest px-4 mb-1.5">Chính</div>
-        <ul className="space-y-0.5">
-          <NavItem to="/dashboard" icon={LayoutDashboard} label="Dashboard" disabled={!complete} onClick={onClose} />
-          <NavItem to="/profile" icon={User} label="Hồ sơ & GPA" onClick={onClose} />
-          <NavItem to="/subjects" icon={BookOpen} label="Môn học & SME" disabled={!complete} onClick={onClose} />
-          <NavItem to="/tasks" icon={ClipboardList} label="Tiến độ & Task" disabled={!complete} onClick={onClose} />
-          <NavItem to="/vocab" icon={Layers} label="Vocabulary" disabled={!complete} onClick={onClose} />
-          <NavItem to="/roadmap" icon={Map} label="Lộ trình" disabled={!complete} onClick={onClose} />
-          <NavItem to="/calendar" icon={Calendar} label="Lịch trình" disabled={!complete} onClick={onClose} />
-        </ul>
+        {/* User info */}
+        <div className="px-3 pb-3 pt-2 border-t border-gray-800/60">
+          <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-[#222]">
+            <UserAvatar user={currentUser} size={32} isMe />
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-bold text-gray-200 truncate">{currentUser?.fullName || 'Thành viên'}</div>
+              <div className="text-[10px] text-gray-500 truncate">{currentUser?.role || 'member'}</div>
+            </div>
+            <button onClick={handleLogout} title="Đăng xuất" className="p-1">
+              <LogOut className="w-4 h-4 text-gray-600 hover:text-red-400 transition-colors" />
+            </button>
+          </div>
+        </div>
+      </aside>
 
-        {/* Nhóm */}
-        <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest px-4 mb-1.5 mt-4">Nhóm</div>
-        <ul className="space-y-0.5">
-          <NavItem to="/reports" icon={FileText} label="Báo cáo & Sự kiện" disabled={!complete} onClick={onClose} />
-          <NavItem to="/voting" icon={Vote} label="Bình chọn" badge={0} disabled={!complete} onClick={onClose} />
-          <NavItem to="/attendance" icon={Users} label="Điểm danh" disabled={!complete} onClick={onClose} />
-          <NavItem to="/gamification" icon={Trophy} label="Vinh danh" disabled={!complete} onClick={onClose} />
-          <NavItem to="/notifications" icon={Bell} label="Thông báo" badge={unreadCount} disabled={!complete} onClick={onClose} />
-        </ul>
-
-        {/* Core */}
-        {(isCore || isSuperAdmin) && (
-          <>
-            <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest px-4 mb-1.5 mt-4">Core</div>
-            <ul className="space-y-0.5">
-              <li>
-                <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-500 text-sm">
-                  <ShieldCheck className="w-4 h-4 text-blue-500 shrink-0" />
-                  <span className="font-medium flex-1">Quản trị</span>
-                  <span className="badge badge-blue">{isSuperAdmin ? 'Super' : 'Core'}</span>
-                </div>
-              </li>
-              <NavItem
-                to="/trash"
-                icon={Trash2}
-                label="Thùng rác"
-                badge={trashCount}
-                danger
-                onClick={onClose}
-              />
-            </ul>
-          </>
+      <AnimatePresence>
+        {showLogoutConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+            onClick={() => setShowLogoutConfirm(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-[#1e1e1e] border border-gray-700 rounded-2xl w-full max-w-sm shadow-2xl p-6"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center mb-4">
+                <LogOut className="w-6 h-6 text-red-400" />
+              </div>
+              <h3 className="text-xl font-black text-white mb-2">Đăng xuất?</h3>
+              <p className="text-sm text-gray-400 mb-6">Bạn có chắc chắn muốn đăng xuất khỏi ứng dụng không?</p>
+              <div className="flex gap-3">
+                <button onClick={() => setShowLogoutConfirm(false)} className="flex-1 py-3 bg-[#252525] hover:bg-gray-700 text-white font-bold rounded-xl transition-colors">Không</button>
+                <button onClick={confirmLogout} className="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl transition-colors shadow-lg shadow-red-900/20">Có, Đăng xuất</button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
-      </nav>
-
-      {/* Profile incomplete warning */}
-      {!complete && (
-        <div className="mx-3 mb-2 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-          <div className="flex gap-2 items-start">
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-            <p className="text-[10px] text-amber-400 leading-tight">
-              Vào <strong>Hồ sơ</strong> điền đủ 5 trường cơ bản để mở khóa
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* User info */}
-      <div className="px-3 pb-3 pt-2 border-t border-gray-800/60">
-        <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-[#222]">
-          <UserAvatar user={currentUser} size={32} isMe />
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-bold text-gray-200 truncate">{currentUser?.fullName || 'Thành viên'}</div>
-            <div className="text-[10px] text-gray-500 truncate">{currentUser?.role || 'member'}</div>
-          </div>
-          <button onClick={handleLogout} title="Đăng xuất" className="p-1">
-            <LogOut className="w-4 h-4 text-gray-600 hover:text-red-400 transition-colors" />
-          </button>
-        </div>
-      </div>
-    </aside>
+      </AnimatePresence>
+    </>
   );
 }
 
