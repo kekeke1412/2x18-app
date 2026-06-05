@@ -6,7 +6,6 @@ const STATIC_ASSETS = [
   '/index.html',
   '/manifest.json',
   '/icon-192.jpg',
-  '/icon-512.jpg',
 ];
 
 // ── Install: pre-cache static shell ───────────────────────────────────────
