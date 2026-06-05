@@ -702,8 +702,8 @@ export default function Dashboard() {
           </div>
 
           <div className="text-right hidden sm:block pr-3 border-r border-gray-800">
-            <div className="text-xs font-black text-blue-400">{myStats.credits} <span className="text-gray-600 font-normal">TC đạt</span></div>
-            <div className="text-[10px] text-gray-500 font-bold uppercase tracking-tighter">Tổng tích lũy</div>
+            <div className="text-xs font-black text-blue-400">{((myStats.credits / 133) * 100).toFixed(1)}% <span className="text-gray-600 font-normal">hoàn thành</span></div>
+            <div className="text-[10px] text-gray-500 font-bold uppercase tracking-tighter">Tiến độ tín chỉ</div>
           </div>
         </div>
       </div>
