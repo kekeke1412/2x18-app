@@ -126,7 +126,7 @@ export default function Auth() {
           </button>
 
           <p className="text-center text-xs text-gray-600">
-            Bằng cách đăng nhập, bạn đồng ý với các quy định chung của tập thể lớp K70 CÔNG NGHỆ BÁN DẪN.
+            Bằng cách đăng nhập, bạn đồng ý với các quy định chung của 2X18 - K70 CÔNG NGHỆ BÁN DẪN.
           </p>
         </motion.div>
       </motion.div>
