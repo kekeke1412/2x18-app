@@ -1,5 +1,6 @@
 // @ts-nocheck
 // src/App.jsx
+/* __AUTHOR__: Phạm Thiên - 2X18 */
 import React, { useState } from 'react';
 import {
   BrowserRouter as Router, Routes, Route, Navigate,
