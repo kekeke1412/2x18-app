@@ -607,10 +607,6 @@ export function AppProvider({ children }) {
     if (!state.currentUser || state.currentUser.status === 'pending') return;
     if (state.isLoading || !state.members.length) return;
     
-    const membersMap = {};
-    state.members.forEach(m => { if (m.id) membersMap[m.id] = m; });
-    fbSet('2x18_members', membersMap);
-
     fbSet('2x18_sme',              state.smeMap);
     fbSet('2x18_tasks',            state.tasks);
     fbSet('2x18_events',           state.calEvents);
@@ -618,27 +614,16 @@ export function AppProvider({ children }) {
     fbSet('2x18_votes',            state.votes);
     fbSet('2x18_notifs',           state.notifications);
     fbSet('2x18_contributions',    state.contributions);
-    // Nodes below use direct writes in their respective services for reliability
-    // fbSet('2x18_attendance',       state.attendance);
-    // fbSet('2x18_docs',             state.docs);
-    // fbSet('2x18_vocab',            state.vocab);
-    // fbSet('2x18_subject_tasks',    state.subjectTasks);
-    // fbSet('2x18_subject_comments', state.subjectComments);
-    // fbSet('2x18_quiz_history',     state.quizHistory);
     
     fbSet('2x18_audit',            state.auditLogs);
     fbSet('2x18_semester_labels',  state.semesterLabels);
     fbSet('2x18_trash',            state.trash);
-    fbSet('2x18_user_vocab',       state.userVocab);
-    Object.entries(state.grades).forEach(([uid, g]) => {
-      if (uid && g) fbSet(`${uid}_grades`, g);
-    });
   }, [ // eslint-disable-line
-    state.members, state.smeMap, state.tasks, state.calEvents, state.roadmap,
+    state.smeMap, state.tasks, state.calEvents, state.roadmap,
     state.votes, state.notifications, state.contributions,
     state.docs, state.auditLogs, state.subjectTasks, state.subjectComments,
-    state.semesterLabels, state.grades, state.attendance, state.trash,
-    state.vocab, state.userVocab, state.quizHistory, state.isLoading
+    state.semesterLabels, state.attendance, state.trash,
+    state.vocab, state.quizHistory, state.isLoading
   ]);
 
   // ── Toast auto-dismiss ────────────────────────────────────────────────────
@@ -993,13 +978,17 @@ export function AppProvider({ children }) {
   // ── GRADES & FEATURES ─────────────────────────────────────────────────────
   const syncGrades   = useCallback((userId, gradesData) => {
     dispatch({ type:A.SYNC_GRADES,    payload:{ userId, gradesData } });
+    set(ref(db, `${userId}_grades`), gradesData).catch(e => console.warn(e));
     toast('Đã lưu bảng điểm!', 'success');
   }, [toast]);
-  const updateGrade   = useCallback((userId, subjectId, field, value) =>
-    dispatch({ type:A.UPDATE_GRADE,   payload:{ userId, subjectId, field, value } }), []);
+  const updateGrade   = useCallback((userId, subjectId, field, value) => {
+    dispatch({ type:A.UPDATE_GRADE,   payload:{ userId, subjectId, field, value } });
+    set(ref(db, `${userId}_grades/${subjectId}/${field}`), value).catch(e => console.warn(e));
+  }, []);
   const updateProgress = useCallback((userId, subjectId, value) => {
     const prevValue = state.grades[userId]?.[subjectId]?.myProgress || 0;
     dispatch({ type:A.UPDATE_PROGRESS, payload:{ userId, subjectId, value } });
+    set(ref(db, `${userId}_grades/${subjectId}/myProgress`), value).catch(e => console.warn(e));
     if (value === 100 && prevValue < 100) {
       dispatch({type:A.ADD_CONTRIBUTION, payload:{userId, points:1000}});
       toast('Chúc mừng! Tiến độ môn học đạt 100%. +1000 điểm 🎓', 'success');
@@ -1387,7 +1376,14 @@ export function AppProvider({ children }) {
 
   const markWordLearned = useCallback((setId, wordIndex, learned) => {
     if (!state.currentUser?.id) return;
-    dispatch({ type: A.MARK_WORD_LEARNED, payload: { setId, wordIndex, userId: state.currentUser.id, learned } });
+    const userId = state.currentUser.id;
+    dispatch({ type: A.MARK_WORD_LEARNED, payload: { setId, wordIndex, userId, learned } });
+    const newLevel = learned ? 6 : null;
+    if (newLevel === null) {
+      set(ref(db, `2x18_user_vocab/${userId}/${setId}/${wordIndex}`), null);
+    } else {
+      set(ref(db, `2x18_user_vocab/${userId}/${setId}/${wordIndex}`), newLevel);
+    }
   }, [state.currentUser]);
 
   const incrementWordLevel = useCallback((setId, wordIndex) => {
