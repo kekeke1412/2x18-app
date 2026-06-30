@@ -510,16 +510,16 @@ export function MembersTab() {
           </div>
         )}
         {viewMode === 'table' && tableDataType === 'grades' && (
-          <div className="overflow-x-auto pb-4 custom-scrollbar">
+          <div className="overflow-auto max-h-[70vh] pb-4 custom-scrollbar relative">
             <table className="w-full text-left text-sm whitespace-nowrap">
-              <thead className="text-[10px] font-black uppercase text-gray-500 bg-[#1e1e1e] border-y border-gray-800">
+              <thead className="text-[10px] font-black uppercase text-gray-500 bg-[#1e1e1e]">
                 <tr>
-                  <th className="px-4 py-3 text-center sticky left-0 bg-[#1e1e1e] z-20 border-r border-gray-800/60">STT</th>
-                  <th className="px-4 py-3 sticky left-[50px] bg-[#1e1e1e] z-20 border-r border-gray-800/60 shadow-[10px_0_15px_-5px_rgba(0,0,0,0.5)]">Môn học</th>
+                  <th className="px-4 py-3 text-center sticky top-0 left-0 bg-[#1e1e1e] z-30 border-r border-b border-gray-800/60">STT</th>
+                  <th className="px-4 py-3 sticky top-0 left-[50px] bg-[#1e1e1e] z-30 border-r border-b border-gray-800/60 shadow-[10px_0_15px_-5px_rgba(0,0,0,0.5)]">Môn học</th>
                   {filtered.map(m => {
                     const firstName = m.fullName ? m.fullName.split(' ').pop() : '—';
                     return (
-                      <th key={m.id} className="px-3 py-2 text-center min-w-[70px]">
+                      <th key={m.id} className="px-3 py-2 text-center min-w-[70px] sticky top-0 bg-[#1e1e1e] z-20 border-b border-gray-800/60">
                         <div className="flex flex-col items-center gap-1.5 cursor-pointer hover:opacity-80" onClick={() => setSelectedMember(m)} title={m.fullName}>
                           {m.avatarUrl
                             ? <img src={m.avatarUrl} alt="" className="w-6 h-6 rounded-md object-cover border border-gray-700" />
