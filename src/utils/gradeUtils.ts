@@ -75,10 +75,10 @@ export function calcGpaStats(grades) {
     }
   });
 
-  const cpa = totalCredits ? (totalPoints / totalCredits).toFixed(2) : '—';
+  const cpa = totalCredits ? (Math.round((totalPoints / totalCredits + Number.EPSILON) * 100) / 100).toFixed(2) : '—';
   const semGPAFmt: Record<string, string> = {};
   Object.entries(semGPA as Record<string, { pts: number; cr: number }>).forEach(([k, v]) => {
-    semGPAFmt[k] = v.cr ? (v.pts / v.cr).toFixed(2) : '—';
+    semGPAFmt[k] = v.cr ? (Math.round((v.pts / v.cr + Number.EPSILON) * 100) / 100).toFixed(2) : '—';
   });
   return {
     cpa, credits: earnedCredits, learning, done, semGPA: semGPAFmt,

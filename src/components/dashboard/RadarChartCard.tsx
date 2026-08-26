@@ -101,7 +101,7 @@ export function RadarChartCard({ myGrades }) {
               <div className="w-2 h-2 rounded-full shrink-0" style={{ background: AXIS_COLORS[i % AXIS_COLORS.length] }} />
               <span className="text-[10px] text-gray-400 truncate flex-1">{a.label}</span>
               <span className="text-[10px] font-black shrink-0" style={{ color: AXIS_COLORS[i % AXIS_COLORS.length] }}>
-                {a.value.toFixed(2)}
+                {(Math.round((a.value + Number.EPSILON) * 100) / 100).toFixed(2)}
               </span>
             </div>
           ))}

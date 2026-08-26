@@ -11,7 +11,7 @@ export function GroupGPACard({ myGrades, allGrades, members }) {
     }).filter(m => m.cpa > 0);
 
     const grpAvg = cpas.length
-      ? (cpas.reduce((s, m) => s + m.cpa, 0) / cpas.length).toFixed(2)
+      ? (Math.round(((cpas.reduce((s, m) => s + m.cpa, 0) / cpas.length) + Number.EPSILON) * 100) / 100).toFixed(2)
       : '0.00';
 
     return { myCPA: me.cpa, groupCPA: grpAvg, memberCPAs: cpas };
@@ -19,7 +19,7 @@ export function GroupGPACard({ myGrades, allGrades, members }) {
 
   const myVal = parseFloat(myCPA);
   const grpVal = parseFloat(groupCPA);
-  const diff = (myVal - grpVal).toFixed(2);
+  const diff = (Math.round(((myVal - grpVal) + Number.EPSILON) * 100) / 100).toFixed(2);
   const isAbove = myVal >= grpVal;
 
   const bars = [
@@ -37,7 +37,7 @@ export function GroupGPACard({ myGrades, allGrades, members }) {
         <div className="flex items-end justify-around gap-6 mb-4 h-24">
           {bars.map(b => (
             <div key={b.label} className="flex flex-col items-center gap-2 flex-1">
-              <div className={`text-sm font-black ${b.textColor}`}>{b.val.toFixed(2)}</div>
+              <div className={`text-sm font-black ${b.textColor}`}>{(Math.round((b.val + Number.EPSILON) * 100) / 100).toFixed(2)}</div>
               <div className="w-full flex-1 bg-gray-800 rounded-lg overflow-hidden flex flex-col justify-end">
                 <div className={`${b.color} rounded-lg transition-all duration-700`}
                   style={{ height: `${Math.min(100, (b.val / 4) * 100)}%` }} />

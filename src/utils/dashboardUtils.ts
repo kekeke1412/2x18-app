@@ -46,10 +46,10 @@ export function computeCPA(grades) {
   });
   const semResult: Record<string, string> = {};
   Object.entries(semGPA).sort(([a], [b]) => Number(a) - Number(b)).forEach(([k, v]) => {
-    semResult[k] = v.c > 0 ? (v.w / v.c).toFixed(2) : '0.00';
+    semResult[k] = v.c > 0 ? (Math.round((v.w / v.c + Number.EPSILON) * 100) / 100).toFixed(2) : '0.00';
   });
   return {
-    cpa: c > 0 ? (w / c).toFixed(2) : '0.00',
+    cpa: c > 0 ? (Math.round((w / c + Number.EPSILON) * 100) / 100).toFixed(2) : '0.00',
     credits: passed, learning, semGPA: semResult,
   };
 }
