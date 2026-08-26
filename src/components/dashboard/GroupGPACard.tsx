@@ -59,9 +59,9 @@ export function GroupGPACard({ myGrades, allGrades, members }) {
               : `↓ Thấp hơn TB nhóm ${Math.abs(parseFloat(diff)).toFixed(2)} điểm`}
         </div>
         {memberCPAs.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-gray-800/40 space-y-1.5">
-            <div className="text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-2">Top GPA nhóm</div>
-            {memberCPAs.sort((a, b) => b.cpa - a.cpa).slice(0, 5).map((m, i) => (
+          <div className="mt-4 pt-4 border-t border-gray-800/40 space-y-1.5 max-h-48 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#4b5563 transparent' }}>
+            <div className="text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-2">Danh sách GPA nhóm</div>
+            {memberCPAs.sort((a, b) => b.cpa - a.cpa).map((m, i) => (
               <div key={m.id} className="flex items-center gap-2">
                 <span className="text-[10px] text-gray-600 w-4">{i + 1}.</span>
                 {m.avatarUrl ? <img src={m.avatarUrl} className="w-5 h-5 rounded-full object-cover border border-gray-700 shrink-0" /> : <div className="w-5 h-5 rounded-full bg-[#252525] flex items-center justify-center text-[8px] font-bold text-gray-400 shrink-0">{m.avatar}</div>}
