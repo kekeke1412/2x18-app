@@ -2,18 +2,56 @@
 // src/services/aiService.ts
 import { subjectDatabase, calculateHe10, getHe4 } from '../data';
 import { getLetterGrade, calcGpaStats } from '../utils/gradeUtils';
+import { RESEARCH_KNOWLEDGE_BASE } from '../data/researchKnowledge';
 
 /**
- * Gọi AI DeepSeek thông qua Vercel Serverless Function Proxy.
- * Thiết lập default temperature = 0.5 để đảm bảo khả năng tính toán chuẩn xác,
- * phân tích thực dụng và không bị ảo giác số liệu.
+ * Phân loại ý định người dùng (Intent Classifier) để định tuyến mô hình kép:
+ * - deepseek-v4-flash: Tác vụ tổng hợp, tiến độ, học bổng, lập lịch, chat thông thường (Tốc độ cao).
+ * - deepseek-v4-pro: Toán lý vi tích phân (Boas), điện từ (Griffiths), bán dẫn (Sze), công nghệ phòng sạch, phân tích lỗi màng mỏng, giải phẫu bài báo (Chuỗi suy luận sâu CoT).
  */
-export async function callAI(systemPrompt, userPrompt, options = {}) {
-  const { temperature = 0.5, history = [], responseMimeType = 'text/plain' } = options;
-  return await callDeepSeekProxy(systemPrompt, userPrompt, { temperature, history, responseMimeType });
+export function classifyIntent(userMessage, preferredModel = 'auto') {
+  if (preferredModel === 'deepseek-v4-pro' || preferredModel === 'deepseek-v4-flash') {
+    return preferredModel;
+  }
+
+  const proKeywords = [
+    'toán lý', 'pde', 'đạo hàm riêng', 'tích phân', 'laplace', 'fourier', 'thặng dư', 'residue', 'boas',
+    'điện từ', 'maxwell', 'griffiths', 'điều kiện biên', 'thế vector', 'skin depth',
+    'xác suất', 'thống kê', 'montgomery', 'kiểm định', 'anova', 'doe', 'spc', 'c_pk',
+    'bán dẫn', 'sze', 'vùng năng lượng', 'bandgap', 'fermi', 'schottky', 'ohmic', 'mosfet', 'hemt',
+    'i_on', 'i_off', 'g_m', 'v_br', 'c-v', 'd_it',
+    'phòng sạch', 'cleanroom', 'sputtering', 'phún xạ', 'ald', '4-point probe', 'điện trở mặt',
+    'màng mỏng', 'lỗi màng', 'chân không nền', 'recipe', 'lắng đọng', 'piranha', 'hf',
+    'giải phẫu bài báo', 'paper', 'ieee', 'blueprint', 'tsri', 'bắt lỗi', 'vết gãy', 'first principles'
+  ];
+
+  const lower = (userMessage || '').toLowerCase();
+  const isPro = proKeywords.some(kw => lower.includes(kw));
+
+  return isPro ? 'deepseek-v4-pro' : 'deepseek-v4-flash';
 }
 
-async function callDeepSeekProxy(systemPrompt, userPrompt, { temperature, history, responseMimeType }) {
+/**
+ * Gọi DeepSeek thông qua Vercel Proxy với cơ chế định tuyến mô hình kép (Dual-Model Routing):
+ * Hỗ trợ deepseek-v4-flash & deepseek-v4-pro.
+ */
+export async function callAI(systemPrompt, userPrompt, options = {}) {
+  const {
+    temperature = 0.5,
+    history = [],
+    responseMimeType = 'text/plain',
+    model = 'deepseek-v4-flash'
+  } = options;
+
+  return await callDeepSeekProxy(systemPrompt, userPrompt, {
+    temperature,
+    history,
+    responseMimeType,
+    model
+  });
+}
+
+async function callDeepSeekProxy(systemPrompt, userPrompt, { temperature, history, responseMimeType, model }) {
   const res = await fetch('/api/ai', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -22,17 +60,24 @@ async function callDeepSeekProxy(systemPrompt, userPrompt, { temperature, histor
       userPrompt,
       temperature,
       history,
-      responseMimeType
+      responseMimeType,
+      model
     })
   });
 
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'DeepSeek Proxy Error');
-  return data.text;
+
+  return {
+    text: data.text || '',
+    reasoning: data.reasoning || '',
+    modelUsed: data.modelUsed || model || 'deepseek-v4-flash'
+  };
 }
 
 // ── Safe JSON parse helper ─────────────────────────────────────────────────
-export function safeJson(text, fallback) {
+export function safeJson(input, fallback) {
+  const text = typeof input === 'object' && input !== null ? (input.text || '') : input;
   if (!text) return fallback;
   try {
     return JSON.parse(text);
@@ -58,8 +103,6 @@ export function daysDiff(deadline) {
 }
 
 // ── Helper: Tính ngược điểm thi Cuối Kỳ cần đạt ─────────────────────────────
-// Công thức HUS: Điểm HP = CC * 0.2 + GK * 0.2 + CK * 0.6
-// => CK = (Mục_tiêu - CC * 0.2 - GK * 0.2) / 0.6
 export function calcRequiredFinalExamGrade(cc, gk, targetHe10) {
   if (cc === undefined || gk === undefined || isNaN(cc) || isNaN(gk)) return null;
   const currentPart = parseFloat(cc) * 0.2 + parseFloat(gk) * 0.2;
@@ -214,7 +257,6 @@ function formatCoreGroupReport(data) {
       });
     }
 
-    // Đếm các môn có điểm thấp trong nhóm
     Object.entries(userGrades).forEach(([subId, g]) => {
       if (g?.status === 'Đã học') {
         const h10 = calculateHe10(parseFloat(g.cc), parseFloat(g.gk), parseFloat(g.ck));
@@ -227,7 +269,6 @@ function formatCoreGroupReport(data) {
     });
   });
 
-  // Sắp xếp CPA giảm dần
   memberAcademicList.sort((a, b) => b.cpaNum - a.cpaNum);
 
   res += `- Danh sách CPA thành viên:\n`;
@@ -288,7 +329,7 @@ function formatCoreGroupReport(data) {
     res += `- 🔴 TASK QUÁ HẠN TOÀN NHÓM (${globalOverdue.length} task):\n`;
     globalOverdue.slice(0, 8).forEach(o => res += `   • ${o}\n`);
   } else {
-    res += `- 🟢 Tuyệt vời! Hiện tại không có task nào bị quá hạn.\n`;
+    res += `- 🟢 Hiện tại không có task nào bị quá hạn.\n`;
   }
 
   res += `- Phân bổ khối lượng task chưa hoàn thành theo thành viên:\n`;
@@ -316,7 +357,7 @@ function formatCoreGroupReport(data) {
     if (lowAttendance.length > 0) {
       res += `- ⚠️ Thành viên chuyên cần thấp (< 75%): ${lowAttendance.join(', ')}\n`;
     } else {
-      res += `- 🟢 Tinh thần chuyên cần của toàn đội rất tốt, tất cả đều đạt trên 75%.\n`;
+      res += `- 🟢 Tinh thần chuyên cần của toàn đội rất tốt (≥ 75%).\n`;
     }
   }
 
@@ -345,99 +386,150 @@ function formatCoreGroupReport(data) {
   return res;
 }
 
-// ── HÀM CHÍNH: Chat Với AI (Hỗ trợ 2 Chế độ Core & Member) ──────────────────
-export async function chatWithAI(userMessage, context, history = []) {
+// ── BỘ TRI THỨC NGHIÊN CỨU & 4 MODULE TÁC CHIẾN ───────────────────────────
+function buildResearchAndCopilotModulePrompt() {
+  return `=== KHO TRI THỨC CHUYÊN SÂU & 4 MODULE TÁC CHIẾN (2X18 AUTONOMOUS COPILOT) ===
+
+1. MODULE 1: HỌC THUẬT & BẮT LỖI TƯ DUY (Academic Diagnostics Engine)
+- Nguồn tham chiếu: Boas (Toán lý), Griffiths (Điện từ), Montgomery (XSTK & DOE), Sze (Vật lý bán dẫn).
+- Nguyên tắc chẩn đoán:
+  * Khi thành viên đưa vào bài giải toán/lý: KHÔNG giải ngay từ đầu đến cuối một cách thụ động.
+  * Rà soát từng dòng để chỉ ra "VẾT GÃY TƯ DUY" (First Principles):
+    VD: "Bạn đang áp dụng định lý thặng dư nhưng điểm cực z = i nằm ngoài đường cong lấy tích phân C...",
+    VD: "Bạn đang nhầm lẫn giữa kiểm định 1 phía và 2 phía trong bài toán của Montgomery...",
+    VD: "Điều kiện biên từ trường H₁t - H₂t = K_f × n̂ chưa tính đến dòng mặt K_f...".
+  * Dẫn dắt người học bằng câu hỏi gợi mở để tự sửa lỗi.
+
+2. MODULE 2: PHÂN TÍCH QUY TRÌNH PHÒNG SẠCH (Cleanroom & Metrology Copilot)
+- Hệ Sputtering Magnetron NEC/HUS:
+  * Áp suất chân không nền (Base vacuum): BẮT BUỘC đạt < 5.0 × 10⁻⁶ Torr trước khi phún xạ.
+  * Khí làm việc: Ar 99.999% (15-30 sccm), áp suất làm việc 3.0 - 8.0 mTorr.
+  * Nguồn công suất: DC cho kim loại (Ti, Cu, Au, Al), RF 13.56 MHz cho điện môi/oxit (SiO₂, Al₂O₃, ZnO, ITO).
+  * Chẩn đoán lỗi màng:
+    + Màng bị đục/đen: Do chân không nền chưa sâu dẫn đến nhiễm O₂/H₂O trong buồng, hoặc Ar bị rò.
+    + Màng bong tróc (Peeling): Ứng suất màng cao hoặc đế chưa tẩy siêu âm Acetone/IPA/Piranha đúng chuẩn.
+    + Điện trở mặt cao: Công suất phún xạ quá thấp làm giảm động năng hạt đập vào đế, hoặc màng bị oxy hóa.
+- Đo kiểm Metrology: 4-Point Probe (R_s = 4.532 V/I), Keithley I-V/C-V (đo tiếp xúc Ohmic, diode Schottky, dòng rò I_leakage).
+
+3. MODULE 3: TÌNH BÁO KHOA HỌC & GIẢI PHẪU BÀI BÁO (Paper Dissection & SOTA Tracker)
+- Bóc tách bài báo bán dẫn (IEEE TED, APL, Nature Electronics) thành "Fabrication Blueprint":
+  * 1. Vật liệu & Đế (Substrate & Materials: GaN on Si, Sapphire, SiC, 2D MoS₂...).
+  * 2. Công đoạn nút thắt (Critical Steps: Nhiệt độ ủ tiếp xúc Ohmic, công nghệ lắng đọng Gate High-k ALD, độ dày màng oxit...).
+  * 3. Thông số linh kiện đo được (Metrics: I_on/I_off, độ hỗ dẫn g_m, điện áp đánh thủng V_br).
+  * 4. Đánh giá khả năng tái lập tại Lab HUS vs TSRI Đài Loan.
+
+4. MODULE 4: QUẢN TRỊ ĐỘI NGŨ & BẢN ĐỒ DU HỌC ĐÀI LOAN (Team Matrix & Pipeline Tracking)
+- Ma trận 16 người:
+  * Core 5: Hưng (Leader/System & Strategy), Long (Toán lý/Mô phỏng), Ngọc (Phòng sạch/Màng mỏng), Phúc (Đo lường/Metrology/SPC), Độ (Vật liệu/Bán dẫn).
+  * 11 Thành viên: Hỗ trợ theo dõi GPA (mục tiêu ≥ 3.2), chứng chỉ ngoại ngữ IELTS ≥ 6.5 / TOCFL B1-B2.
+- Học bổng Viện Bán Dẫn Đài Loan:
+  * NYCU (ICST) - Viện Khoa học Bán dẫn Quốc tế (GSAT, màng mỏng, packaging, học bổng NYCU Elite 15k-25k NTD/tháng).
+  * NTHU (CoSR) - Viện Bán dẫn Thanh Hoa (GaN/SiC công suất, TSMC partner).
+  * NTU (GSAT) - Trường Công nghệ Tiên tiến Đài Đại.
+  * TSRI - Trung tâm chế tạo và đo kiểm thử nghiệm vi mạch Đài Loan.`;
+}
+
+// ── HÀM CHÍNH: Chat Với AI (Hỗ trợ Dual-Model deepseek-v4-flash & deepseek-v4-pro) ──
+export async function chatWithAI(userMessage, context, history = [], preferredModel = 'auto') {
   const { isCore, currentUser, myGradesEnriched, rawGrades, myTasks, smeMap } = context;
   const userName = currentUser?.fullName || 'bạn';
   const firstName = userName.split(' ').filter(Boolean).slice(-1)[0] || 'bạn';
 
+  // 1. Tự động định tuyến mô hình thông minh (Model Routing)
+  const selectedModel = classifyIntent(userMessage, preferredModel);
+
+  const copilotResearchPrompt = buildResearchAndCopilotModulePrompt();
   let systemPrompt = '';
 
   if (isCore) {
     // ══════════════════════════════════════════════════════════════════════════
-    // CHẾ ĐỘ 1: CORE / SUPER ADMIN (Cố Vấn Chiến Lược & Quản Trị Toàn Nhóm)
+    // CHẾ ĐỘ 1: CORE / SUPER ADMIN (Trợ lý Tác chiến & Cố Vấn Chiến Lược Toàn Đoàn)
     // ══════════════════════════════════════════════════════════════════════════
     const coreReportText = formatCoreGroupReport(context);
     const personalGradesText = formatMemberGrades(myGradesEnriched, rawGrades, smeMap);
     const personalTasksText = formatMemberTasks(myTasks);
 
-    systemPrompt = `Bạn là "2X18 Core Bot" — Cố vấn Chiến lược & Quản trị Dự án Cấp cao của Ban Điều Hành nhóm 2X18.
+    systemPrompt = `Bạn là "2X18 Core Advisor" — Trợ lý Tác chiến Khoa học và Công nghệ Bán dẫn nội bộ của Ban Điều Hành nhóm 2X18 (Đại học Khoa học Tự nhiên, ĐHQGHN).
 
-QUYỀN HẠN & PHẠM VI DỮ LIỆU CỦA BẠN:
-- Bạn được trao QUYỀN TRUY CẬP ĐẦY ĐỦ toàn bộ dữ liệu của tất cả thành viên trong nhóm 2X18 (Bảng điểm, CPA, môn nguy cơ, khối lượng task, chuyên cần, cống hiến, phân công SME).
-- Người đang trò chuyện với bạn là ${userName} (Ban Quản trị / Core Team).
+MÔ HÌNH ĐANG CHẠY: ${selectedModel} ${selectedModel === 'deepseek-v4-pro' ? '(Deep Reasoning CoT - Chuyên sâu Toán lý, Phòng sạch, Giải phẫu bài báo)' : '(High Speed - Tổng hợp, Quản trị, Lập lịch)'}
 
-DỮ LIỆU TOÀN ĐOÀN 2X18:
+QUYỀN HẠN & VAI TRÒ CỦA BẠN:
+- Bạn được trao quyền truy cập toàn bộ dữ liệu 16 thành viên nhóm 2X18 (Học lực, CPA, Task, Chuyên cần, Phân công SME, Quy trình lab phòng sạch, Kế hoạch học bổng Đài Loan).
+- Người đang trao đổi với bạn là ${userName} (Ban Quản trị / Nhóm Core 2X18: Hưng, Long, Ngọc, Phúc, Độ).
+
+${copilotResearchPrompt}
+
+DỮ LIỆU ĐỘI NGŨ 2X18 HIỆN TẠI:
 ${coreReportText}
 
 DỮ LIỆU CÁ NHÂN CỦA CORE (${userName}):
 ${personalGradesText}
 ${personalTasksText}
 
-QUY TẮC CỐ VẤN THỰC CHIẾN (PRAGMATIC & ACTIONABLE ADVICE):
-1. Không nói lý thuyết suông, không đưa ra lời khuyên chung chung. Luôn dựa trên SỐ LIỆU THỰC TẾ và TÊN CỤ THỂ của các thành viên.
-2. Áp dụng khung phân tích 3 tầng:
-   - 📌 Thực trạng dữ liệu: Trích dẫn chính xác con số (CPA, số task quá hạn, chuyên cần %).
-   - ⚠️ Điểm nghẽn & Rủi ro:
-     * Cảnh báo học tập: Chỉ ra thành viên có CPA thấp hoặc nợ môn F/D, các môn học "tử thần" cả nhóm đang bị đuối.
-     * Cảnh báo công việc: Thành viên đang bị quá tải task (>3 task), các task quá hạn cần giải quyết.
-     * Cảnh báo gắn kết: Thành viên vắng họp nhiều.
-   - 🎯 Đề xuất hành động cụ thể:
-     * Gợi ý phân công lại task từ người bận sang người rảnh.
-     * Đề xuất SME tương ứng mở buổi ôn tập cấp tốc trước kỳ thi.
-     * Kế hoạch hành động từng bước (Step-by-step).
-3. Nếu ${userName} hỏi về kết quả học tập hoặc công việc của chính cá nhân mình, hãy phân tích sâu sắc dữ liệu cá nhân của ${firstName} theo công thức tính điểm và hạn task.
-4. Xưng "mình", gọi người dùng là "${firstName}" hoặc "Core ${firstName}". Trả lời tự tin, sắc sảo, ngắn gọn, có cấu trúc rõ ràng (sử dụng gạch đầu dòng, icon phân loại 🔴 🟡 🟢).`;
+NGUYÊN TẮC GIAO TIẾP & TÁC CHIẾN (FIRST PRINCIPLES):
+1. Không dùng các câu mở đầu rập khuôn thảo mai ("Chào bạn, tôi là AI..."). Đi thẳng vào trọng tâm vấn đề ngay từ câu đầu tiên.
+2. Giải thích hiện tượng từ Nguyên lý thứ nhất (Vùng năng lượng, nhiệt động học màng mỏng, Maxwell, phân phối thống kê).
+3. Sử dụng chính xác thuật ngữ chuyên ngành bán dẫn (Cleanroom, Sputtering, Base vacuum, RF power, Ohmic contact, High-k, TSV, Metrology, SPC, Yield).
+4. Phân tích quản trị sắc bén: Chỉ rõ ai đang quá tải, ai đang hổng kiến thức môn nào, đề xuất SME tương ứng mở buổi phụ đạo, gợi ý lab Đài Loan (NYCU/NTHU/NTU) phù hợp hồ sơ.
+5. Nếu ${userName} hỏi về cá nhân mình, hãy phân tích chi tiết dữ liệu học tập và công việc của ${firstName}.
+6. Xưng "mình", gọi người dùng là "${firstName}" hoặc "Core ${firstName}". Trình bày súc tích, chuyên nghiệp, cấu trúc rõ ràng với icon phân loại 🔴 🟡 🟢.`;
 
   } else {
     // ══════════════════════════════════════════════════════════════════════════
-    // CHẾ ĐỘ 2: MEMBER THÔNG THƯỜNG (Cố Vấn Học Tập & Phát Triển Cá Nhân)
+    // CHẾ ĐỘ 2: MEMBER THÔNG THƯỜNG (Cố Vấn Học Thuật & Phát Triển Cá Nhân)
     // ══════════════════════════════════════════════════════════════════════════
     const memberGradesText = formatMemberGrades(myGradesEnriched, rawGrades, smeMap);
     const memberTasksText = formatMemberTasks(myTasks);
     const { attendanceRate = 100, attendanceSummary = {}, vocabStats = {}, points = 0, upcomingEvents = [] } = context;
 
-    systemPrompt = `Bạn là "2X18 Bot" — Cố vấn Học tập & Phát triển Cá nhân độc quyền của ${userName} tại nhóm 2X18.
+    systemPrompt = `Bạn là "2X18 Copilot" — Cố vấn Học thuật & Phát triển Cá nhân độc quyền của ${userName} tại nhóm 2X18 (Trường ĐHKHTN, ĐHQGHN).
 
-QUY ĐỊNH BẢO MẬT DỮ LIỆU NGHIÊM NGẶT (STRICT PRIVACY POLICY):
+MÔ HÌNH ĐANG CHẠY: ${selectedModel} ${selectedModel === 'deepseek-v4-pro' ? '(Deep Reasoning CoT - Phân tích Toán lý, Bắt lỗi tư duy, Phòng sạch)' : '(High Speed - Trả lời nhanh, Lập kế hoạch)'}
+
+CHÍNH SÁCH BẢO MẬT DỮ LIỆU NGHIÊM NGẶT (STRICT PRIVACY):
 - Bạn CHỈ ĐƯỢC PHÉP xem và phân tích dữ liệu của ${userName}.
-- Bạn TUYỆT ĐỐI KHÔNG có quyền truy cập bảng điểm, công việc hay dữ liệu cá nhân của các thành viên khác.
-- Nếu ${userName} hỏi về điểm số, task hay thông tin riêng tư của bạn khác trong nhóm, bạn BẮT BUỘC PHẢI LỊCH SỰ TỪ CHỐI: "Vì chính sách bảo mật thông tin học tập cá nhân của nhóm 2X18, mình chỉ có thể phân tích và hỗ trợ dữ liệu của riêng bạn thôi nhé!"
+- Bạn TUYỆT ĐỐI KHÔNG có quyền truy cập dữ liệu của các thành viên khác.
+- Nếu người dùng hỏi về điểm số, task hay thông tin riêng tư của bạn khác, BẮT BUỘC TỪ CHỐI: "Vì chính sách bảo mật dữ liệu học tập của nhóm 2X18, mình chỉ có thể hỗ trợ và phân tích dữ liệu của riêng bạn thôi nhé!"
+
+${copilotResearchPrompt}
 
 DỮ LIỆU CÁ NHÂN CỦA ${userName}:
 - Họ tên: ${userName} | MSSV: ${context.mssv || 'N/A'}
 - Điểm cống hiến: ${points} điểm
 - Chuyên cần: ${attendanceRate}% (${attendanceSummary.attended || 0}/${attendanceSummary.total || 0} buổi tham gia)
 - Từ vựng: Đã thuộc ${vocabStats.learnedWords || 0} từ
-- Sự kiện / Deadline nhóm sắp tới: ${upcomingEvents.map(e => `${e.title} (${e.date})`).join(', ') || 'Không có'}
+- Sự kiện / Deadline nhóm: ${upcomingEvents.map(e => `${e.title} (${e.date})`).join(', ') || 'Không có'}
 
 ${memberGradesText}
 
 ${memberTasksText}
 
-QUY TẮC CỐ VẤN THỰC CHIẾN (PRAGMATIC & ACTIONABLE ADVICE):
-1. Tuyệt đối không trả lời sáo rỗng hoặc lý thuyết chung chung ("bạn hãy cố gắng học tập", "hãy quản lý thời gian"). Luôn nói bằng CON SỐ CỤ THỂ từ bảng điểm và danh sách task.
-2. Công thức tính điểm chuẩn HUS/VNU:
-   - Điểm HP Hệ 10 = CC * 0.2 + GK * 0.2 + CK * 0.6
-   - Thang điểm: A+ (≥9.0), A (≥8.5), B+ (≥8.0), B (≥7.0), C+ (≥6.5), C (≥5.5), D+ (≥5.0), D (≥4.0 - Điểm sàn qua môn), F (<4.0 - Trượt môn).
-3. TÍNH TOÁN NGƯỢC ĐIỂM THI CUỐI KỲ: Khi người dùng hỏi về ôn thi hoặc cải thiện điểm, hãy tính rõ ràng điểm CK cần đạt để lấy điểm B, B+, A hoặc an toàn qua môn D. Nếu môn nào khó, hãy chỉ ra bạn SME phụ trách môn đó để người dùng chủ động liên hệ nhờ hỗ trợ.
-4. CẢNH BÁO TASK & TIẾN ĐỘ: Chỉ rõ task nào đang 🔴 QUÁ HẠN cần làm xong ngay lập tức hôm nay.
-5. Cấu trúc câu trả lời:
-   - 📌 Đánh giá thực trạng (Trích dẫn số liệu điểm/task)
-   - ⚠️ Rủi ro cần phòng tránh
-   - 🎯 Kế hoạch hành động cụ thể (Actionable steps)
-6. Xưng "mình", gọi người dùng là "${firstName}". Giọng điệu ấm áp, thông minh, thẳng thắn, luôn thúc đẩy hành động.`;
+NGUYÊN TẮC CỐ VẤN HỌC THUẬT:
+1. Không giải bài toán thụ động từ A-Z. Hãy rà soát từng dòng biến đổi để chỉ ra VẾT GÃY TƯ DUY và hướng dẫn theo Nguyên lý thứ nhất.
+2. Công thức tính điểm HUS: Điểm HP = CC*0.2 + GK*0.2 + CK*0.6. Luôn tính ngược điểm CK cần đạt khi thành viên hỏi về mục tiêu điểm chữ.
+3. Khi thành viên hỏi về quy trình phòng sạch (Sputtering, ALD, đo 4 mũi nhọn) hoặc bài báo, áp dụng chuẩn cẩm nang phòng sạch NEC/HUS.
+4. Xưng "mình", gọi người dùng là "${firstName}". Đĩnh đạc, chuẩn xác, mang phong thái Trợ giảng cao cấp kiêm Kỹ sư Trưởng.`;
   }
 
-  return await callAI(systemPrompt, userMessage, { temperature: 0.5, history });
+  // Gọi AI với model được định tuyến
+  const aiResult = await callAI(systemPrompt, userMessage, {
+    temperature: selectedModel === 'deepseek-v4-pro' ? undefined : 0.5,
+    history,
+    model: selectedModel
+  });
+
+  return {
+    text: aiResult.text || '',
+    reasoning: aiResult.reasoning || '',
+    modelUsed: aiResult.modelUsed || selectedModel
+  };
 }
 
-// ── Cập nhật suggestTaskAssignment tối ưu ───────────────────────────────────
+// ── suggestTaskAssignment tối ưu với tri thức nhân sự ───────────────────────
 export async function suggestTaskAssignment(taskDescription, members, existingTasks, smeMap = {}) {
   const memberInfo = members.map(m => {
     const memberTasks = existingTasks.filter(t => (t.userId === m.id || t.assignees?.includes(m.id)) && !t.done);
     const overdueTasks = memberTasks.filter(t => daysDiff(t.deadline) < 0);
-    // Xem m có là SME môn nào không
     const smeSubjects = Object.entries(smeMap).filter(([, name]) => name === m.fullName).map(([subId]) => subId);
 
     return {
@@ -451,40 +543,40 @@ export async function suggestTaskAssignment(taskDescription, members, existingTa
     };
   });
 
-  const system = `Bạn là Trưởng nhóm Dự án (Project Manager) cực kỳ sắc bén của đội 2X18.
-Nhiệm vụ: Đề xuất người nhận task tối ưu dựa trên khối lượng việc hiện tại, số task quá hạn, và thế mạnh chuyên môn SME.
+  const system = `Bạn là Trưởng nhóm Dự án (Project Manager) sắc bén của đội 2X18 Bán dẫn HUS.
+Nhiệm vụ: Đề xuất người nhận task tối ưu dựa trên khối lượng việc, task quá hạn, và thế mạnh chuyên môn SME/Lab.
 Luôn trả về JSON thuần tuý, không có markdown hay code fence.`;
 
-  const user = `NHIỆM VỤ MỚI CẦN XỬ LÝ: "${taskDescription}"
-TÌNH TRẠNG NHÂN SỰ VÀ KHỐI LƯỢNG HIỆN TẠI:
-${memberInfo.map((m, i) => `${i + 1}. ${m.name} (Role: ${m.role}) — Đang có ${m.currentTasksCount} task (${m.overdueTasksCount} task trễ). SME: ${m.smeSubjects}. Task gần đây: [${m.currentTasksList}]`).join('\n')}
+  const user = `NHIỆM VỤ MỚI: "${taskDescription}"
+TÌNH TRẠNG NHÂN SỰ VÀ KHỐI LƯỢNG:
+${memberInfo.map((m, i) => `${i + 1}. ${m.name} (Role: ${m.role}) — ${m.currentTasksCount} task (${m.overdueTasksCount} task trễ). SME: ${m.smeSubjects}. Task gần đây: [${m.currentTasksList}]`).join('\n')}
 
 Trả về JSON: { "suggestedAssignee": "Tên thành viên", "reason": "Lý do chi tiết dựa trên khối lượng và chuyên môn", "subtasks": ["bước 1", "bước 2"], "estimatedDays": 3, "priority": "high|medium|low" }`;
 
   try {
-    const text = await callAI(system, user, { temperature: 0.4, responseMimeType: 'application/json' });
-    return safeJson(text, { suggestedAssignee: '', reason: 'Không thể phân tích.', subtasks: [], estimatedDays: 0, priority: 'medium' });
+    const res = await callAI(system, user, { temperature: 0.4, responseMimeType: 'application/json', model: 'deepseek-v4-flash' });
+    return safeJson(res, { suggestedAssignee: '', reason: 'Không thể phân tích.', subtasks: [], estimatedDays: 0, priority: 'medium' });
   } catch (err) {
     console.error('[suggestTaskAssignment]', err);
     return { suggestedAssignee: '', reason: 'Lỗi AI.', subtasks: [], estimatedDays: 0, priority: 'medium' };
   }
 }
 
-// ── Cập nhật reviewReport ──────────────────────────────────────────────────
+// ── reviewReport ───────────────────────────────────────────────────────────
 export async function reviewReport(reportContent, authorName) {
-  const system = `Bạn là Cố vấn Đánh giá Báo cáo cấp cao của nhóm 2X18.
+  const system = `Bạn là Cố vấn Đánh giá Báo cáo cấp cao của nhóm 2X18 Bán dẫn HUS.
 Trả về JSON thuần tuý, không có markdown hay code fence.`;
-  const user = `BÁO CÁO CỦA: ${authorName}\nNỘI DUNG: "${reportContent}"\nTrả về JSON: { "summary": ["điểm 1", "điểm 2"], "quality": "excellent|good|average|poor", "qualityLabel": "Xuất sắc|Tốt|Trung bình|Cần cải thiện", "feedback": "Nhận xét sắc bén, mang tính xây dựng", "isComplete": true }`;
+  const user = `BÁO CÁO CỦA: ${authorName}\nNỘI DUNG: "${reportContent}"\nTrả về JSON: { "summary": ["điểm 1", "điểm 2"], "quality": "excellent|good|average|poor", "qualityLabel": "Xuất sắc|Tốt|Trung bình|Cần cải thiện", "feedback": "Nhận xét sắc bén, mang tính xây dựng theo chuẩn nghiên cứu bán dẫn", "isComplete": true }`;
 
   try {
-    const text = await callAI(system, user, { temperature: 0.4, responseMimeType: 'application/json' });
-    return safeJson(text, { summary: [], quality: 'average', qualityLabel: 'Không xác định', feedback: 'Lỗi AI.', isComplete: false });
+    const res = await callAI(system, user, { temperature: 0.4, responseMimeType: 'application/json', model: 'deepseek-v4-flash' });
+    return safeJson(res, { summary: [], quality: 'average', qualityLabel: 'Không xác định', feedback: 'Lỗi AI.', isComplete: false });
   } catch (err) {
     return { summary: [], quality: 'average', qualityLabel: 'Không xác định', feedback: 'Lỗi AI.', isComplete: false };
   }
 }
 
-// ── Cập nhật analyzeEarlyWarning toàn diện ──────────────────────────────────
+// ── analyzeEarlyWarning ───────────────────────────────────────────────────
 export async function analyzeEarlyWarning(members, attendance, tasks, allGrades = {}) {
   const memberStats = members.map(m => {
     const memberTasks = tasks.filter(t => t.userId === m.id || t.assignees?.includes(m.id));
@@ -525,8 +617,8 @@ Trả về JSON:
 }`;
 
   try {
-    const text = await callAI(system, user, { temperature: 0.4, responseMimeType: 'application/json' });
-    return safeJson(text, { warnings: [], overallHealth: 'good', suggestion: '...' });
+    const res = await callAI(system, user, { temperature: 0.4, responseMimeType: 'application/json', model: 'deepseek-v4-flash' });
+    return safeJson(res, { warnings: [], overallHealth: 'good', suggestion: '...' });
   } catch (err) {
     return { warnings: [], overallHealth: 'good', suggestion: 'Lỗi AI.' };
   }
