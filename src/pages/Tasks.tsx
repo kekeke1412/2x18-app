@@ -104,7 +104,7 @@ export default function Tasks() {
     setIsAiLoading(true);
     setAiSuggestion(null);
     try {
-      const res = await suggestTaskAssignment(newTask.title, members, myTasks);
+      const res = await suggestTaskAssignment(newTask.title, members, tasks, smeMap);
       if (res) {
         setAiSuggestion(res);
         // Auto-fill some fields if possible
