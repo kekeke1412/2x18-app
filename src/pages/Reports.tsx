@@ -1,13 +1,13 @@
 // @ts-nocheck
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   FileText, ExternalLink, Plus, X, Trash2, CheckCircle, 
   Clock, ShieldCheck, AlertCircle, BookOpen, Search, User,
-  Sparkles, Loader2, Pencil, Tag, RefreshCw
+  Sparkles, Loader2, Pencil, Tag, RefreshCw, Layers
 } from 'lucide-react';
 import { uploadToDrive } from '../services/googleApi';
-import { reviewReport, classifyReport } from '../services/aiService';
+import { reviewReport, classifyReport, groupReportsByTopic } from '../services/aiService';
 import { useReports } from '../hooks/useDomainQueries';
 import { motion, AnimatePresence } from 'framer-motion';
 import UserAvatar from '../components/UserAvatar';
@@ -347,7 +347,20 @@ export default function Reports() {
   const [isEditClassifying, setIsEditClassifying] = useState(false);
   const [editAiSuggestion, setEditAiSuggestion] = useState(null);
 
+  // AI Thematic Clustering state (Gom nhóm theo chủ đề)
+  const [isGroupedByTopic, setIsGroupedByTopic]         = useState(false);
+  const [isClustering, setIsClustering]                 = useState(false);
+  const [topicClusters, setTopicClusters]               = useState([]);
+  const [selectedTopicFilter, setSelectedTopicFilter]   = useState('all');
+
   const canModerate = isCore || isSuperAdmin;
+
+  // Tự động tắt gom nhóm chủ đề khi đổi tab môn/loại tài liệu
+  useEffect(() => {
+    setIsGroupedByTopic(false);
+    setTopicClusters([]);
+    setSelectedTopicFilter('all');
+  }, [activeTab]);
 
   // ── Lọc dữ liệu ──────────────────────────────────────────────────────────────
   const { myPending, otherPending, approved, pendingCount } = useMemo(() => {
@@ -489,6 +502,56 @@ export default function Reports() {
       setIsEditClassifying(false);
     }
   };
+
+  // ── Xử lý Gom nhóm Tài liệu theo Chủ đề bằng AI ─────────────────────────────
+  const runClustering = async () => {
+    if (approved.length === 0) return;
+    setIsClustering(true);
+    try {
+      const res = await groupReportsByTopic(approved);
+      if (res && res.topics && res.topics.length > 0) {
+        setTopicClusters(res.topics);
+        setIsGroupedByTopic(true);
+        setSelectedTopicFilter('all');
+        toast(`AI đã sắp xếp ${approved.length} tài liệu thành ${res.topics.length} chủ đề!`, 'success');
+      } else {
+        toast('Không thể phân loại chủ đề. Hãy thử lại.', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      toast('Lỗi khi phân loại chủ đề.', 'error');
+    } finally {
+      setIsClustering(false);
+    }
+  };
+
+  const handleToggleAiGrouping = async () => {
+    if (isGroupedByTopic) {
+      setIsGroupedByTopic(false);
+      return;
+    }
+    if (approved.length === 0) {
+      toast('Chưa có tài liệu nào để phân loại chủ đề!', 'info');
+      return;
+    }
+
+    if (topicClusters.length > 0) {
+      setIsGroupedByTopic(true);
+      return;
+    }
+
+    await runClustering();
+  };
+
+  const handleRefreshAiGrouping = async () => {
+    await runClustering();
+  };
+
+  const filteredTopicClusters = useMemo(() => {
+    if (!isGroupedByTopic) return [];
+    if (selectedTopicFilter === 'all') return topicClusters;
+    return topicClusters.filter(t => t.id === selectedTopicFilter);
+  }, [isGroupedByTopic, selectedTopicFilter, topicClusters]);
 
   const cardProps = { 
     getMemberById, 
@@ -649,17 +712,100 @@ export default function Reports() {
           {/* ── Phần: Đã phê duyệt ── */}
           {(viewFilter === 'all' || viewFilter === 'approved') && (
             <section>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-7 h-7 rounded-lg bg-green-500/15 flex items-center justify-center">
-                  <CheckCircle className="w-4 h-4 text-green-400" />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-green-500/15 flex items-center justify-center">
+                    <CheckCircle className="w-4 h-4 text-green-400" />
+                  </div>
+                  <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                    Đã phê duyệt
+                    <span className="text-xs font-bold bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">
+                      {approved.length}
+                    </span>
+                  </h2>
                 </div>
-                <h2 className="text-sm font-bold text-white">
-                  Đã phê duyệt
-                  <span className="ml-2 text-xs font-bold bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">
-                    {approved.length}
-                  </span>
-                </h2>
+
+                {/* Nút AI Phân loại theo chủ đề */}
+                {approved.length > 0 && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={handleToggleAiGrouping}
+                      disabled={isClustering}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm ${
+                        isGroupedByTopic
+                          ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-purple-900/30'
+                          : 'bg-[#1e1e1e] hover:bg-[#252525] text-purple-400 hover:text-purple-300 border border-purple-500/30'
+                      }`}
+                      title="Tự động sắp xếp các tài liệu thành các chủ đề học thuật bằng AI"
+                    >
+                      {isClustering ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-3.5 h-3.5" />
+                      )}
+                      <span>{isGroupedByTopic ? 'Đang gom theo chủ đề AI' : 'AI Phân loại theo chủ đề'}</span>
+                      {isGroupedByTopic && (
+                        <span
+                          onClick={(e) => { e.stopPropagation(); setIsGroupedByTopic(false); }}
+                          className="ml-1 p-0.5 hover:bg-black/30 rounded"
+                          title="Tắt xem theo chủ đề"
+                        >
+                          <X className="w-3 h-3" />
+                        </span>
+                      )}
+                    </button>
+
+                    {isGroupedByTopic && (
+                      <button
+                        onClick={handleRefreshAiGrouping}
+                        disabled={isClustering}
+                        className="p-1.5 text-gray-400 hover:text-white bg-[#1e1e1e] hover:bg-[#252525] border border-gray-700 rounded-xl transition-all"
+                        title="Làm mới phân loại chủ đề bằng AI"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isClustering ? 'animate-spin' : ''}`} />
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
+
+              {/* Thanh lọc theo từng chủ đề nếu đang bật chế độ nhóm AI */}
+              {isGroupedByTopic && topicClusters.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 p-3 bg-purple-950/20 border border-purple-500/20 rounded-2xl mb-5">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-purple-300 mr-1 shrink-0">
+                    <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Chủ đề:</span>
+                  </div>
+                  <button
+                    onClick={() => setSelectedTopicFilter('all')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                      selectedTopicFilter === 'all'
+                        ? 'bg-purple-600 text-white shadow'
+                        : 'bg-[#1e1e1e] text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Tất cả ({approved.length})
+                  </button>
+                  {topicClusters.map(t => {
+                    const count = approved.filter(r => (t.reportIds || []).includes(r.id)).length;
+                    if (count === 0) return null;
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => setSelectedTopicFilter(t.id)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                          selectedTopicFilter === t.id
+                            ? 'bg-purple-600 text-white shadow'
+                            : 'bg-[#1e1e1e] text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        <span>{t.name}</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-purple-500/20 text-purple-300">{count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
               {approved.length === 0 ? (
                 <motion.div 
@@ -671,7 +817,55 @@ export default function Reports() {
                   <p className="text-gray-500 text-sm font-medium">Chưa có tài liệu nào trong danh mục này</p>
                   <p className="text-gray-600 text-xs mt-1">Hãy là người đầu tiên chia sẻ!</p>
                 </motion.div>
+              ) : isGroupedByTopic ? (
+                /* Hiển thị sắp xếp theo các Chủ đề AI */
+                <div className="space-y-6">
+                  {filteredTopicClusters.map(topic => {
+                    const reportsInTopic = approved.filter(r => (topic.reportIds || []).includes(r.id));
+                    if (reportsInTopic.length === 0) return null;
+
+                    return (
+                      <motion.div
+                        key={topic.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="space-y-3"
+                      >
+                        <div className="flex items-start justify-between bg-gradient-to-r from-purple-900/20 via-[#1c1c1c] to-transparent border-l-4 border-purple-500 rounded-r-2xl p-3.5 px-4 shadow-sm">
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="text-sm font-black text-white flex items-center gap-2">
+                                <Layers className="w-4 h-4 text-purple-400 shrink-0" />
+                                {topic.name}
+                              </h3>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300">
+                                {reportsInTopic.length} tài liệu
+                              </span>
+                              {topic.tag && (
+                                <span className="text-[10px] font-medium text-gray-400 px-2 py-0.5 rounded bg-[#252525]">
+                                  #{topic.tag}
+                                </span>
+                              )}
+                            </div>
+                            {topic.description && (
+                              <p className="text-xs text-gray-400 mt-1">{topic.description}</p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                          <AnimatePresence mode="popLayout">
+                            {reportsInTopic.map((r) => (
+                              <ReportCard key={r.id} r={r} {...cardProps} />
+                            ))}
+                          </AnimatePresence>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
               ) : (
+                /* Hiển thị danh sách thông thường theo thời gian */
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   <AnimatePresence mode="popLayout">
                     {approved.map((r) => (

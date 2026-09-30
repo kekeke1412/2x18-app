@@ -718,3 +718,151 @@ ${cleanDesc ? `MÔ TẢ / ĐÍNH KÈM: "${cleanDesc}"` : ''}`;
     return localFallback();
   }
 }
+
+// ── groupReportsByTopic (Gom nhóm tài liệu theo chủ đề bằng AI) ─────────────
+export async function groupReportsByTopic(reports = []) {
+  if (!reports || reports.length === 0) {
+    return { topics: [] };
+  }
+
+  // Heuristic rule-based fallback clustering
+  const localFallbackClustering = () => {
+    const topicDefs = [
+      {
+        id: 'semiconductor_devices',
+        name: 'Vật lý Bán dẫn & Linh kiện Vi điện tử',
+        description: 'Tài liệu, bài báo và nghiên cứu về cấu trúc linh kiện bán dẫn, MOSFET, HEMT, vùng năng lượng và mô phỏng.',
+        keywords: ['bán dẫn', 'semiconductor', 'mosfet', 'hemt', 'sze', 'fermi', 'bandgap', 'vi mạch', 'ic', 'transistor', 'diodes', 'schottky', 'ohmic', 'linh kiện'],
+        tag: 'Bán dẫn',
+      },
+      {
+        id: 'thin_film_materials',
+        name: 'Vật liệu Màng mỏng & Công nghệ Chế tạo ALD',
+        description: 'Các nghiên cứu về lắng đọng lớp nguyên tử ALD, phún xạ sputtering, phòng sạch và đặc trưng màng mỏng.',
+        keywords: ['màng', 'màng mỏng', 'thin film', 'ald', 'sputtering', 'phún xạ', 'lắng đọng', 'vật liệu', '2d', 'graphene', 'mos2', 'cleanroom', 'phòng sạch', 'piranha', 'chân không'],
+        tag: 'Màng mỏng',
+      },
+      {
+        id: 'math_physics_methods',
+        name: 'Toán lý & Phương pháp Tính toán',
+        description: 'Tài liệu lý thuyết, phương pháp toán lý, trường điện từ, vi tích phân và xử lý số liệu.',
+        keywords: ['toán lý', 'boas', 'pde', 'griffiths', 'điện từ', 'maxwell', 'laplace', 'fourier', 'xác suất', 'thống kê', 'tính toán'],
+        tag: 'Toán lý',
+      },
+      {
+        id: 'seminar_events',
+        name: 'Seminar Khoa học & Sự kiện Nhóm',
+        description: 'Tổng kết các buổi sinh hoạt học thuật, seminar, báo cáo tiến độ, workshop và sự kiện thường niên.',
+        keywords: ['seminar', 'workshop', 'sự kiện', 'hội thảo', 'họp', 'meeting', 'tổng kết', 'sinh hoạt', 'biên bản', 'kỷ niệm', 'buổi'],
+        tag: 'Seminar & Sự kiện',
+      },
+      {
+        id: 'textbooks_courses',
+        name: 'Giáo trình, Bài giảng & Sách Tham khảo',
+        description: 'Các tài liệu học phần chuẩn, giáo trình đại học, slide bài giảng và sách tham khảo chuyên ngành.',
+        keywords: ['sách', 'giáo trình', 'textbook', 'ebook', 'bài giảng', 'slide', 'lecture', 'tài liệu học', 'chương', 'cuốn', 'đại học'],
+        tag: 'Giáo trình',
+      },
+      {
+        id: 'general_research',
+        name: 'Báo cáo & Nghiên cứu Khoa học Tổng hợp',
+        description: 'Các đề tài nghiên cứu, báo cáo học thuật và tài liệu chuyên sâu khác của nhóm 2X18.',
+        keywords: [],
+        tag: 'Nghiên cứu',
+      }
+    ];
+
+    const clusters = {};
+    topicDefs.forEach(t => {
+      clusters[t.id] = { ...t, reportIds: [] };
+    });
+
+    reports.forEach(r => {
+      const text = `${r.title || ''} ${r.type || ''} ${(r.tags || []).join(' ')}`.toLowerCase();
+      let matched = false;
+
+      for (const t of topicDefs) {
+        if (t.id === 'general_research') continue;
+        if (t.keywords.some(k => text.includes(k))) {
+          clusters[t.id].reportIds.push(r.id);
+          matched = true;
+          break;
+        }
+      }
+
+      if (!matched) {
+        if (r.type === 'event') {
+          clusters['seminar_events'].reportIds.push(r.id);
+        } else if (r.type === 'book') {
+          clusters['textbooks_courses'].reportIds.push(r.id);
+        } else {
+          clusters['general_research'].reportIds.push(r.id);
+        }
+      }
+    });
+
+    const activeTopics = Object.values(clusters).filter(c => c.reportIds.length > 0);
+    return { topics: activeTopics };
+  };
+
+  const sampleReports = reports.map(r => ({
+    id: r.id,
+    title: r.title,
+    type: r.type,
+    tags: r.tags || [],
+  }));
+
+  const system = `Bạn là Chuyên gia Khoa học & Điều phối Học thuật của Nhóm Bán dẫn 2X18 HUS.
+Nhiệm vụ: Phân tích danh sách báo cáo/tài liệu và gom nhóm (thematic clustering) tất cả các tài liệu vào 3 đến 6 Chủ đề (Topics) học thuật logic, mạch lạc, có tính phân loại cao.
+Quy tắc:
+1. Mỗi tài liệu BẮT BUỘC phải nằm trong đúng 1 chủ đề (không bỏ sót bất kỳ ID nào).
+2. Đặt tên chủ đề thật chuyên nghiệp, phản ánh đúng lĩnh vực khoa học hoặc hoạt động nhóm (VD: "Công nghệ Màng mỏng ALD & Chế tạo", "Vật lý Bán dẫn & Thiết kế Vi mạch", "Seminar & Sinh hoạt Nhóm", "Giáo trình & Sách tham khảo").
+3. Cung cấp 1 câu mô tả ngắn (description) cho từng chủ đề.
+4. Trả về JSON thuần túy, không có markdown:
+{
+  "topics": [
+    {
+      "id": "topic_1",
+      "name": "Tên chủ đề",
+      "description": "Mô tả ngắn gọn",
+      "tag": "Từ khóa chủ đề",
+      "reportIds": ["id1", "id2"]
+    }
+  ]
+}`;
+
+  const user = `DANH SÁCH TÀI LIỆU (${sampleReports.length} tài liệu):
+${JSON.stringify(sampleReports, null, 2)}`;
+
+  try {
+    const res = await callAI(system, user, {
+      temperature: 0.3,
+      responseMimeType: 'application/json',
+      model: 'deepseek-v4-flash'
+    });
+    const parsed = safeJson(res, null);
+    if (parsed && Array.isArray(parsed.topics) && parsed.topics.length > 0) {
+      const clusteredIds = new Set();
+      parsed.topics.forEach(t => (t.reportIds || []).forEach(id => clusteredIds.add(id)));
+
+      const unclustered = reports.filter(r => !clusteredIds.has(r.id));
+      if (unclustered.length > 0) {
+        parsed.topics.push({
+          id: 'misc_topic',
+          name: 'Tài liệu & Nghiên cứu Khác',
+          description: 'Các tài liệu và báo cáo bổ sung của nhóm.',
+          tag: 'Tổng hợp',
+          reportIds: unclustered.map(r => r.id)
+        });
+      }
+
+      const validTopics = parsed.topics.filter(t => t.reportIds && t.reportIds.length > 0);
+      return { topics: validTopics };
+    }
+    return localFallbackClustering();
+  } catch (err) {
+    console.warn('[groupReportsByTopic] Fallback to heuristic:', err);
+    return localFallbackClustering();
+  }
+}
+
