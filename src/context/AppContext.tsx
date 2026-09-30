@@ -48,7 +48,7 @@ const A = {
   RESTORE_FROM_TRASH: 'RESTORE_FROM_TRASH',
   PERMANENT_DELETE_TRASH: 'PERMANENT_DELETE_TRASH',
   EMPTY_TRASH: 'EMPTY_TRASH',
-  ADD_REPORT: 'ADD_REPORT', APPROVE_REPORT: 'APPROVE_REPORT', DELETE_REPORT: 'DELETE_REPORT',
+  ADD_REPORT: 'ADD_REPORT', APPROVE_REPORT: 'APPROVE_REPORT', UPDATE_REPORT: 'UPDATE_REPORT', DELETE_REPORT: 'DELETE_REPORT',
   SET_REPORTS: 'SET_REPORTS',
   SET_GOOGLE_TOKEN: 'SET_GOOGLE_TOKEN',
   ADD_QUIZ_RESULT: 'ADD_QUIZ_RESULT',
@@ -293,6 +293,10 @@ function reducer(s, { type, payload }) {
 
     case A.ADD_REPORT: return { ...s, reports: [payload, ...(s.reports || [])] };
     case A.APPROVE_REPORT: return { ...s, reports: (s.reports || []).map(r => r.id === payload ? { ...r, status: 'approved' } : r) };
+    case A.UPDATE_REPORT: return {
+      ...s,
+      reports: (s.reports || []).map(r => r.id === payload.id ? { ...r, ...payload.updates } : r)
+    };
     case A.DELETE_REPORT: {
       const { id, trashId, deletedAt, deletedBy, deletedByName } = payload;
       const item = (s.reports || []).find(r => r.id === id);
@@ -1274,6 +1278,17 @@ export function AppProvider({ children }) {
     toast('Đã chuyển tài liệu vào thùng rác', 'info');
   }, [state.reports, trashMeta, addAudit, toast]);
 
+  const updateReport = useCallback((id, updates) => {
+    const report = (state.reports || []).find(r => r.id === id);
+    if (!report) return;
+
+    dispatch({ type: A.UPDATE_REPORT, payload: { id, updates } });
+    update(ref(db, `2x18_reports/${id}`), updates);
+
+    addAudit('Cập nhật báo cáo', updates.title || report.title);
+    toast('Đã cập nhật thông tin báo cáo!', 'success');
+  }, [state.reports, addAudit, toast]);
+
   const addDoc = useCallback((subjectId, doc) => {
     const docId = uid();
     const full = {
@@ -1598,7 +1613,7 @@ export function AppProvider({ children }) {
       updateRole, addContribution, updateSemesterLabel,
       addVocabSet, editVocabSet, deleteVocabSet, markWordLearned, incrementWordLevel, addQuizResult,
       restoreFromTrash, permanentDeleteTrash, emptyTrash,
-      addReport, approveReport, deleteReport,
+      addReport, approveReport, updateReport, deleteReport,
       getMemberById, getSmeMember, isProfileComplete, exportMembersCSV,
       requireGoogleAuth,
     };
@@ -1617,7 +1632,7 @@ export function AppProvider({ children }) {
     addAttendanceSession, checkAttendance, deleteAttendanceSession, editAttendanceSession,
     addDoc, deleteDoc, rateDoc, updateRole, addContribution, updateSemesterLabel,
     addVocabSet, editVocabSet, deleteVocabSet, markWordLearned, incrementWordLevel, addQuizResult,
-    restoreFromTrash, permanentDeleteTrash, emptyTrash, addReport, approveReport, deleteReport,
+    restoreFromTrash, permanentDeleteTrash, emptyTrash, addReport, approveReport, updateReport, deleteReport,
     getMemberById, getSmeMember, isProfileComplete, exportMembersCSV, requireGoogleAuth
   ]);
 

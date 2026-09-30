@@ -623,3 +623,98 @@ Trả về JSON:
     return { warnings: [], overallHealth: 'good', suggestion: 'Lỗi AI.' };
   }
 }
+
+// ── classifyReport ──────────────────────────────────────────────────────────
+export async function classifyReport(title, description = '') {
+  const cleanTitle = (title || '').trim();
+  const cleanDesc = (description || '').trim();
+
+  const localFallback = () => {
+    const text = `${cleanTitle} ${cleanDesc}`.toLowerCase();
+    let type = 'research';
+    let typeName = 'Báo cáo nghiên cứu';
+    let tags = ['Nghiên cứu'];
+    let reason = 'Được nhận diện là tài liệu chuyên môn hoặc nghiên cứu khoa học bán dẫn.';
+
+    if (
+      text.includes('sách') || text.includes('giáo trình') || text.includes('textbook') ||
+      text.includes('ebook') || text.includes('tài liệu học') || text.includes('bài giảng') ||
+      text.includes('slide') || text.includes('cuốn') || text.includes('chương')
+    ) {
+      type = 'book';
+      typeName = 'Sách';
+      tags = ['Giáo trình', 'Tài liệu tham khảo'];
+      reason = 'Tiêu đề hoặc nội dung chứa từ khóa liên quan đến sách, giáo trình hoặc tài liệu tham khảo.';
+    } else if (
+      text.includes('sự kiện') || text.includes('seminar') || text.includes('event') ||
+      text.includes('workshop') || text.includes('họp') || text.includes('meeting') ||
+      text.includes('tổng kết') || text.includes('sinh hoạt') || text.includes('kỷ niệm') ||
+      text.includes('biên bản') || text.includes('buổi')
+    ) {
+      type = 'event';
+      typeName = 'Tóm tắt sự kiện';
+      tags = ['Sự kiện', 'Seminar'];
+      reason = 'Tiêu đề hoặc nội dung phản ánh hoạt động sự kiện, seminar hoặc buổi sinh hoạt nhóm.';
+    } else {
+      if (text.includes('bán dẫn') || text.includes('semiconductor')) tags.push('Bán dẫn');
+      if (text.includes('màng mỏng') || text.includes('thin film')) tags.push('Màng mỏng');
+      if (text.includes('vật liệu') || text.includes('material')) tags.push('Vật liệu');
+      if (text.includes('ieee') || text.includes('paper')) tags.push('Paper');
+    }
+
+    return {
+      type,
+      typeName,
+      confidence: 88,
+      suggestedTitle: cleanTitle,
+      tags,
+      reason
+    };
+  };
+
+  if (!cleanTitle && !cleanDesc) {
+    return localFallback();
+  }
+
+  const system = `Bạn là Chuyên gia Đánh giá & Phân loại Tài liệu Học thuật của Nhóm Nghiên cứu Bán dẫn 2X18 HUS.
+Phân loại chính xác vào đúng 1 trong 3 nhóm:
+- "event": Tóm tắt sự kiện, seminar, workshop, họp nhóm, ngoại khóa, kỷ niệm, meeting, biên bản.
+- "research": Báo cáo nghiên cứu khoa học, paper, đề tài, thí nghiệm màng mỏng, bán dẫn, mô phỏng, luận văn.
+- "book": Sách giáo trình, ebook, slide bài giảng, textbook chuẩn đại học.
+
+BẮT BUỘC trả về JSON thuần túy, không dùng code fence hay markdown:
+{
+  "type": "event|research|book",
+  "typeName": "Tóm tắt sự kiện|Báo cáo nghiên cứu|Sách",
+  "confidence": 95,
+  "suggestedTitle": "Tiêu đề chuẩn hóa khoa học nếu cần",
+  "tags": ["tag1", "tag2"],
+  "reason": "Giải thích ngắn gọn 1 câu tại sao xếp vào mục này"
+}`;
+
+  const user = `TIÊU ĐỀ: "${cleanTitle}"
+${cleanDesc ? `MÔ TẢ / ĐÍNH KÈM: "${cleanDesc}"` : ''}`;
+
+  try {
+    const res = await callAI(system, user, {
+      temperature: 0.2,
+      responseMimeType: 'application/json',
+      model: 'deepseek-v4-flash'
+    });
+    const parsed = safeJson(res, null);
+    if (parsed && ['event', 'research', 'book'].includes(parsed.type)) {
+      return {
+        type: parsed.type,
+        typeName: parsed.typeName || (parsed.type === 'event' ? 'Tóm tắt sự kiện' : parsed.type === 'research' ? 'Báo cáo nghiên cứu' : 'Sách'),
+        confidence: parsed.confidence || 90,
+        suggestedTitle: parsed.suggestedTitle || cleanTitle,
+        tags: Array.isArray(parsed.tags) ? parsed.tags : [],
+        reason: parsed.reason || 'Được phân loại thông minh qua phân tích ngữ nghĩa AI.'
+      };
+    }
+    return localFallback();
+  } catch (err) {
+    console.warn('[classifyReport] Fallback to heuristic:', err);
+    return localFallback();
+  }
+}

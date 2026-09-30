@@ -4,10 +4,10 @@ import { useApp } from '../context/AppContext';
 import { 
   FileText, ExternalLink, Plus, X, Trash2, CheckCircle, 
   Clock, ShieldCheck, AlertCircle, BookOpen, Search, User,
-  Sparkles, Loader2
+  Sparkles, Loader2, Pencil, Tag, RefreshCw
 } from 'lucide-react';
 import { uploadToDrive } from '../services/googleApi';
-import { reviewReport } from '../services/aiService';
+import { reviewReport, classifyReport } from '../services/aiService';
 import { useReports } from '../hooks/useDomainQueries';
 import { motion, AnimatePresence } from 'framer-motion';
 import UserAvatar from '../components/UserAvatar';
@@ -36,26 +36,59 @@ function StatusBadge({ status, isOwn }) {
 }
 
 // ── Card tài liệu ─────────────────────────────────────────────────────────────
-function ReportCard({ r, getMemberById, isCore, isSuperAdmin, currentUser, approveReport, deleteReport }) {
+function ReportCard({ r, getMemberById, isCore, isSuperAdmin, currentUser, approveReport, updateReport, deleteReport, onEdit }) {
   const author = getMemberById(r.authorId);
   const isPending = r.status === 'pending';
   const isOwn = r.authorId === currentUser?.id;
   const canModerate = isCore || isSuperAdmin;
+  const canEdit = isOwn || canModerate;
+  const canDelete = canModerate || (isOwn && isPending);
 
-  const [aiResult, setAiResult] = useState(null);
-  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiReviewResult, setAiReviewResult] = useState(null);
+  const [isAiReviewLoading, setIsAiReviewLoading] = useState(false);
+
+  const [aiClassifyResult, setAiClassifyResult] = useState(null);
+  const [isAiClassifyLoading, setIsAiClassifyLoading] = useState(false);
 
   const handleAiReview = async () => {
-    if (isAiLoading) return;
-    setIsAiLoading(true);
+    if (isAiReviewLoading) return;
+    setIsAiReviewLoading(true);
     try {
       const res = await reviewReport(r.title, author?.fullName || 'Thành viên');
-      setAiResult(res);
+      setAiReviewResult(res);
     } catch (err) {
       console.error(err);
     } finally {
-      setIsAiLoading(false);
+      setIsAiReviewLoading(false);
     }
+  };
+
+  const handleAiClassify = async () => {
+    if (isAiClassifyLoading) return;
+    setIsAiClassifyLoading(true);
+    try {
+      const res = await classifyReport(r.title, r.link || '');
+      setAiClassifyResult(res);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsAiClassifyLoading(false);
+    }
+  };
+
+  const handleApplyClassification = (targetType, tags) => {
+    if (!updateReport) return;
+    updateReport(r.id, { 
+      type: targetType, 
+      tags: tags || r.tags || [] 
+    });
+    setAiClassifyResult(null);
+  };
+
+  const typeLabels = {
+    event: 'Tóm tắt sự kiện',
+    research: 'Báo cáo nghiên cứu',
+    book: 'Sách',
   };
 
   return (
@@ -80,43 +113,82 @@ function ReportCard({ r, getMemberById, isCore, isSuperAdmin, currentUser, appro
       <div className="flex justify-between items-start gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-start gap-2 flex-wrap">
-            <h3 className="text-sm font-bold text-white leading-tight" title={r.title}>{r.title}</h3>
+            <h3 className="text-sm font-bold text-white leading-tight break-words" title={r.title}>{r.title}</h3>
             <StatusBadge status={r.status} isOwn={isOwn} />
           </div>
+
+          {/* Tags */}
+          {r.tags && r.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {r.tags.map((tag, idx) => (
+                <span key={idx} className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                  #{tag}
+                </span>
+              ))}
+            </div>
+          )}
+
           {r.link ? (
             <a href={r.link} target="_blank" rel="noreferrer"
-               className="inline-flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 mt-1.5 transition-colors">
+               className="inline-flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 mt-2 transition-colors">
               <ExternalLink className="w-3.5 h-3.5" /> Mở tài liệu
             </a>
           ) : (
-            <span className="inline-flex items-center gap-1.5 text-xs text-gray-600 mt-1.5">
+            <span className="inline-flex items-center gap-1.5 text-xs text-gray-600 mt-2">
               <AlertCircle className="w-3 h-3" /> Chưa có link
             </span>
           )}
         </div>
 
-        {/* Action buttons — only Core/Admin */}
-        {canModerate && (
-          <div className="flex items-center gap-2 shrink-0">
-            {isPending && (
-              <button
-                onClick={handleAiReview}
-                disabled={isAiLoading}
-                className="flex items-center gap-1 px-2 py-1.5 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-lg transition-colors text-[11px] font-bold"
-              >
-                {isAiLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                AI Review
-              </button>
-            )}
-            {isPending && (
-              <button
-                onClick={() => approveReport(r.id)}
-                title="Duyệt tài liệu này"
-                className="flex items-center gap-1 px-2.5 py-1.5 bg-green-500/10 text-green-400 hover:bg-green-500/25 rounded-lg transition-colors text-[11px] font-bold btn-active"
-              >
-                <CheckCircle className="w-3.5 h-3.5" /> Duyệt
-              </button>
-            )}
+        {/* Action buttons */}
+        <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+          {/* AI Phân loại button */}
+          <button
+            onClick={handleAiClassify}
+            disabled={isAiClassifyLoading}
+            title="Dùng AI phân tích & gợi ý danh mục"
+            className="flex items-center gap-1 px-2 py-1.5 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 rounded-lg transition-colors text-[11px] font-bold btn-active border border-purple-500/20"
+          >
+            {isAiClassifyLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+            Phân loại AI
+          </button>
+
+          {/* Chỉnh sửa tên báo cáo */}
+          {canEdit && (
+            <button
+              onClick={() => onEdit(r)}
+              title="Chỉnh sửa tên và thông tin tài liệu"
+              className="p-1.5 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-lg transition-colors btn-active border border-blue-500/20"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          {/* AI Review button — only Core/Admin */}
+          {canModerate && isPending && (
+            <button
+              onClick={handleAiReview}
+              disabled={isAiReviewLoading}
+              className="flex items-center gap-1 px-2 py-1.5 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-lg transition-colors text-[11px] font-bold"
+            >
+              {isAiReviewLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+              Review
+            </button>
+          )}
+
+          {/* Approve button — only Core/Admin */}
+          {canModerate && isPending && (
+            <button
+              onClick={() => approveReport(r.id)}
+              title="Duyệt tài liệu này"
+              className="flex items-center gap-1 px-2 py-1.5 bg-green-500/10 text-green-400 hover:bg-green-500/25 rounded-lg transition-colors text-[11px] font-bold btn-active"
+            >
+              <CheckCircle className="w-3.5 h-3.5" /> Duyệt
+            </button>
+          )}
+
+          {/* Delete button */}
+          {canDelete && (
             <button
               onClick={() => { if (window.confirm('Xóa tài liệu này?')) deleteReport(r.id); }}
               title="Xóa"
@@ -124,8 +196,8 @@ function ReportCard({ r, getMemberById, isCore, isSuperAdmin, currentUser, appro
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Footer: author + date */}
@@ -140,9 +212,74 @@ function ReportCard({ r, getMemberById, isCore, isSuperAdmin, currentUser, appro
         </span>
       </div>
 
+      {/* AI Classification Result Box */}
+      <AnimatePresence>
+        {aiClassifyResult && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="mt-2 p-3 bg-purple-600/10 border border-purple-500/30 rounded-xl space-y-2 overflow-hidden"
+          >
+            <div className="flex items-center justify-between">
+              <div className="text-[10px] font-black text-purple-400 flex items-center gap-1 uppercase tracking-widest">
+                <Sparkles className="w-3 h-3 text-purple-400" /> Kết quả AI Phân loại
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-300">
+                {aiClassifyResult.confidence}% tin cậy
+              </span>
+            </div>
+
+            <div className="text-xs text-gray-200">
+              <span className="text-gray-400">Danh mục đề xuất: </span>
+              <strong className="text-purple-300 underline font-bold">{aiClassifyResult.typeName}</strong>
+              {aiClassifyResult.type === r.type ? (
+                <span className="ml-2 text-green-400 text-[10px] font-bold">✓ Đúng danh mục hiện tại</span>
+              ) : (
+                <span className="ml-2 text-amber-400 text-[10px] font-bold">(Khác mục hiện tại: {typeLabels[r.type] || r.type})</span>
+              )}
+            </div>
+
+            <p className="text-[11px] text-gray-400 leading-relaxed italic">
+              "{aiClassifyResult.reason}"
+            </p>
+
+            {aiClassifyResult.tags && aiClassifyResult.tags.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1 pt-1">
+                <span className="text-[10px] text-gray-500 font-bold uppercase">Tags:</span>
+                {aiClassifyResult.tags.map((t, idx) => (
+                  <span key={idx} className="text-[10px] px-1.5 py-0.5 bg-[#222] text-purple-300 rounded border border-purple-500/20 font-medium">
+                    #{t}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div className="flex items-center justify-between pt-2 border-t border-purple-500/20 mt-1">
+              {canEdit && aiClassifyResult.type !== r.type ? (
+                <button
+                  onClick={() => handleApplyClassification(aiClassifyResult.type, aiClassifyResult.tags)}
+                  className="px-2.5 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-[11px] font-bold transition-all shadow-md"
+                >
+                  Chuyển sang "{aiClassifyResult.typeName}"
+                </button>
+              ) : (
+                <span />
+              )}
+              <button 
+                onClick={() => setAiClassifyResult(null)} 
+                className="text-[10px] text-gray-500 hover:text-gray-300 font-bold uppercase underline"
+              >
+                Đóng
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* AI Review Result Overlay/Expansion */}
       <AnimatePresence>
-        {aiResult && (
+        {aiReviewResult && (
           <motion.div 
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
@@ -154,26 +291,26 @@ function ReportCard({ r, getMemberById, isCore, isSuperAdmin, currentUser, appro
                 <Sparkles className="w-2.5 h-2.5" /> Kết quả AI
               </div>
               <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${
-                aiResult.quality === 'excellent' ? 'bg-green-500/20 text-green-400' : 
-                aiResult.quality === 'good' ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-500/20 text-gray-400'
+                aiReviewResult.quality === 'excellent' ? 'bg-green-500/20 text-green-400' : 
+                aiReviewResult.quality === 'good' ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-500/20 text-gray-400'
               }`}>
-                {aiResult.qualityLabel}
+                {aiReviewResult.qualityLabel}
               </span>
             </div>
             <div className="space-y-1">
-              {aiResult.summary?.map((s, i) => (
+              {aiReviewResult.summary?.map((s, i) => (
                 <div key={i} className="text-[11px] text-gray-400 flex items-start gap-1.5">
                   <span className="text-blue-500 mt-1">•</span>
                   <span className="leading-snug">{s}</span>
                 </div>
               ))}
             </div>
-            {aiResult.feedback && (
+            {aiReviewResult.feedback && (
               <div className="text-[10px] text-gray-500 italic mt-1 pt-1 border-t border-gray-800/40">
-                Phản hồi: "{aiResult.feedback}"
+                Phản hồi: "{aiReviewResult.feedback}"
               </div>
             )}
-            <button onClick={() => setAiResult(null)} className="text-[9px] text-gray-600 hover:text-gray-400 font-bold uppercase underline mt-1">Đóng review</button>
+            <button onClick={() => setAiReviewResult(null)} className="text-[9px] text-gray-600 hover:text-gray-400 font-bold uppercase underline mt-1">Đóng review</button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -185,20 +322,30 @@ function ReportCard({ r, getMemberById, isCore, isSuperAdmin, currentUser, appro
 export default function Reports() {
   const { 
     currentUser, isCore, isSuperAdmin, 
-    addReport, approveReport, deleteReport, getMemberById, requireGoogleAuth,
+    addReport, approveReport, updateReport, deleteReport, getMemberById, requireGoogleAuth,
     toast
   } = useApp();
   const { data: reports = [] } = useReports();
 
-  const [activeTab, setActiveTab]     = useState('event');
-  const [showModal, setShowModal]     = useState(false);
-  const [search, setSearch]           = useState('');
-  const [viewFilter, setViewFilter]   = useState('all'); // 'all' | 'pending' | 'approved'
+  const [activeTab, setActiveTab]         = useState('event');
+  const [showModal, setShowModal]         = useState(false);
+  const [search, setSearch]               = useState('');
+  const [viewFilter, setViewFilter]       = useState('all'); // 'all' | 'pending' | 'approved'
   
-  const [form, setForm]               = useState({ title: '', link: '', type: 'event' });
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [err, setErr]                 = useState('');
+  // Add modal state
+  const [form, setForm]                   = useState({ title: '', link: '', type: 'event', tags: [] });
+  const [selectedFile, setSelectedFile]   = useState(null);
+  const [isUploading, setIsUploading]     = useState(false);
+  const [err, setErr]                     = useState('');
+  const [isAddClassifying, setIsAddClassifying] = useState(false);
+  const [addAiSuggestion, setAddAiSuggestion]   = useState(null);
+
+  // Edit modal state
+  const [editingReport, setEditingReport]       = useState(null);
+  const [editForm, setEditForm]                 = useState({ title: '', link: '', type: 'event', tags: [] });
+  const [editErr, setEditErr]                   = useState('');
+  const [isEditClassifying, setIsEditClassifying] = useState(false);
+  const [editAiSuggestion, setEditAiSuggestion] = useState(null);
 
   const canModerate = isCore || isSuperAdmin;
 
@@ -207,7 +354,7 @@ export default function Reports() {
     const q = search.toLowerCase();
     const list = reports
       .filter(r => r && r.type === activeTab)
-      .filter(r => !q || (r.title || '').toLowerCase().includes(q) || (r.link || '').toLowerCase().includes(q))
+      .filter(r => !q || (r.title || '').toLowerCase().includes(q) || (r.link || '').toLowerCase().includes(q) || (r.tags || []).some(t => t.toLowerCase().includes(q)))
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     const myPendingList    = [];
@@ -233,6 +380,25 @@ export default function Reports() {
       pendingCount: myPendingList.length + otherPendingList.length,
     };
   }, [reports, activeTab, search, canModerate, currentUser?.id]);
+
+  // ── AI Phân loại cho Modal Thêm mới ──────────────────────────────────────────
+  const handleAiClassifyAdd = async () => {
+    if (!form.title.trim() || isAddClassifying) return;
+    setIsAddClassifying(true);
+    try {
+      const res = await classifyReport(form.title, form.link || selectedFile?.name || '');
+      setAddAiSuggestion(res);
+      setForm(f => ({
+        ...f,
+        type: res.type,
+        tags: res.tags || []
+      }));
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsAddClassifying(false);
+    }
+  };
 
   // ── Xử lý thêm ───────────────────────────────────────────────────────────────
   const handleAdd = async () => {
@@ -268,16 +434,72 @@ export default function Reports() {
       title:    form.title.trim(),
       link:     finalLink,
       type:     form.type || activeTab,
+      tags:     form.tags || (addAiSuggestion?.tags || []),
       status:   canModerate ? 'approved' : 'pending',
       authorId: currentUser?.id,
     });
 
     setShowModal(false);
-    setForm({ title: '', link: '', type: activeTab });
+    setForm({ title: '', link: '', type: activeTab, tags: [] });
     setSelectedFile(null);
+    setAddAiSuggestion(null);
   };
 
-  const cardProps = { getMemberById, isCore, isSuperAdmin, currentUser, approveReport, deleteReport };
+  // ── Xử lý Chỉnh sửa Báo cáo ──────────────────────────────────────────────────
+  const handleOpenEdit = (report) => {
+    setEditingReport(report);
+    setEditForm({
+      title: report.title || '',
+      link: report.link || '',
+      type: report.type || activeTab,
+      tags: Array.isArray(report.tags) ? [...report.tags] : [],
+    });
+    setEditErr('');
+    setEditAiSuggestion(null);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editForm.title.trim()) {
+      return setEditErr('Vui lòng nhập tên tài liệu');
+    }
+    setEditErr('');
+    updateReport(editingReport.id, {
+      title: editForm.title.trim(),
+      link: editForm.link.trim(),
+      type: editForm.type,
+      tags: editForm.tags || [],
+    });
+    setEditingReport(null);
+  };
+
+  const handleAiClassifyEdit = async () => {
+    if (!editForm.title.trim() || isEditClassifying) return;
+    setIsEditClassifying(true);
+    try {
+      const res = await classifyReport(editForm.title, editForm.link);
+      setEditAiSuggestion(res);
+      setEditForm(f => ({
+        ...f,
+        type: res.type,
+        tags: Array.from(new Set([...(f.tags || []), ...(res.tags || [])]))
+      }));
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsEditClassifying(false);
+    }
+  };
+
+  const cardProps = { 
+    getMemberById, 
+    isCore, 
+    isSuperAdmin, 
+    currentUser, 
+    approveReport, 
+    updateReport, 
+    deleteReport, 
+    onEdit: handleOpenEdit 
+  };
 
   return (
     <motion.div 
@@ -300,7 +522,13 @@ export default function Reports() {
             </p>
           </div>
           <button
-            onClick={() => { setForm({ title: '', link: '', type: activeTab }); setSelectedFile(null); setErr(''); setShowModal(true); }}
+            onClick={() => { 
+              setForm({ title: '', link: '', type: activeTab, tags: [] }); 
+              setSelectedFile(null); 
+              setErr(''); 
+              setAddAiSuggestion(null);
+              setShowModal(true); 
+            }}
             className="h-10 px-4 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl flex items-center gap-2 transition-all shrink-0 btn-active shadow-lg shadow-blue-600/20"
           >
             <Plus className="w-4 h-4" /> Thêm tài liệu
@@ -349,7 +577,7 @@ export default function Reports() {
           <div className="relative flex-1 sm:w-56">
             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
             <input
-              type="text" placeholder="Tìm kiếm..." value={search} onChange={e => setSearch(e.target.value)}
+              type="text" placeholder="Tìm theo tên, link, tag..." value={search} onChange={e => setSearch(e.target.value)}
               className="w-full h-9 pl-8 pr-3 bg-[#1e1e1e] border border-gray-700 rounded-xl text-sm text-white placeholder:text-gray-600 focus:border-blue-500 outline-none transition-all"
             />
           </div>
@@ -397,7 +625,7 @@ export default function Reports() {
                         </span>
                       </h2>
                       {canModerate && (
-                        <p className="text-[10px] text-gray-500 mt-0.5">Nhấn "Duyệt" để phê duyệt và hiển thị tài liệu</p>
+                        <p className="text-[10px] text-gray-500 mt-0.5">Nhấn "Duyệt" để phê duyệt hoặc chỉnh sửa/phân loại lại</p>
                       )}
                     </div>
                   </div>
@@ -440,7 +668,7 @@ export default function Reports() {
                   className="text-center py-16 border border-dashed border-gray-800 rounded-2xl"
                 >
                   <FileText className="w-12 h-12 text-gray-700 mx-auto mb-3" />
-                  <p className="text-gray-500 text-sm font-medium">Chưa có tài liệu nào</p>
+                  <p className="text-gray-500 text-sm font-medium">Chưa có tài liệu nào trong danh mục này</p>
                   <p className="text-gray-600 text-xs mt-1">Hãy là người đầu tiên chia sẻ!</p>
                 </motion.div>
               ) : (
@@ -485,7 +713,7 @@ export default function Reports() {
                 </button>
               </div>
 
-              <div className="p-5 space-y-4">
+              <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto custom-scrollbar">
                 {err && (
                   <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
                     <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -503,10 +731,13 @@ export default function Reports() {
                 )}
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Tên tài liệu <span className="text-red-500">*</span></label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Tên tài liệu <span className="text-red-500">*</span></label>
+                    <span className="text-[10px] text-gray-500">{form.title.length} ký tự</span>
+                  </div>
                   <input
                     type="text" value={form.title} onChange={e => setForm({...form, title: e.target.value})}
-                    placeholder="VD: Báo cáo seminar vật liệu 2D..."
+                    placeholder="VD: Báo cáo seminar màng mỏng ALD..."
                     className="w-full h-10 px-4 bg-[#121212] border border-gray-700 rounded-xl text-sm text-white placeholder:text-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
                   />
                 </div>
@@ -547,15 +778,27 @@ export default function Reports() {
                   />
                 </div>
 
+                {/* Phân loại & AI Button */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Phân loại</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Phân loại danh mục</label>
+                    <button
+                      type="button"
+                      onClick={handleAiClassifyAdd}
+                      disabled={isAddClassifying || !form.title.trim()}
+                      className="text-[11px] font-bold text-purple-400 hover:text-purple-300 disabled:opacity-40 flex items-center gap-1 transition-colors px-2 py-0.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20"
+                    >
+                      {isAddClassifying ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                      AI Tự động phân loại
+                    </button>
+                  </div>
                   <div className="grid grid-cols-3 gap-2">
                     {[
                       { id: 'event',    label: 'Sự kiện' },
                       { id: 'research', label: 'Nghiên cứu' },
                       { id: 'book',     label: 'Sách' },
                     ].map(t => (
-                      <button key={t.id} onClick={() => setForm({...form, type: t.id})}
+                      <button key={t.id} type="button" onClick={() => setForm({...form, type: t.id})}
                         className={`h-10 rounded-xl text-sm font-semibold transition-all border btn-active ${
                           form.type === t.id
                             ? 'bg-blue-600/20 border-blue-500 text-blue-400'
@@ -566,6 +809,40 @@ export default function Reports() {
                     ))}
                   </div>
                 </div>
+
+                {/* AI Suggestion preview */}
+                {addAiSuggestion && (
+                  <div className="p-3 bg-purple-950/30 border border-purple-500/30 rounded-xl space-y-1.5 animate-fadeIn">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-purple-300 flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-purple-400" /> AI Đề xuất: <span className="text-white underline">{addAiSuggestion.typeName}</span>
+                      </span>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300">
+                        {addAiSuggestion.confidence}% tin cậy
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-gray-300 leading-snug">{addAiSuggestion.reason}</p>
+                    {addAiSuggestion.suggestedTitle && addAiSuggestion.suggestedTitle !== form.title && (
+                      <button
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, title: addAiSuggestion.suggestedTitle }))}
+                        className="text-[11px] text-blue-400 hover:text-blue-300 underline font-medium flex items-center gap-1 mt-1 text-left"
+                      >
+                        Áp dụng tên gợi ý chuẩn hóa: "{addAiSuggestion.suggestedTitle}"
+                      </button>
+                    )}
+                    {addAiSuggestion.tags && addAiSuggestion.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {addAiSuggestion.tags.map((t, idx) => (
+                          <span key={idx} className="text-[9px] px-1.5 py-0.5 rounded bg-[#1a1a1a] text-purple-300 border border-purple-500/20">
+                            #{t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
               </div>
 
               <div className="p-5 border-t border-gray-800 bg-[#121212] rounded-b-2xl flex justify-end gap-3">
@@ -576,6 +853,166 @@ export default function Reports() {
                 <button onClick={handleAdd} disabled={isUploading}
                   className="px-6 h-10 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-all flex items-center gap-2 btn-active shadow-lg shadow-blue-600/20">
                   {isUploading ? <><Clock className="w-4 h-4 animate-spin" /> Đang tải lên...</> : 'Đăng tài liệu'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Modal Chỉnh sửa tài liệu ── */}
+      <AnimatePresence>
+        {editingReport && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" 
+            onClick={() => setEditingReport(null)}
+          >
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="w-full max-w-md bg-[#1a1a1a] border border-gray-800 rounded-2xl shadow-2xl flex flex-col" 
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
+                <h3 className="font-bold text-white flex items-center gap-2">
+                  <Pencil className="w-4 h-4 text-blue-500" /> Chỉnh sửa tài liệu
+                </h3>
+                <button onClick={() => setEditingReport(null)} className="text-gray-500 hover:text-white p-1 transition-colors btn-active">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto custom-scrollbar">
+                {editErr && (
+                  <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <p>{editErr}</p>
+                  </div>
+                )}
+
+                {/* Tên tài liệu */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                      Tên tài liệu / báo cáo <span className="text-red-500">*</span>
+                    </label>
+                    <span className="text-[10px] text-gray-500">{editForm.title.length} ký tự</span>
+                  </div>
+                  <input
+                    type="text" 
+                    value={editForm.title} 
+                    onChange={e => setEditForm({ ...editForm, title: e.target.value })}
+                    placeholder="VD: Báo cáo seminar vật liệu 2D..."
+                    className="w-full h-10 px-4 bg-[#121212] border border-gray-700 rounded-xl text-sm text-white placeholder:text-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                  />
+                </div>
+
+                {/* Link tài liệu */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Link tài liệu (URL)</label>
+                  <input
+                    type="url" 
+                    value={editForm.link} 
+                    onChange={e => setEditForm({ ...editForm, link: e.target.value })}
+                    placeholder="https://..."
+                    className="w-full h-10 px-4 bg-[#121212] border border-gray-700 rounded-xl text-sm text-white placeholder:text-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                  />
+                </div>
+
+                {/* Phân loại & AI Button */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Phân loại danh mục</label>
+                    <button
+                      type="button"
+                      onClick={handleAiClassifyEdit}
+                      disabled={isEditClassifying || !editForm.title.trim()}
+                      className="text-[11px] font-bold text-purple-400 hover:text-purple-300 disabled:opacity-40 flex items-center gap-1 transition-colors px-2 py-0.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20"
+                    >
+                      {isEditClassifying ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                      AI Gợi ý phân loại
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: 'event',    label: 'Sự kiện' },
+                      { id: 'research', label: 'Nghiên cứu' },
+                      { id: 'book',     label: 'Sách' },
+                    ].map(t => (
+                      <button key={t.id} type="button" onClick={() => setEditForm({ ...editForm, type: t.id })}
+                        className={`h-10 rounded-xl text-sm font-semibold transition-all border btn-active ${
+                          editForm.type === t.id
+                            ? 'bg-blue-600/20 border-blue-500 text-blue-400'
+                            : 'bg-[#121212] border-gray-700 text-gray-400 hover:border-gray-600'
+                        }`}>
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* AI Suggestion preview in edit */}
+                {editAiSuggestion && (
+                  <div className="p-3 bg-purple-950/30 border border-purple-500/30 rounded-xl space-y-1.5 animate-fadeIn">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-purple-300 flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-purple-400" /> AI Đề xuất: <span className="text-white underline">{editAiSuggestion.typeName}</span>
+                      </span>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300">
+                        {editAiSuggestion.confidence}% tin cậy
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-gray-300 leading-snug">{editAiSuggestion.reason}</p>
+                    {editAiSuggestion.suggestedTitle && editAiSuggestion.suggestedTitle !== editForm.title && (
+                      <button
+                        type="button"
+                        onClick={() => setEditForm(f => ({ ...f, title: editAiSuggestion.suggestedTitle }))}
+                        className="text-[11px] text-blue-400 hover:text-blue-300 underline font-medium flex items-center gap-1 mt-1 text-left"
+                      >
+                        Áp dụng tên AI chuẩn hoá: "{editAiSuggestion.suggestedTitle}"
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Tags */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Từ khóa / Tags (phân cách bằng dấu phẩy)</label>
+                  <input
+                    type="text" 
+                    value={(editForm.tags || []).join(', ')} 
+                    onChange={e => {
+                      const tags = e.target.value.split(',').map(s => s.trim().replace(/^#/, '')).filter(Boolean);
+                      setEditForm({ ...editForm, tags });
+                    }}
+                    placeholder="VD: Bán dẫn, ALD, Seminar..."
+                    className="w-full h-10 px-4 bg-[#121212] border border-gray-700 rounded-xl text-sm text-white placeholder:text-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                  />
+                  {(editForm.tags || []).length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {editForm.tags.map((t, idx) => (
+                        <span key={idx} className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/25">
+                          #{t}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-5 border-t border-gray-800 bg-[#121212] rounded-b-2xl flex justify-end gap-3">
+                <button onClick={() => setEditingReport(null)}
+                  className="px-5 h-10 rounded-xl text-sm font-bold text-gray-400 hover:text-white hover:bg-gray-800 transition-colors btn-active">
+                  Hủy
+                </button>
+                <button onClick={handleSaveEdit}
+                  className="px-6 h-10 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-bold transition-all flex items-center gap-2 btn-active shadow-lg shadow-blue-600/20">
+                  Lưu thay đổi
                 </button>
               </div>
             </motion.div>

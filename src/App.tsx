@@ -8,7 +8,7 @@ import {
 } from 'react-router-dom';
 import {
   LayoutDashboard, User, BookOpen, ClipboardList, Map, Calendar,
-  LogOut, ShieldCheck, ChevronRight, AlertTriangle, Bell,
+  LogOut, ShieldCheck, ChevronRight, ChevronLeft, AlertTriangle, Bell,
   Vote, Users, Trophy, Menu, X, CheckCircle, Info, AlertCircle as AlertCircleIcon,
   Trash2, FileText, Layers
 } from 'lucide-react';
@@ -151,16 +151,25 @@ class ErrorBoundary extends React.Component {
 }
 
 // ── NavItem ────────────────────────────────────────────────────────────────
-function NavItem({ to, icon: Icon, label, disabled, badge, onClick, danger }) {
+function NavItem({ to, icon: Icon, label, disabled, badge, onClick, danger, isCollapsed }) {
   const { pathname } = useLocation();
   const isActive = pathname === to;
 
   if (disabled) return (
     <li>
-      <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-700 cursor-not-allowed select-none">
+      <div
+        title={isCollapsed ? `${label} (Đang khóa 🔒)` : undefined}
+        className={`flex items-center ${isCollapsed ? 'justify-center p-2.5' : 'gap-3 px-4 py-2.5'} rounded-xl text-gray-700 cursor-not-allowed select-none relative group`}
+      >
         <Icon className="w-4 h-4 shrink-0" />
-        <span className="text-sm font-medium flex-1">{label}</span>
-        <span className="text-[10px] opacity-40">🔒</span>
+        {!isCollapsed && <span className="text-sm font-medium flex-1 truncate">{label}</span>}
+        {!isCollapsed && <span className="text-[10px] opacity-40">🔒</span>}
+        {isCollapsed && (
+          <div className="hidden lg:group-hover:flex absolute left-full ml-3 px-2.5 py-1 bg-[#252525] text-gray-400 text-xs font-semibold rounded-lg shadow-xl border border-gray-700 whitespace-nowrap z-50 pointer-events-none items-center gap-1.5">
+            <span>{label}</span>
+            <span className="text-[10px]">🔒</span>
+          </div>
+        )}
       </div>
     </li>
   );
@@ -168,7 +177,8 @@ function NavItem({ to, icon: Icon, label, disabled, badge, onClick, danger }) {
   return (
     <li>
       <Link to={to} onClick={onClick}
-        className={`sidebar-item flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all font-medium text-sm ${isActive
+        title={isCollapsed ? label : undefined}
+        className={`sidebar-item flex items-center ${isCollapsed ? 'justify-center p-2.5' : 'gap-3 px-4 py-2.5'} rounded-xl transition-all font-medium text-sm relative group ${isActive
             ? danger
               ? 'active bg-red-600/15 text-red-400'
               : 'active bg-blue-600/15 text-blue-400'
@@ -177,24 +187,36 @@ function NavItem({ to, icon: Icon, label, disabled, badge, onClick, danger }) {
               : 'text-gray-400 hover:bg-[#252525] hover:text-gray-200'
           }`}>
         <Icon className={`w-4 h-4 shrink-0 ${isActive ? (danger ? 'text-red-400' : 'text-blue-400') : ''}`} />
-        <span className="flex-1">{label}</span>
-        {badge > 0 && (
+        {!isCollapsed && <span className="flex-1 truncate">{label}</span>}
+        {!isCollapsed && badge > 0 && (
           <span className="text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full">
             {badge > 99 ? '99+' : badge}
           </span>
         )}
-        {isActive && <ChevronRight className={`w-3 h-3 shrink-0 ${danger ? 'text-red-400/50' : 'text-blue-400/50'}`} />}
+        {isCollapsed && badge > 0 && (
+          <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500 ring-2 ring-[#1a1a1a]" />
+        )}
+        {!isCollapsed && isActive && <ChevronRight className={`w-3 h-3 shrink-0 ${danger ? 'text-red-400/50' : 'text-blue-400/50'}`} />}
+        {isCollapsed && (
+          <div className="hidden lg:group-hover:flex absolute left-full ml-3 px-2.5 py-1 bg-[#252525] text-white text-xs font-semibold rounded-lg shadow-xl border border-gray-700 whitespace-nowrap z-50 pointer-events-none items-center gap-1.5">
+            <span>{label}</span>
+            {badge > 0 && (
+              <span className="text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full">
+                {badge > 99 ? '99+' : badge}
+              </span>
+            )}
+          </div>
+        )}
       </Link>
     </li>
   );
 }
 
 // ── Sidebar ────────────────────────────────────────────────────────────────
-function Sidebar({ onClose }) {
+function Sidebar({ onClose, isCollapsed = false, onToggleCollapse }) {
   const { currentUser, isCore, isSuperAdmin, logout, unreadCount, isProfileComplete, trash } = useApp();
   const navigate = useNavigate();
   const complete = isProfileComplete(currentUser);
-  const initials = (currentUser?.fullName || 'NT').split(' ').filter(Boolean).map(w => w[0]).slice(-2).join('').toUpperCase();
   const trashCount = (trash || []).length;
   
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -204,57 +226,91 @@ function Sidebar({ onClose }) {
 
   return (
     <>
-      <aside className="w-60 shrink-0 h-full bg-[#1a1a1a] border-r border-gray-800/60 flex flex-col relative z-10">
-        {/* Logo */}
-        <div className="px-5 py-4 border-b border-gray-800/60 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src="/icon-192.jpg" alt="2X" className="w-9 h-9 rounded-xl object-cover" />
-            <div>
-              <div className="text-white font-black text-base leading-none">2X18</div>
-              <div className="text-gray-500 text-[10px] mt-0.5">K70 CNBD</div>
-            </div>
+      <aside className={`${isCollapsed ? 'w-[72px]' : 'w-60'} shrink-0 h-full bg-[#1a1a1a] border-r border-gray-800/60 flex flex-col relative z-10 transition-[width] duration-300 ease-in-out`}>
+        {/* Logo & Collapse button */}
+        <div className={`px-4 py-4 border-b border-gray-800/60 flex items-center ${isCollapsed ? 'justify-center flex-col gap-2' : 'justify-between'}`}>
+          <div className="flex items-center gap-3 overflow-hidden">
+            <img src="/icon-192.jpg" alt="2X" className="w-9 h-9 rounded-xl object-cover shrink-0 shadow-md" />
+            {!isCollapsed && (
+              <div className="truncate">
+                <div className="text-white font-black text-base leading-none">2X18</div>
+                <div className="text-gray-500 text-[10px] mt-0.5">K70 CNBD</div>
+              </div>
+            )}
           </div>
-          {onClose && (
-            <button onClick={onClose} className="lg:hidden p-1 text-gray-500 hover:text-white">
-              <X className="w-5 h-5" />
-            </button>
-          )}
+          <div className="flex items-center gap-1">
+            {onToggleCollapse && (
+              <button
+                onClick={onToggleCollapse}
+                title={isCollapsed ? "Mở rộng thanh bên" : "Thu gọn thanh bên"}
+                className="hidden lg:flex p-1.5 text-gray-400 hover:text-white hover:bg-[#252525] rounded-lg transition-colors"
+              >
+                {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+              </button>
+            )}
+            {onClose && (
+              <button onClick={onClose} className="lg:hidden p-1 text-gray-500 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            )}
+          </div>
         </div>
 
-        <nav className="flex-1 px-3 py-3 overflow-y-auto custom-scrollbar">
+        <nav className="flex-1 px-2.5 py-3 overflow-y-auto custom-scrollbar">
           {/* Chính */}
-          <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest px-4 mb-1.5">Chính</div>
+          {!isCollapsed ? (
+            <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest px-3 mb-1.5">Chính</div>
+          ) : (
+            <div className="my-1.5 border-t border-gray-800/60 mx-1" />
+          )}
           <ul className="space-y-0.5">
-            <NavItem to="/dashboard" icon={LayoutDashboard} label="Dashboard" disabled={!complete} onClick={onClose} />
-            <NavItem to="/profile" icon={User} label="Hồ sơ & GPA" onClick={onClose} />
-            <NavItem to="/subjects" icon={BookOpen} label="Môn học & SME" disabled={!complete} onClick={onClose} />
-            <NavItem to="/tasks" icon={ClipboardList} label="Tiến độ & Task" disabled={!complete} onClick={onClose} />
-            <NavItem to="/vocab" icon={Layers} label="Vocabulary" disabled={!complete} onClick={onClose} />
-            <NavItem to="/roadmap" icon={Map} label="Lộ trình" disabled={!complete} onClick={onClose} />
-            <NavItem to="/calendar" icon={Calendar} label="Lịch trình" disabled={!complete} onClick={onClose} />
+            <NavItem to="/dashboard" icon={LayoutDashboard} label="Dashboard" disabled={!complete} onClick={onClose} isCollapsed={isCollapsed} />
+            <NavItem to="/profile" icon={User} label="Hồ sơ & GPA" onClick={onClose} isCollapsed={isCollapsed} />
+            <NavItem to="/subjects" icon={BookOpen} label="Môn học & SME" disabled={!complete} onClick={onClose} isCollapsed={isCollapsed} />
+            <NavItem to="/tasks" icon={ClipboardList} label="Tiến độ & Task" disabled={!complete} onClick={onClose} isCollapsed={isCollapsed} />
+            <NavItem to="/vocab" icon={Layers} label="Vocabulary" disabled={!complete} onClick={onClose} isCollapsed={isCollapsed} />
+            <NavItem to="/roadmap" icon={Map} label="Lộ trình" disabled={!complete} onClick={onClose} isCollapsed={isCollapsed} />
+            <NavItem to="/calendar" icon={Calendar} label="Lịch trình" disabled={!complete} onClick={onClose} isCollapsed={isCollapsed} />
           </ul>
 
           {/* Nhóm */}
-          <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest px-4 mb-1.5 mt-4">Nhóm</div>
+          {!isCollapsed ? (
+            <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest px-3 mb-1.5 mt-4">Nhóm</div>
+          ) : (
+            <div className="my-2 border-t border-gray-800/60 mx-1" />
+          )}
           <ul className="space-y-0.5">
-            <NavItem to="/reports" icon={FileText} label="Báo cáo & Sự kiện" disabled={!complete} onClick={onClose} />
-            <NavItem to="/voting" icon={Vote} label="Bình chọn" badge={0} disabled={!complete} onClick={onClose} />
-            <NavItem to="/attendance" icon={Users} label="Điểm danh" disabled={!complete} onClick={onClose} />
-            <NavItem to="/gamification" icon={Trophy} label="Vinh danh" disabled={!complete} onClick={onClose} />
-            <NavItem to="/notifications" icon={Bell} label="Thông báo" badge={unreadCount} disabled={!complete} onClick={onClose} />
+            <NavItem to="/reports" icon={FileText} label="Báo cáo & Sự kiện" disabled={!complete} onClick={onClose} isCollapsed={isCollapsed} />
+            <NavItem to="/voting" icon={Vote} label="Bình chọn" badge={0} disabled={!complete} onClick={onClose} isCollapsed={isCollapsed} />
+            <NavItem to="/attendance" icon={Users} label="Điểm danh" disabled={!complete} onClick={onClose} isCollapsed={isCollapsed} />
+            <NavItem to="/gamification" icon={Trophy} label="Vinh danh" disabled={!complete} onClick={onClose} isCollapsed={isCollapsed} />
+            <NavItem to="/notifications" icon={Bell} label="Thông báo" badge={unreadCount} disabled={!complete} onClick={onClose} isCollapsed={isCollapsed} />
           </ul>
 
           {/* Core */}
           {(isCore || isSuperAdmin) && (
             <>
-              <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest px-4 mb-1.5 mt-4">Core</div>
+              {!isCollapsed ? (
+                <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest px-3 mb-1.5 mt-4">Core</div>
+              ) : (
+                <div className="my-2 border-t border-gray-800/60 mx-1" />
+              )}
               <ul className="space-y-0.5">
                 <li>
-                  <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-500 text-sm">
-                    <ShieldCheck className="w-4 h-4 text-blue-500 shrink-0" />
-                    <span className="font-medium flex-1">Quản trị</span>
-                    <span className="badge badge-blue">{isSuperAdmin ? 'Super' : 'Core'}</span>
-                  </div>
+                  {!isCollapsed ? (
+                    <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-500 text-sm">
+                      <ShieldCheck className="w-4 h-4 text-blue-500 shrink-0" />
+                      <span className="font-medium flex-1">Quản trị</span>
+                      <span className="badge badge-blue">{isSuperAdmin ? 'Super' : 'Core'}</span>
+                    </div>
+                  ) : (
+                    <div title={`Quản trị (${isSuperAdmin ? 'Super' : 'Core'})`} className="flex items-center justify-center p-2.5 rounded-xl text-gray-500 text-sm relative group">
+                      <ShieldCheck className="w-4 h-4 text-blue-500 shrink-0" />
+                      <div className="hidden lg:group-hover:flex absolute left-full ml-3 px-2.5 py-1 bg-[#252525] text-white text-xs font-semibold rounded-lg shadow-xl border border-gray-700 whitespace-nowrap z-50 pointer-events-none items-center gap-1.5">
+                        <span>Quản trị ({isSuperAdmin ? 'Super' : 'Core'})</span>
+                      </div>
+                    </div>
+                  )}
                 </li>
                 <NavItem
                   to="/trash"
@@ -263,6 +319,7 @@ function Sidebar({ onClose }) {
                   badge={trashCount}
                   danger
                   onClick={onClose}
+                  isCollapsed={isCollapsed}
                 />
               </ul>
             </>
@@ -271,28 +328,52 @@ function Sidebar({ onClose }) {
 
         {/* Profile incomplete warning */}
         {!complete && (
-          <div className="mx-3 mb-2 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-            <div className="flex gap-2 items-start">
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-              <p className="text-[10px] text-amber-400 leading-tight">
-                Vào <strong>Hồ sơ</strong> điền đủ 5 trường cơ bản để mở khóa
-              </p>
-            </div>
+          <div className={`mx-2 mb-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded-xl ${isCollapsed ? 'flex justify-center' : ''}`}>
+            {!isCollapsed ? (
+              <div className="flex gap-2 items-start">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                <p className="text-[10px] text-amber-400 leading-tight">
+                  Vào <strong>Hồ sơ</strong> điền đủ 5 trường cơ bản để mở khóa
+                </p>
+              </div>
+            ) : (
+              <div title="Vào Hồ sơ điền đủ 5 trường cơ bản để mở khóa" className="relative group">
+                <AlertTriangle className="w-4 h-4 text-amber-400" />
+                <div className="hidden lg:group-hover:flex absolute left-full ml-3 bottom-0 px-2.5 py-1 bg-[#252525] text-amber-400 text-xs rounded-lg shadow-xl border border-gray-700 whitespace-nowrap z-50 pointer-events-none">
+                  Điền đủ 5 trường để mở khóa
+                </div>
+              </div>
+            )}
           </div>
         )}
 
         {/* User info */}
-        <div className="px-3 pb-3 pt-2 border-t border-gray-800/60">
-          <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-[#222]">
-            <UserAvatar user={currentUser} size={32} isMe />
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-bold text-gray-200 truncate">{currentUser?.fullName || 'Thành viên'}</div>
-              <div className="text-[10px] text-gray-500 truncate">{currentUser?.role || 'member'}</div>
+        <div className="px-2.5 pb-3 pt-2 border-t border-gray-800/60">
+          {!isCollapsed ? (
+            <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-[#222]">
+              <UserAvatar user={currentUser} size={32} isMe />
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-bold text-gray-200 truncate">{currentUser?.fullName || 'Thành viên'}</div>
+                <div className="text-[10px] text-gray-500 truncate">{currentUser?.role || 'member'}</div>
+              </div>
+              <button onClick={handleLogout} title="Đăng xuất" className="p-1">
+                <LogOut className="w-4 h-4 text-gray-600 hover:text-red-400 transition-colors" />
+              </button>
             </div>
-            <button onClick={handleLogout} title="Đăng xuất" className="p-1">
-              <LogOut className="w-4 h-4 text-gray-600 hover:text-red-400 transition-colors" />
-            </button>
-          </div>
+          ) : (
+            <div className="flex flex-col items-center gap-2">
+              <div className="relative group">
+                <UserAvatar user={currentUser} size={32} isMe />
+                <div className="hidden lg:group-hover:flex absolute left-full ml-3 bottom-0 px-2.5 py-1.5 bg-[#252525] text-white text-xs rounded-lg shadow-xl border border-gray-700 whitespace-nowrap z-50 flex-col pointer-events-none">
+                  <span className="font-bold">{currentUser?.fullName || 'Thành viên'}</span>
+                  <span className="text-[10px] text-gray-400">{currentUser?.role || 'member'}</span>
+                </div>
+              </div>
+              <button onClick={handleLogout} title="Đăng xuất" className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-[#252525] rounded-lg transition-colors">
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       </aside>
 
@@ -360,6 +441,24 @@ function LoadingScreen() {
 function AppLayout() {
   const { currentUser, isLoading } = useApp();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleSidebarCollapse = () => {
+    setIsSidebarCollapsed(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('sidebar_collapsed', String(next));
+      } catch {}
+      return next;
+    });
+  };
+
   const location = useLocation();
 
   if (isLoading) return <LoadingScreen />;
@@ -368,13 +467,15 @@ function AppLayout() {
 
   return (
     <div className="flex h-screen bg-[#121212] text-white overflow-hidden">
-      <div className="hidden lg:flex"><Sidebar /></div>
+      <div className="hidden lg:flex">
+        <Sidebar isCollapsed={isSidebarCollapsed} onToggleCollapse={toggleSidebarCollapse} />
+      </div>
 
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-black/60" onClick={() => setSidebarOpen(false)} />
           <div className="absolute left-0 top-0 bottom-0 w-60 z-50">
-            <Sidebar onClose={() => setSidebarOpen(false)} />
+            <Sidebar onClose={() => setSidebarOpen(false)} isCollapsed={false} />
           </div>
         </div>
       )}
