@@ -7,7 +7,7 @@ import {
   Sparkles, Loader2, Pencil, Tag, RefreshCw, Layers
 } from 'lucide-react';
 import { uploadToDrive } from '../services/googleApi';
-import { reviewReport, classifyReport, groupReportsByTopic } from '../services/aiService';
+import { classifyReport, groupReportsByTopic } from '../services/aiService';
 import { useReports } from '../hooks/useDomainQueries';
 import { motion, AnimatePresence } from 'framer-motion';
 import UserAvatar from '../components/UserAvatar';
@@ -47,24 +47,8 @@ function ReportCard({ r, getMemberById, isCore, isSuperAdmin, currentUser, appro
   const canEdit = isOwn || canModerate;
   const canDelete = canModerate || (isOwn && isPending);
 
-  const [aiReviewResult, setAiReviewResult] = useState(null);
-  const [isAiReviewLoading, setIsAiReviewLoading] = useState(false);
-
   const [aiClassifyResult, setAiClassifyResult] = useState(null);
   const [isAiClassifyLoading, setIsAiClassifyLoading] = useState(false);
-
-  const handleAiReview = async () => {
-    if (isAiReviewLoading) return;
-    setIsAiReviewLoading(true);
-    try {
-      const res = await reviewReport(`${r.title}\n${r.description || ''}`, author?.fullName || 'Thành viên');
-      setAiReviewResult(res);
-    } catch (err) {
-      toast(err.message || 'Không đánh giá được tài liệu.', 'error');
-    } finally {
-      setIsAiReviewLoading(false);
-    }
-  };
 
   const handleAiClassify = async () => {
     if (isAiClassifyLoading) return;
@@ -170,18 +154,6 @@ function ReportCard({ r, getMemberById, isCore, isSuperAdmin, currentUser, appro
             </button>
           )}
 
-          {/* AI Review button — only Core/Admin */}
-          {canModerate && isPending && (
-            <button
-              onClick={handleAiReview}
-              disabled={isAiReviewLoading}
-              className="flex items-center gap-1 px-2 py-1.5 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-lg transition-colors text-[11px] font-bold"
-            >
-              {isAiReviewLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-              Review
-            </button>
-          )}
-
           {/* Approve button — only Core/Admin */}
           {canModerate && isPending && (
             <button
@@ -284,43 +256,6 @@ function ReportCard({ r, getMemberById, isCore, isSuperAdmin, currentUser, appro
         )}
       </AnimatePresence>
 
-      {/* AI Review Result Overlay/Expansion */}
-      <AnimatePresence>
-        {aiReviewResult && (
-          <motion.div 
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="mt-2 p-3 bg-blue-600/5 border border-blue-500/20 rounded-xl space-y-2 overflow-hidden"
-          >
-            <div className="flex items-center justify-between">
-              <div className="text-[10px] font-black text-blue-400 flex items-center gap-1 uppercase tracking-widest">
-                <Sparkles className="w-2.5 h-2.5" /> Kết quả AI
-              </div>
-              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${
-                aiReviewResult.quality === 'excellent' ? 'bg-green-500/20 text-green-400' : 
-                aiReviewResult.quality === 'good' ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-500/20 text-gray-400'
-              }`}>
-                {aiReviewResult.qualityLabel}
-              </span>
-            </div>
-            <div className="space-y-1">
-              {aiReviewResult.summary?.map((s, i) => (
-                <div key={i} className="text-[11px] text-gray-400 flex items-start gap-1.5">
-                  <span className="text-blue-500 mt-1">•</span>
-                  <span className="leading-snug">{s}</span>
-                </div>
-              ))}
-            </div>
-            {aiReviewResult.feedback && (
-              <div className="text-[10px] text-gray-500 italic mt-1 pt-1 border-t border-gray-800/40">
-                Phản hồi: "{aiReviewResult.feedback}"
-              </div>
-            )}
-            <button onClick={() => setAiReviewResult(null)} className="text-[9px] text-gray-600 hover:text-gray-400 font-bold uppercase underline mt-1">Đóng review</button>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </motion.div>
   );
 }
