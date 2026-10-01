@@ -209,11 +209,11 @@ function AddDocModal({ subject, onClose, onAdd }) {
         const token = await requireGoogleAuth();
         if (!token) return setIsUploading(false);
         try {
-          finalUrl = await uploadToDrive(token, selectedFile, `2X18_${subject.code}`);
+          finalUrl = await uploadToDrive(token, selectedFile, `2X18_${subject.code}`, message => toast(message, 'error'));
         } catch (uploadErr) {
           if (uploadErr.message === 'EXPIRED_TOKEN') {
             const newToken = await requireGoogleAuth(true);
-            if (newToken) finalUrl = await uploadToDrive(newToken, selectedFile, `2X18_${subject.code}`);
+            if (newToken) finalUrl = await uploadToDrive(newToken, selectedFile, `2X18_${subject.code}`, message => toast(message, 'error'));
             else throw new Error('Phiên Google hết hạn. Vui lòng đăng nhập lại.');
           } else {
             throw uploadErr;
@@ -225,8 +225,11 @@ function AddDocModal({ subject, onClose, onAdd }) {
       }
       setIsUploading(false);
     }
-    onAdd(subject.id, { ...form, url: finalUrl });
-    onClose();
+    setIsUploading(true);
+    const saved = await onAdd(subject.id, { ...form, url: finalUrl });
+    setIsUploading(false);
+    if (saved) onClose();
+    else { setForm(f => ({ ...f, url: finalUrl })); setSelectedFile(null); }
   };
 
   return (

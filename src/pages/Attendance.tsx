@@ -75,12 +75,12 @@ export default function Attendance() {
   const session  = attendance.find(s => s.sessionId === selected);
   const myRecord = (session?.present || []).includes(currentUser?.id) || false;
 
-  const handleCheck = () => {
+  const handleCheck = async () => {
     if (!session) return;
     const willCheck = !myRecord;
-    checkAttendance({ sessionId: selected, userId: currentUser?.id, checked: willCheck });
+    if (!await checkAttendance({ sessionId: selected, userId: currentUser?.id, checked: willCheck })) return;
     toast(
-      willCheck ? 'Điểm danh thành công! +1000 điểm cống hiến 🎉' : 'Đã hủy điểm danh',
+      willCheck ? 'Điểm danh thành công! +500 điểm cống hiến 🎉' : 'Đã hủy điểm danh',
       willCheck ? 'success' : 'info'
     );
   };
@@ -88,8 +88,9 @@ export default function Attendance() {
   const handleJoinMeeting = (link) => {
     if (!link) return;
     if (canCheckIn && !myRecord) {
-      checkAttendance({ sessionId: selected, userId: currentUser?.id, checked: true });
-      toast('Đã điểm danh tự động khi bạn tham gia họp! +1000 điểm 🎉', 'success');
+      checkAttendance({ sessionId: selected, userId: currentUser?.id, checked: true }).then(saved => {
+        if (saved) toast('Đã điểm danh khi bạn tham gia họp! +500 điểm 🎉', 'success');
+      });
     }
     window.open(link, '_blank', 'noopener,noreferrer');
   };
@@ -144,17 +145,10 @@ export default function Attendance() {
       setIsCreating(false);
     }
 
-    addAttendanceSession({ sessionTitle: newTitle.trim(), date: newDate, meetLink: finalUrl, startTime: newStartTime, endTime: newEndTime });
+    const saved = await addAttendanceSession({ sessionTitle: newTitle.trim(), date: newDate, meetLink: finalUrl, startTime: newStartTime, endTime: newEndTime, reminderMinutes: newReminderMinutes });
+    if (!saved) { setNewLink(finalUrl); setCreateMeet(false); return; }
 
-    if (newReminderMinutes > 0 && newDate) {
-      scheduleReminder({
-        id: `attend-new-${Date.now()}`,
-        title: newTitle.trim(),
-        date: newDate,
-        startTime: newStartTime || '20:00',
-        reminderMinutes: newReminderMinutes,
-      });
-    }
+
 
     setNewTitle(''); setNewDate(''); setNewLink(''); setNewStartTime('20:00'); setNewEndTime('21:30'); setNewReminderMinutes(30); setShowAdd(false); setCreateMeet(false);
   };

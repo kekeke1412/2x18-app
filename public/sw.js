@@ -1,6 +1,6 @@
 /* global clients */
 // public/sw.js — Service Worker cho 2X18 PWA
-const CACHE_NAME = '2x18-v2';
+const CACHE_NAME = '2x18-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -20,7 +20,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+      Promise.all(keys.filter((k) => k.startsWith('2x18-') && k !== CACHE_NAME).map((k) => caches.delete(k)))
     )
   );
   self.clients.claim();
@@ -31,15 +31,20 @@ self.addEventListener('fetch', (event) => {
   // Bỏ qua Firebase và external APIs
   if (!event.request.url.startsWith(self.location.origin)) return;
   if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/__/') || url.search) return;
+  if (event.request.mode !== 'navigate' && !url.pathname.startsWith('/assets/') && !STATIC_ASSETS.includes(url.pathname)) return;
 
   event.respondWith(
     fetch(event.request)
       .then((res) => {
-        const clone = res.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        if (res.ok) {
+          const clone = res.clone();
+          event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone)));
+        }
         return res;
       })
-      .catch(() => caches.match(event.request))
+      .catch(async () => (await caches.match(event.request)) || (event.request.mode === 'navigate' ? await caches.match('/index.html') : null) || Response.error())
   );
 });
 
@@ -61,15 +66,14 @@ self.addEventListener('push', (event) => {
 // ── Notification click: open app at correct route ─────────────────────────
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || '/';
+  const target = new URL(event.notification.data?.url || '/', self.location.origin);
+  const url = target.origin === self.location.origin ? target.href : self.location.origin;
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       // Nếu tab đã mở → focus và navigate
       for (const client of clientList) {
-        if (client.url.includes(self.location.origin) && 'focus' in client) {
-          client.focus();
-          client.postMessage({ type: 'NAVIGATE', url });
-          return;
+        if (new URL(client.url).origin === self.location.origin && 'focus' in client) {
+          return client.navigate(url).then(() => client.focus());
         }
       }
       // Không có tab → mở mới
@@ -77,5 +81,4 @@ self.addEventListener('notificationclick', (event) => {
     })
   );
 });
-
 

@@ -1,104 +1,64 @@
-// @ts-nocheck
-// src/services/notificationService.js
-// Quản lý thông báo nhắc nhở cục bộ (browser/desktop + mobile web)
-
-const STORAGE_KEY = '2x18_scheduled_reminders';
-
-/**
- * Xin quyền hiển thị thông báo từ trình duyệt
- * Trả về: 'granted' | 'denied' | 'default'
- */
 export async function requestNotificationPermission() {
-  if (!('Notification' in window)) {
-    console.warn('Trình duyệt này không hỗ trợ Notification API');
-    return 'denied';
-  }
-  if (Notification.permission === 'granted') return 'granted';
-  if (Notification.permission === 'denied') return 'denied';
-  const result = await Notification.requestPermission();
-  return result;
+  if (!('Notification' in window)) return 'denied';
+  if (Notification.permission !== 'default') return Notification.permission;
+  return Notification.requestPermission();
 }
 
-/**
- * Hiển thị ngay một browser notification
- */
-export function showNotification(title, body, options = {}) {
+export async function showNotification(title: string, body: string, options: NotificationOptions = {}) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
-  const n = new Notification(title, {
-    body,
-    icon: '/icon-192.jpg', // Dùng icon app nếu có
-    badge: '/icon-192.jpg',
-    tag: options.tag || title, // Tránh trùng lặp cùng loại
-    requireInteraction: options.requireInteraction || false,
-    ...options,
+  const settings = { body, icon: '/icon-192.jpg', badge: '/icon-192.jpg', tag: title, ...options };
+  try {
+    // ready can wait forever if registration failed. getRegistration resolves immediately.
+    const registration = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
+    if (registration?.active) { await registration.showNotification(title, settings); return; }
+    const notification = new Notification(title, settings);
+    notification.onclick = () => {
+      window.focus(); notification.close();
+      const url = new URL(settings.data?.url || '/', location.origin);
+      if (url.origin === location.origin) location.assign(url.href);
+    };
+  } catch (error) { console.warn('Không thể hiển thị thông báo thiết bị:', error); }
+}
+
+type Reminder = { id: string; title: string; date: string; startTime?: string; reminderMinutes?: number; desc?: string; location?: string };
+const reminders = new Map<string, { event: Reminder; at: number }>();
+const delivered = new Set<string>();
+let timer: ReturnType<typeof setTimeout> | undefined;
+const MAX_DELAY = 2_147_000_000;
+
+function armTimer() {
+  clearTimeout(timer);
+  const next = [...reminders.values()].sort((a, b) => a.at - b.at)[0];
+  if (!next) return;
+  timer = setTimeout(() => {
+    const now = Date.now();
+    reminders.forEach(({ event, at }, id) => {
+      if (at > now) return;
+      reminders.delete(id);
+      const key = `${id}:${at}`;
+      if (delivered.has(key)) return;
+      delivered.add(key);
+      if (delivered.size > 1000) delivered.delete(delivered.values().next().value!);
+      // Skip very stale notifications after the device wakes from sleep.
+      if (now - at < 15 * 60 * 1000) void showNotification(`⏰ Nhắc nhở: ${event.title}`, `Sự kiện lúc ${event.startTime || '08:00'} (${event.date})`, { tag: `reminder-${id}`, data: { url: '/calendar' } });
+    });
+    armTimer();
+  }, Math.min(MAX_DELAY, Math.max(0, next.at - Date.now())));
+}
+export function scheduleReminder(event: Reminder) {
+  if (!event.id) return;
+  reminders.delete(event.id);
+  const at = new Date(`${event.date}T${event.startTime || '08:00'}:00+07:00`).getTime() - Number(event.reminderMinutes) * 60000;
+  if (Number(event.reminderMinutes) > 0 && Number.isFinite(at) && at > Date.now()) reminders.set(event.id, { event, at });
+  armTimer();
+}
+export function cancelReminder(id: string) { reminders.delete(id); armTimer(); }
+export function syncAllReminders(events: Reminder[] = []) {
+  reminders.clear(); clearTimeout(timer);
+  events.forEach(event => {
+    if (!event.id) return;
+    const at = new Date(`${event.date}T${event.startTime || '08:00'}:00+07:00`).getTime() - Number(event.reminderMinutes) * 60000;
+    if (Number(event.reminderMinutes) > 0 && Number.isFinite(at) && at > Date.now()) reminders.set(event.id, { event, at });
   });
-  n.onclick = () => {
-    window.focus();
-    n.close();
-  };
-  return n;
+  armTimer();
 }
-
-// Bộ theo dõi các timeout đang chạy: { reminderId: timeoutId }
-const activeTimeouts = new Map();
-
-/**
- * Lên lịch nhắc một sự kiện
- * @param {object} event - { id, title, date, startTime, reminderMinutes }
- */
-export function scheduleReminder(event) {
-  if (!event.reminderMinutes || event.reminderMinutes <= 0) return;
-  if (!event.date) return;
-
-  const time = event.startTime || '08:00';
-  const eventDateTime = new Date(`${event.date}T${time}:00`);
-  const reminderTime = new Date(eventDateTime.getTime() - event.reminderMinutes * 60 * 1000);
-  const msUntilReminder = reminderTime.getTime() - Date.now();
-
-  // Đã qua giờ nhắc thì bỏ
-  if (msUntilReminder <= 0) return;
-
-  // Nếu đã có reminder cho event này thì hủy cái cũ
-  cancelReminder(event.id);
-
-  const timeoutId = setTimeout(() => {
-    const label = event.reminderMinutes >= 60
-      ? `${event.reminderMinutes / 60} giờ`
-      : `${event.reminderMinutes} phút`;
-    showNotification(
-      `⏰ Nhắc nhở: ${event.title}`,
-      `Sự kiện bắt đầu sau ${label} (${time})\n${event.desc || event.location || ''}`,
-      { tag: `reminder-${event.id}`, requireInteraction: true }
-    );
-    activeTimeouts.delete(event.id);
-  }, msUntilReminder);
-
-  activeTimeouts.set(event.id, timeoutId);
-  console.log(`[Reminder] Đã lên lịch nhắc "${event.title}" sau ${Math.round(msUntilReminder / 60000)} phút`);
-}
-
-/**
- * Hủy một reminder đang lên lịch
- */
-export function cancelReminder(eventId) {
-  if (activeTimeouts.has(eventId)) {
-    clearTimeout(activeTimeouts.get(eventId));
-    activeTimeouts.delete(eventId);
-  }
-}
-
-/**
- * Đồng bộ lại toàn bộ danh sách sự kiện
- * Gọi mỗi khi load trang hoặc danh sách events thay đổi
- */
-export function syncAllReminders(events = []) {
-  // Hủy tất cả reminder cũ
-  activeTimeouts.forEach((tid) => clearTimeout(tid));
-  activeTimeouts.clear();
-
-  // Lên lịch lại
-  events.forEach(ev => {
-    if (ev.reminderMinutes) scheduleReminder(ev);
-  });
-}
-

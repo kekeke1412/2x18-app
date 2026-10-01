@@ -158,7 +158,7 @@ const MarkdownText = ({ text }) => {
   );
 };
 
-// ── Khối Chuỗi Suy Luận (Chain-of-Thought) cho DeepSeek-V4-Pro ─────────────
+// ── Khối Chuỗi Suy Luận (Chain-of-Thought) cho DeepSeek Reasoner ─────────────
 const ReasoningBox = ({ reasoning }) => {
   const [isOpen, setIsOpen] = useState(false);
   if (!reasoning) return null;
@@ -215,13 +215,13 @@ export default function AIChatbot() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasApiKey, setHasApiKey] = useState(true);
 
-  // Bộ chọn mô hình kép: auto, deepseek-v4-pro, deepseek-v4-flash
+  // Bộ chọn mô hình kép: auto, deepseek-reasoner, deepseek-chat
   const [selectedModelMode, setSelectedModelMode] = useState('auto');
 
   // Câu chào mừng tự động tùy biến
   const initialWelcome = useMemo(() => {
     if (isCoreUser) {
-      return `Chào Core ${firstName}! Mình là 2X18 Core Advisor (Hệ thống định tuyến kép DeepSeek-V4-Flash & V4-Pro) 🤖👑\n\nMình được tích hợp **tri thức phòng sạch NEC/HUS**, **toán lý Boas & Griffiths**, **bán dẫn Sze**, và **học bổng Đài Loan (NYCU, NTHU, NTU)**.\n\nBạn có thể hỏi về **sức khỏe nhóm**, **chẩn đoán phòng sạch**, **giải phẫu bài báo**, hay **chiến lược học bổng**!`;
+      return `Chào Core ${firstName}! Mình là 2X18 Core Advisor (Hệ thống định tuyến kép DeepSeek Chat & Reasoner) 🤖👑\n\nMình được tích hợp **tri thức phòng sạch NEC/HUS**, **toán lý Boas & Griffiths**, **bán dẫn Sze**, và **học bổng Đài Loan (NYCU, NTHU, NTU)**.\n\nBạn có thể hỏi về **sức khỏe nhóm**, **chẩn đoán phòng sạch**, **giải phẫu bài báo**, hay **chiến lược học bổng**!`;
     }
     return `Chào ${firstName}! Mình là 2X18 Copilot (Dual-Model DeepSeek-V4) 🤖✨\n\nMình là Cố vấn học thuật cá nhân của bạn — sẵn sàng **rà soát bài tập bắt lỗi tư duy**, **tính điểm thi CK**, **hỗ trợ thông số lab phòng sạch** và **lập lộ trình du học Đài Loan**!`;
   }, [isCoreUser, firstName]);
@@ -501,26 +501,26 @@ export default function AIChatbot() {
                 Auto ⚡
               </button>
               <button
-                onClick={() => setSelectedModelMode('deepseek-v4-flash')}
+                onClick={() => setSelectedModelMode('deepseek-chat')}
                 className={`px-2 py-0.5 rounded-md font-semibold transition-all ${
-                  selectedModelMode === 'deepseek-v4-flash'
+                  selectedModelMode === 'deepseek-chat'
                     ? 'bg-blue-500 text-white shadow-sm'
                     : 'text-gray-400 hover:text-gray-200'
                 }`}
-                title="deepseek-v4-flash: Tốc độ cao, tối ưu tiến độ & học bổng"
+                title="deepseek-chat: Tốc độ cao, tối ưu tiến độ & học bổng"
               >
-                v4-flash
+                Chat
               </button>
               <button
-                onClick={() => setSelectedModelMode('deepseek-v4-pro')}
+                onClick={() => setSelectedModelMode('deepseek-reasoner')}
                 className={`px-2 py-0.5 rounded-md font-semibold transition-all ${
-                  selectedModelMode === 'deepseek-v4-pro'
+                  selectedModelMode === 'deepseek-reasoner'
                     ? 'bg-purple-600 text-white shadow-sm'
                     : 'text-gray-400 hover:text-gray-200'
                 }`}
-                title="deepseek-v4-pro: Chuỗi suy luận CoT chuyên sâu Toán lý & Phòng sạch"
+                title="deepseek-reasoner: Chuỗi suy luận CoT chuyên sâu Toán lý & Phòng sạch"
               >
-                v4-pro 🧠
+                Reasoner 🧠
               </button>
             </div>
           </div>
@@ -545,7 +545,7 @@ export default function AIChatbot() {
                           ? 'bg-purple-500/20 text-purple-300 border-purple-500/30'
                           : 'bg-blue-500/20 text-blue-300 border-blue-500/30'
                       }`}>
-                        {m.modelUsed.includes('pro') || m.modelUsed.includes('reasoner') ? '🧠 v4-pro' : '⚡ v4-flash'}
+                        {m.modelUsed}
                       </span>
                     )}
                   </div>

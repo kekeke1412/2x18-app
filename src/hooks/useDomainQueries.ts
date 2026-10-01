@@ -1,66 +1,32 @@
+import { useApp } from '../context/AppContext';
 import { useFirebaseQuery } from './useFirebaseQuery';
-import { toArr } from '../context/AppContext';
+import { toArray } from '../services/dataStore.js';
 
-export const useMembers = () => useFirebaseQuery<any[]>(['members'], '2x18_members', toArr);
-export const useTasks = () => useFirebaseQuery<any[]>(['tasks'], '2x18_tasks', toArr);
-export const useRoadmap = () => useFirebaseQuery<any[]>(['roadmap'], '2x18_roadmap', (v) => 
-  toArr(v).map((y: any) => ({ ...y, events: toArr(y.events) }))
-);
-export const useSmeMap = () => useFirebaseQuery<any>(['smeMap'], '2x18_sme', v => v || {});
-export const useCalEvents = () => useFirebaseQuery<any[]>(['events'], '2x18_events', toArr);
-export const useVotes = () => useFirebaseQuery<any[]>(['votes'], '2x18_votes', v => 
-  toArr(v).map((vt: any) => ({ ...vt, options: toArr(vt.options).map((o: any) => ({ ...o, votes: toArr(o.votes) })) }))
-);
-export const useNotifications = () => useFirebaseQuery<any[]>(['notifications'], '2x18_notifs', toArr);
-export const useAttendance = () => useFirebaseQuery<any[]>(['attendance'], '2x18_attendance', v => 
-  toArr(v).map((sess: any) => ({ ...sess, present: Array.isArray(sess.present) ? sess.present.filter(Boolean) : toArr(sess.present), total: sess.total || 0 }))
-);
-export const useContributions = () => useFirebaseQuery<any>(['contributions'], '2x18_contributions', v => v || {});
-export const useDocs = () => useFirebaseQuery<any>(['docs'], '2x18_docs', v => {
-  if (!v) return {};
-  const obj: any = {};
-  Object.keys(v).forEach(sid => { obj[sid] = toArr(v[sid]); });
-  return obj;
-});
-export const useAuditLogs = () => useFirebaseQuery<any[]>(['auditLogs'], '2x18_audit', toArr);
-export const useSubjectTasks = () => useFirebaseQuery<any>(['subjectTasks'], '2x18_subject_tasks', v => {
-  if (!v) return {};
-  const obj: any = {};
-  Object.keys(v).forEach(sid => { obj[sid] = toArr(v[sid]); });
-  return obj;
-});
-export const useSubjectComments = () => useFirebaseQuery<any>(['subjectComments'], '2x18_subject_comments', v => {
-  if (!v) return {};
-  const obj: any = {};
-  Object.keys(v).forEach(sid => { obj[sid] = toArr(v[sid]); });
-  return obj;
-});
-export const useSemesterLabels = () => useFirebaseQuery<any>(['semesterLabels'], '2x18_semester_labels', v => v || {});
-export const useVocab = () => useFirebaseQuery<any>(['vocab'], '2x18_vocab', v => v || {});
-export const useUserVocab = () => useFirebaseQuery<any>(['userVocab'], '2x18_user_vocab', v => v || {});
-export const useQuizHistory = () => useFirebaseQuery<any>(['quizHistory'], '2x18_quiz_history', v => {
-  if (!v) return {};
-  const obj: any = {};
-  Object.keys(v).forEach(uid => { obj[uid] = toArr(v[uid]); });
-  return obj;
-});
-export const useReports = () => useFirebaseQuery<any[]>(['reports'], '2x18_reports', toArr);
-export const useGamifTitles = () => useFirebaseQuery<any>(['gamif_titles'], 'gamif_titles', toArr);
-export const useGamifAwards = () => useFirebaseQuery<any>(['gamif_awards'], 'gamif_awards', v => {
-  if (!v) return {};
-  const norm: any = {};
-  Object.entries(v).forEach(([id, val]) => { norm[id] = toArr(val); });
-  return norm;
-});
-export const useGamifSeasons = () => useFirebaseQuery<any[]>(['gamif_seasons'], 'gamif_seasons', v => 
-  toArr(v).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-);
-export const useTrash = () => useFirebaseQuery<any[]>(['trash'], '2x18_trash', toArr);
-
-// Mảng Grades của TẤT CẢ các member
-export const useAllGrades = (memberIds: string[]) => {
-  // To avoid complexity right now, we can create a generic hook that merges all `userId_grades`.
-  // Wait, React Query useQueries is needed to fetch multiple dynamic keys.
-  // Actually, we can just let AppContext handle Grades for now or we rewrite grades storage.
-  // Since we are migrating incrementally, we will use AppContext for grades, or we can use useQuery directly in the component.
-};
+// Reuse the provider's authenticated realtime subscriptions; no parallel get/onValue.
+function useDomain(key: string) {
+  const app = useApp();
+  return { data: app[key], isLoading: app.isLoading, error: app.dataErrors[key] || null };
+}
+export const useMembers = () => useDomain('members');
+export const useTasks = () => useDomain('tasks');
+export const useRoadmap = () => useDomain('roadmap');
+export const useSmeMap = () => useDomain('smeMap');
+export const useCalEvents = () => useDomain('calEvents');
+export const useVotes = () => useDomain('votes');
+export const useNotifications = () => useDomain('notifications');
+export const useAttendance = () => useDomain('attendance');
+export const useContributions = () => useDomain('contributions');
+export const useDocs = () => useDomain('docs');
+export const useAuditLogs = () => useDomain('auditLogs');
+export const useSubjectTasks = () => useDomain('subjectTasks');
+export const useSubjectComments = () => useDomain('subjectComments');
+export const useSemesterLabels = () => useDomain('semesterLabels');
+export const useVocab = () => useDomain('vocab');
+export const useUserVocab = () => useDomain('userVocab');
+export const useQuizHistory = () => useDomain('quizHistory');
+export const useReports = () => useDomain('reports');
+export const useTrash = () => useDomain('trash');
+export const useAllGrades = () => useDomain('grades');
+export const useGamifTitles = () => useFirebaseQuery<any[]>(['gamif_titles'], 'gamif_titles', toArray);
+export const useGamifAwards = () => useFirebaseQuery<any>(['gamif_awards'], 'gamif_awards', v => Object.fromEntries(Object.entries(v || {}).map(([id, items]) => [id, toArray(items)])));
+export const useGamifSeasons = () => useFirebaseQuery<any[]>(['gamif_seasons'], 'gamif_seasons', v => toArray(v).sort((a: any, b: any) => String(b.createdAt).localeCompare(String(a.createdAt))));

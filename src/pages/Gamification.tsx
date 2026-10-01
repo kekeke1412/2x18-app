@@ -1,3 +1,6 @@
+import { get, runTransaction } from 'firebase/database';
+import { store } from '../services/firebaseStore';
+import { archiveSeason } from '../services/seasonArchive.js';
 // @ts-nocheck
 // src/pages/Gamification.jsx
 import React, { useState, useMemo, useEffect } from 'react';
@@ -183,53 +186,41 @@ export default function Gamification() {
   }, [selSeason, seasons, activeMembers, titles]);
 
   /* ── admin handlers ── */
-  const handleAddTitle = () => {
+  const [adminBusy, setAdminBusy] = useState(false);
+  const [adminError, setAdminError] = useState('');
+  const runAdmin = async operation => {
+    if (adminBusy || !isCore) return;
+    setAdminBusy(true); setAdminError('');
+    try { await operation(); } catch (error) { setAdminError(error.message || 'Chưa lưu được thay đổi.'); }
+    finally { setAdminBusy(false); }
+  };
+  const handleAddTitle = () => runAdmin(async () => {
     if (!newTitle.name.trim()) return;
-    const t = { id:uid(), ...newTitle, createdAt:new Date().toISOString() };
-    const map = {};
-    [...titles, t].forEach(x => { if(x?.id) map[x.id] = x; });
-    set(ref(db,'gamif_titles'), map);
+    await store.add('gamif_titles', { ...newTitle, id: uid(), createdAt: new Date().toISOString() });
     setNewTitle({ name:'', icon:'🏅', color:'#ffd700', desc:'' });
-  };
-  const handleDeleteTitle = id => {
-    const map = {};
-    titles.filter(t => t.id !== id).forEach(t => { map[t.id] = t; });
-    set(ref(db,'gamif_titles'), Object.keys(map).length ? map : null);
-  };
-  const handleAward = () => {
+  });
+  const handleDeleteTitle = id => runAdmin(async () => {
+    // Retain awarded/history references, hide the title from future selection.
+    await store.change('gamif_titles', id, title => ({ ...title, archived: true }));
+  });
+  const handleAward = () => runAdmin(async () => {
     if (!awardForm.userId || !awardForm.titleId) return;
-    const cur = toArr(awards[awardForm.userId]);
-    if (cur.includes(awardForm.titleId)) return;
-    set(ref(db, `gamif_awards/${awardForm.userId}`), [...cur, awardForm.titleId]);
+    await runTransaction(ref(db, `gamif_awards/${awardForm.userId}`), value => [...new Set([...toArr(value), awardForm.titleId])]);
     setAwardForm({ userId:'', titleId:'' });
-  };
-  const handleRevoke = (userId, titleId) => {
-    const cur = toArr(awards[userId]).filter(id => id !== titleId);
-    set(ref(db, `gamif_awards/${userId}`), cur.length ? cur : null);
-  };
-  const handleResetSeason = () => {
+  });
+  const handleRevoke = (userId, titleId) => runAdmin(async () => {
+    await get(ref(db, `gamif_awards/${userId}`));
+    await runTransaction(ref(db, `gamif_awards/${userId}`), value => toArr(value).filter(id => id !== titleId));
+  });
+  const handleResetSeason = () => runAdmin(async () => {
     if (!seasonName.trim()) return;
-    const snapshot = {};
-    activeMembers.forEach(m => { snapshot[m.id] = Number(contributions?.[m.id]) || 0; });
-    const awardSnapshot = {};
-    Object.entries(awards || {}).forEach(([id, tids]) => { if(tids) awardSnapshot[id] = tids; });
-    const titleSnapshot = {};
-    titles.forEach(t => { if(t?.id) titleSnapshot[t.id] = t; });
-    const season = {
-      id: uid(), name:seasonName.trim(),
-      createdAt:new Date().toISOString(), createdBy:currentUser?.fullName||'Admin',
-      snapshot, awardSnapshot, titleSnapshot,
-    };
-    const seasonsMap = {};
-    seasons.forEach(s => { if(s?.id) seasonsMap[s.id] = s; });
-    seasonsMap[season.id] = season;
-    set(ref(db,'gamif_seasons'), seasonsMap);
-    const reset = {};
-    activeMembers.forEach(m => { reset[m.id] = 0; });
-    set(ref(db,'2x18_contributions'), reset);
-    set(ref(db,'gamif_awards'), null);
+    const season = { id: uid(), name: seasonName.trim(), createdAt: new Date().toISOString(), createdBy: currentUser?.fullName || 'Admin' };
+    // If rules do not grant this admin transaction, fail without resetting any data.
+    await get(ref(db));
+    const result = await runTransaction(ref(db), root => archiveSeason(root, season), { applyLocally: false });
+    if (!result.committed) throw new Error('Chưa thể lưu trọn vẹn mùa giải. Điểm hiện tại được giữ nguyên.');
     setSeasonName(''); setConfirmReset(false); setShowAdmin(false);
-  };
+  });
 
   /* ──────────────────── INPUT STYLE ──────────────────── */
   const inputSt = {
@@ -255,6 +246,7 @@ export default function Gamification() {
       background:'#09090b', color:'#e4e4e7', fontFamily:"'Segoe UI', system-ui, sans-serif", position:'relative' }}
     >
 
+      {adminError && <div role="alert" className="p-4 text-red-300">{adminError}</div>}
       {/* ambient bg glow */}
       <div aria-hidden style={{ position:'absolute', inset:0, pointerEvents:'none', overflow:'hidden', zIndex:0 }}>
         <div style={{ position:'absolute', top:'-20%', left:'-10%', width:520, height:520, borderRadius:'50%',
@@ -500,9 +492,9 @@ export default function Gamification() {
               </div>
             ) : (
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))', gap:12 }}>
-                {titles.map(t => {
+                {titles.filter(t => !t.archived).map(t => {
                   const holders = Object.entries(awards)
-                    .filter(([, tids]) => tids.includes(t.id))
+                    .filter(([, tids]) => toArr(tids).includes(t.id))
                     .map(([uid]) => activeMembers.find(m => m.id === uid))
                     .filter(Boolean);
                   return (
@@ -661,8 +653,8 @@ export default function Gamification() {
                 <div style={{ display:'flex', flexDirection:'column', gap:5, maxHeight:200, overflowY:'auto' }}>
                   {Object.entries(awards).flatMap(([uid, tids]) => {
                     const m = activeMembers.find(x=>x.id===uid);
-                    if (!m || !tids?.length) return [];
-                    return tids.map(tid => {
+                    if (!m || !toArr(tids).length) return [];
+                    return toArr(tids).map(tid => {
                       const t = titles.find(x=>x.id===tid);
                       if (!t) return null;
                       return (
@@ -682,7 +674,7 @@ export default function Gamification() {
                       );
                     }).filter(Boolean);
                   })}
-                  {Object.values(awards).every(a=>!a?.length) && (
+                  {Object.values(awards).every(a=>!toArr(a).length) && (
                     <div style={{ fontSize:12, color:'#27272a', textAlign:'center', padding:'14px 0' }}>Chưa có danh hiệu nào được trao</div>
                   )}
                 </div>
@@ -730,7 +722,7 @@ export default function Gamification() {
                   DANH HIỆU HIỆN CÓ ({titles.length})
                 </div>
                 <div style={{ display:'flex', flexDirection:'column', gap:5, maxHeight:220, overflowY:'auto' }}>
-                  {titles.map(t => (
+                  {titles.filter(t => !t.archived).map(t => (
                     <div key={t.id} style={{ display:'flex', alignItems:'center', gap:9, padding:'9px 12px', borderRadius:8,
                       background:`${t.color}06`, border:`1px solid ${t.color}28` }}>
                       <span style={{ fontSize:18 }}>{t.icon}</span>
@@ -779,7 +771,7 @@ export default function Gamification() {
                       style={{ flex:1, padding:'10px', borderRadius:8, background:'rgba(255,255,255,0.04)', border:'1px solid #27272a', color:'#71717a', fontSize:12, fontWeight:800, cursor:'pointer' }}>
                       Huỷ
                     </button>
-                    <button onClick={handleResetSeason}
+                    <button onClick={handleResetSeason} disabled={adminBusy}
                       style={{ flex:2, padding:'10px', borderRadius:8, background:'rgba(239,68,68,0.15)', border:'1px solid rgba(239,68,68,0.45)', color:'#f87171', fontSize:12, fontWeight:900, cursor:'pointer' }}>
                       ✓ Xác nhận Reset
                     </button>
@@ -813,4 +805,3 @@ export default function Gamification() {
     </motion.div>
   );
 }
-

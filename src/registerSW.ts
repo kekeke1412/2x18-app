@@ -2,6 +2,7 @@
 // Import file này một lần trong src/main.jsx
 
 export function registerServiceWorker() {
+  if (import.meta.env.DEV) return;
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker
@@ -12,7 +13,8 @@ export function registerServiceWorker() {
           // Lắng nghe message NAVIGATE từ SW (khi click notification)
           navigator.serviceWorker.addEventListener('message', (event) => {
             if (event.data?.type === 'NAVIGATE' && event.data.url) {
-              window.location.href = event.data.url;
+              const target = new URL(event.data.url, window.location.origin);
+              if (target.origin === window.location.origin) window.location.href = target.href;
             }
           });
         })

@@ -36,14 +36,13 @@ export default function Profile() {
   const complete = isProfileComplete(currentUser);
   const initials = getInitials(currentUser?.fullName);
   const rl = roleLabel(currentUser?.role);
-  const activeMembers = members?.filter(m => m.status !== 'pending') || [];
+  const activeMembers = members?.filter(m => m.status === 'active') || [];
 
-  const handleSaveProfile = () => {
-    updateProfile(profileState);
-    setIsEditing(false);
+  const handleSaveProfile = async () => {
+    if (await updateProfile(profileState)) setIsEditing(false);
   };
   const handleSaveGrades = (updatedGrades) => {
-    syncGrades(currentUser.id, updatedGrades);
+    return syncGrades(currentUser.id, updatedGrades);
   };
   const handleCancelEdit = () => {
     setProfileState({ ...currentUser });

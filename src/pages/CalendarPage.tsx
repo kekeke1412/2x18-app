@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight, Plus, X, Clock, MapPin, Users, AlignLeft, Ex
 import { useApp } from '../context/AppContext';
 import { createCalendarEvent } from '../services/googleApi';
 import { requestNotificationPermission, scheduleReminder, cancelReminder, syncAllReminders } from '../services/notificationService';
+import { withGoogleAuthorization } from '../services/googleErrors.js';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const REMINDER_OPTIONS = [
@@ -133,14 +134,7 @@ export default function CalendarPage() {
 
   const allEvents = useMemo(() => [...calEvents, ...autoEvents], [calEvents, autoEvents]);
 
-  // ── Xin quyền thông báo + Sync reminders khi events thay đổi ─────
-  useEffect(() => {
-    requestNotificationPermission();
-  }, []);
-
-  useEffect(() => {
-    syncAllReminders(allEvents.filter(e => e.reminderMinutes > 0));
-  }, [allEvents]); // eslint-disable-line
+  // Shared reminders are managed by AppProvider, including when this page is closed.
 
   // ── Real-time clock (updates every 30s) ──────────────────────────────────
   useEffect(() => {
@@ -202,16 +196,15 @@ export default function CalendarPage() {
   };
   const saveForm = async (syncToGoogle = false) => {
     if (!form.title?.trim() || !form.date) return;
-    const ev = { ...form, title: form.title.trim() };
-    if (modal.mode==='new') addEvent({ ...ev, id: ++nextId.current });
-    else editEvent(ev);
+    let ev = { ...form, title: form.title.trim() };
+    const saved = modal.mode === 'new' ? await addEvent(ev) : await editEvent(ev);
+    if (!saved) return;
+    if (modal.mode === 'new') ev = saved;
 
     if (syncToGoogle) {
       setIsSyncing(true);
       try {
-        const token = await requireGoogleAuth();
-        if (token) {
-          const res = await createCalendarEvent(token, {
+          const res = await withGoogleAuthorization(requireGoogleAuth, token => createCalendarEvent(token, {
             title: ev.title,
             description: ev.desc || '',
             date: ev.date,
@@ -219,7 +212,8 @@ export default function CalendarPage() {
             endTime: ev.endTime || '',
             createMeetLink: false,
             reminderMinutes: ev.reminderMinutes || 0,
-          });
+          }));
+        if (res) {
           toast(`Đã đồng bộ lên Google Calendar! ✅`, 'success');
           if (res.htmlLink) window.open(res.htmlLink, '_blank');
         }
@@ -730,16 +724,15 @@ function SyncGCalButton({ ev, requireGoogleAuth, toast }) {
     e.stopPropagation();
     setSyncing(true);
     try {
-      const token = await requireGoogleAuth();
-      if (!token) { setSyncing(false); return; }
-      const res = await createCalendarEvent(token, {
+      const res = await withGoogleAuthorization(requireGoogleAuth, token => createCalendarEvent(token, {
         title: ev.title,
         description: ev.desc || ev.location || '',
         date: ev.date,
         startTime: ev.startTime || '08:00',
         endTime:   ev.endTime   || '',
         createMeetLink: false,
-      });
+      }));
+      if (!res) { setSyncing(false); return; }
       toast('Đã đẩy lên Google Calendar! ✅', 'success');
       setSynced(true);
       if (res.htmlLink) window.open(res.htmlLink, '_blank');
@@ -765,4 +758,3 @@ function SyncGCalButton({ ev, requireGoogleAuth, toast }) {
     </button>
   );
 }
-

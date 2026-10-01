@@ -21,13 +21,12 @@ function MemberDetail({ member, onBack, canEdit }) {
 
   useEffect(() => { setProfile({ ...member }); }, [member]);
 
-  const handleSaveProfile = () => {
-    updateMemberProfile(member.id, profile);
-    setIsEditing(false);
+  const handleSaveProfile = async () => {
+    if (await updateMemberProfile(member.id, profile)) setIsEditing(false);
   };
 
   const handleSaveGrades = (updatedGrades) => {
-    syncGrades(member.id, updatedGrades);
+    return syncGrades(member.id, updatedGrades);
   };
 
   const rl = roleLabel(member.role);
@@ -597,4 +596,3 @@ export function MembersTab() {
     </div>
   );
 }
-

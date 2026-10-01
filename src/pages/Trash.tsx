@@ -19,6 +19,8 @@ const TYPE_META = {
   attendanceSession:{ label:'Buổi họp nhóm', Icon:Calendar,      color:'text-cyan-400',  bg:'bg-cyan-500/10'  },
   vote:             { label:'Bình chọn',      Icon:ClipboardList, color:'text-pink-400',  bg:'bg-pink-500/10'  },
   report:           { label:'Báo cáo',        Icon:FileText,      color:'text-teal-400',  bg:'bg-teal-500/10'  },
+  vocabSet:         { label:'Học phần', Icon:BookOpen, color:'text-blue-400', bg:'bg-blue-500/10' },
+  roadmapYear:      { label:'Năm học', Icon:Map, color:'text-orange-400', bg:'bg-orange-500/10' },
 };
 
 function getItemName(item) {
@@ -31,6 +33,8 @@ function getItemName(item) {
     case 'vote':              return item.data?.title        || '(Không tên)';
     case 'attendanceSession': return item.data?.sessionTitle || '(Không tên)';
     case 'report':            return item.data?.title        || '(Không tên)';
+    case 'vocabSet':          return item.data?.title || item.data?.name || 'Học phần';
+    case 'roadmapYear':       return `Năm ${item.data?.year}`;
     default:                  return '(Mục không rõ)';
   }
 }
@@ -59,6 +63,7 @@ function formatDate(iso) {
 
 // ── Confirm Modal ──────────────────────────────────────────────────────────
 function ConfirmModal({ msg, onConfirm, onClose }) {
+  const [busy, setBusy] = useState(false);
   return (
     <motion.div 
       initial={{ opacity: 0 }}
@@ -88,9 +93,9 @@ function ConfirmModal({ msg, onConfirm, onClose }) {
             className="flex-1 py-2 border border-gray-700 rounded-xl text-sm text-gray-400 hover:bg-[#252525]">
             Hủy
           </button>
-          <button onClick={()=>{onConfirm();onClose();}}
+          <button disabled={busy} onClick={async () => { setBusy(true); const saved = await onConfirm(); setBusy(false); if (saved !== false) onClose(); }}
             className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-sm rounded-xl">
-            Xác nhận
+            {busy ? 'Đang xử lý…' : 'Xác nhận'}
           </button>
         </div>
       </motion.div>
@@ -168,7 +173,7 @@ function TrashRow({ item, onRestore, onDelete }) {
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────
-const ALL_TYPES = ['task','doc','subjectTask','event','roadmapEvent','vote','attendanceSession','report'];
+const ALL_TYPES = Object.keys(TYPE_META);
 
 export default function Trash() {
   const { isCore, restoreFromTrash, permanentDeleteTrash, emptyTrash } = useApp();
@@ -189,7 +194,7 @@ export default function Trash() {
     );
   }
 
-  const items = (trash || []).slice().reverse(); // newest first
+  const items = (trash || []).slice().sort((a, b) => String(b.deletedAt || '').localeCompare(String(a.deletedAt || '')));
   const filtered = filter==='all' ? items : items.filter(i=>i.type===filter);
 
   const filterTabs = [
@@ -279,4 +284,3 @@ export default function Trash() {
     </div>
   );
 }
-

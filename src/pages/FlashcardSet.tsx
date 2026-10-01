@@ -13,6 +13,8 @@ import { suggestDefinitions } from '../services/vocabService';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { useVocab, useUserVocab, useQuizHistory } from '../hooks/useDomainQueries';
 
+const EMPTY_SET = Object.freeze({ title: '', description: '', terms: [] });
+
 export default function FlashcardSet() {
   const { setId } = useParams();
   const navigate = useNavigate();
@@ -24,7 +26,7 @@ export default function FlashcardSet() {
   const { data: userVocab = {} } = useUserVocab();
   const { data: quizHistory = {} } = useQuizHistory();
 
-  const set = vocab[setId] || { title: '', description: '', terms: [] };
+  const set = vocab[setId] || EMPTY_SET;
   // progress is now { wordIndex: level }
   const progress = useMemo(() => userVocab[currentUser?.id]?.[setId] || {}, [userVocab, currentUser, setId]);
   const masteredCount = useMemo(() => Object.values(progress).filter(lv => Number(lv) === 6).length, [progress]);
@@ -95,11 +97,9 @@ export default function FlashcardSet() {
     }
   }, [set, isEditing]);
 
-  if (!set) return <div className="p-10 text-center text-gray-500 font-bold">Học phần không tồn tại.</div>;
 
-  const handleSave = () => {
-    editVocabSet({ ...set, terms: cards, exampleSource, description, title });
-    setIsEditing(false);
+  const handleSave = async () => {
+    if (await editVocabSet({ ...set, terms: cards, exampleSource, description, title })) setIsEditing(false);
   };
   const handleAddCard = () => { setCards([...cards, { word: '', definition: '', type: 'n', level: 'B1', ipa: '', example: '', exampleVi: '' }]); };
   const handleRemoveCard = (idx) => {
@@ -317,6 +317,8 @@ export default function FlashcardSet() {
       return () => window.removeEventListener('keydown', handleKeyDown);
     }
   }, [activeTab, quizStarted, quizComplete, quizFeedback, quizIndex, quizQuestions]);
+
+  if (!vocab[setId]) return <div className="p-10 text-center text-gray-500 font-bold">Học phần không tồn tại.</div>;
 
   return (
     <motion.div

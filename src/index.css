@@ -1,4 +1,11 @@
 @import "tailwindcss";
+
+/* Preserve the existing readable typography without injecting a style element at runtime. */
+html { font-size: 17px; }
+.text-xs { font-size: 0.85rem; }
+.text-sm { font-size: 0.95rem; }
+.text-base { font-size: 1.05rem; }
+body { line-height: 1.6; letter-spacing: 0.012em; }
 /* Designed and Developed by Phạm Thiên - 2X18 */
 
 /* ── Custom Scrollbar ── */
@@ -233,5 +240,4 @@ svg.cursor-pointer:hover {
   transform: scale(1.35) rotate(18deg) !important;
   filter: drop-shadow(0 0 4px rgba(234, 179, 8, 0.5)) !important;
 }
-
 

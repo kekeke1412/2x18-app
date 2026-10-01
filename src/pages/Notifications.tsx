@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotifications } from '../hooks/useDomainQueries';
+import { showNotification } from '../services/notificationService';
 
 const typeIcon = {
   task:     { icon: Clipboard,  color: 'text-red-400',    bg: 'bg-red-500/10',    label: 'Task'       },
@@ -34,18 +35,15 @@ function timeAgo(iso) {
 }
 
 function NotifPermissionBanner() {
-    const perm = ('Notification' in window) ? window.Notification.permission : 'unsupported';
-    const [granted, setGranted] = useState(perm === 'granted');
+    const [perm, setPermission] = useState(('Notification' in window) ? window.Notification.permission : 'unsupported');
+    const granted = perm === 'granted';
   
     const request = async () => {
       if (!('Notification' in window)) return;
       const r = await window.Notification.requestPermission();
-      setGranted(r === 'granted');
+      setPermission(r);
       if (r === 'granted') {
-        new window.Notification('2X18 — Đã bật thông báo!', {
-        body: 'Bạn sẽ nhận thông báo khi có hoạt động mới.',
-        icon: '/icon-192.png',
-      });
+        await showNotification('2X18 — Đã bật thông báo!', 'Bạn sẽ nhận thông báo khi ứng dụng đang mở.');
     }
   };
 
@@ -68,7 +66,7 @@ function NotifPermissionBanner() {
         ) : (
           <>
             <p className="text-xs font-bold text-blue-300">Bật thông báo thiết bị</p>
-            <p className="text-[10px] text-gray-500 mt-0.5">Nhận thông báo tức thì: task mới, bình chọn, buổi họp — ngay trên điện thoại.</p>
+            <p className="text-[10px] text-gray-500 mt-0.5">Nhận thông báo task, bình chọn và buổi họp khi ứng dụng đang mở. Khi đóng ứng dụng, dùng nhắc nhở của Google Calendar.</p>
             <button onClick={request}
               className="mt-2 px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold rounded-lg transition-all">
               Cho phép thông báo
@@ -211,4 +209,3 @@ export default function Notifications() {
     </motion.div>
   );
 }
-

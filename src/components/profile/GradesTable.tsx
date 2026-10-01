@@ -93,7 +93,7 @@ export function GradesTable({ profile, grades, onSave, canEdit }) {
     }));
   };
 
-  const handleSave = () => { onSave(localGrades); setIsEditing(false); };
+  const handleSave = async () => { if (await onSave(localGrades) !== false) setIsEditing(false); };
 
   const gpaStats = useMemo(() => calcGpaStats(localGrades), [localGrades]);
 
@@ -301,4 +301,3 @@ export function GradesTable({ profile, grades, onSave, canEdit }) {
     </div>
   );
 }
-

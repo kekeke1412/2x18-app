@@ -1,7 +1,7 @@
 // @ts-nocheck
 // src/App.jsx
 /* __AUTHOR__: Phạm Thiên - 2X18 */
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import {
   BrowserRouter as Router, Routes, Route, Navigate,
   Link, useLocation, useNavigate
@@ -16,21 +16,21 @@ import {
 import { AppProvider, useApp } from './context/AppContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import UserAvatar from './components/UserAvatar';
-import Auth from './pages/Auth';
-import Profile from './pages/Profile';
-import Subjects from './pages/Subjects';
-import Dashboard from './pages/Dashboard';
-import Tasks from './pages/Tasks';
-import Roadmap from './pages/Roadmap';
-import CalendarPage from './pages/CalendarPage';
-import Voting from './pages/Voting';
-import Notifications from './pages/Notifications';
-import Attendance from './pages/Attendance';
-import Gamification from './pages/Gamification';
-import Trash from './pages/Trash';
-import Reports from './pages/Reports';
-import Vocab from './pages/Vocab';
-import FlashcardSet from './pages/FlashcardSet';
+const Auth = lazy(() => import('./pages/Auth'));
+const Profile = lazy(() => import('./pages/Profile'));
+const Subjects = lazy(() => import('./pages/Subjects'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Tasks = lazy(() => import('./pages/Tasks'));
+const Roadmap = lazy(() => import('./pages/Roadmap'));
+const CalendarPage = lazy(() => import('./pages/CalendarPage'));
+const Voting = lazy(() => import('./pages/Voting'));
+const Notifications = lazy(() => import('./pages/Notifications'));
+const Attendance = lazy(() => import('./pages/Attendance'));
+const Gamification = lazy(() => import('./pages/Gamification'));
+const Trash = lazy(() => import('./pages/Trash'));
+const Reports = lazy(() => import('./pages/Reports'));
+const Vocab = lazy(() => import('./pages/Vocab'));
+const FlashcardSet = lazy(() => import('./pages/FlashcardSet'));
 import AIChatbot from './components/AIChatbot';
 
 // ── Toast ──────────────────────────────────────────────────────────────────
@@ -491,6 +491,7 @@ function AppLayout() {
 
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           <ErrorBoundary>
+            <Suspense fallback={<LoadingScreen />}>
             <AnimatePresence mode="wait">
               <Routes location={location} key={location.pathname}>
                 <Route path="/dashboard" element={<PageTransition><Dashboard /></PageTransition>} />
@@ -510,6 +511,7 @@ function AppLayout() {
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </AnimatePresence>
+            </Suspense>
           </ErrorBoundary>
         </div>
       </main>
@@ -526,7 +528,7 @@ function AuthWrapper() {
   const { currentUser, isLoading } = useApp();
   if (isLoading) return <LoadingScreen />;
   if (currentUser) return <Navigate to="/dashboard" replace />;
-  return <Auth />;
+  return <Suspense fallback={<LoadingScreen />}><Auth /><ToastContainer /></Suspense>;
 }
 
 export default function App() {
@@ -541,4 +543,3 @@ export default function App() {
     </AppProvider>
   );
 }
-

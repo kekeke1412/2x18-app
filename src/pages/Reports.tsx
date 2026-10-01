@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   FileText, ExternalLink, Plus, X, Trash2, CheckCircle, 
@@ -11,6 +11,7 @@ import { reviewReport, classifyReport, groupReportsByTopic } from '../services/a
 import { useReports } from '../hooks/useDomainQueries';
 import { motion, AnimatePresence } from 'framer-motion';
 import UserAvatar from '../components/UserAvatar';
+import { safeDocumentUrl } from '../services/reportClassification.js';
 
 // ── Huy hiệu trạng thái ──────────────────────────────────────────────────────
 function StatusBadge({ status, isOwn }) {
@@ -37,6 +38,8 @@ function StatusBadge({ status, isOwn }) {
 
 // ── Card tài liệu ─────────────────────────────────────────────────────────────
 function ReportCard({ r, getMemberById, isCore, isSuperAdmin, currentUser, approveReport, updateReport, deleteReport, onEdit }) {
+  const { toast } = useApp();
+  const [isApplying, setIsApplying] = useState(false);
   const author = getMemberById(r.authorId);
   const isPending = r.status === 'pending';
   const isOwn = r.authorId === currentUser?.id;
@@ -54,10 +57,10 @@ function ReportCard({ r, getMemberById, isCore, isSuperAdmin, currentUser, appro
     if (isAiReviewLoading) return;
     setIsAiReviewLoading(true);
     try {
-      const res = await reviewReport(r.title, author?.fullName || 'Thành viên');
+      const res = await reviewReport(`${r.title}\n${r.description || ''}`, author?.fullName || 'Thành viên');
       setAiReviewResult(res);
     } catch (err) {
-      console.error(err);
+      toast(err.message || 'Không đánh giá được tài liệu.', 'error');
     } finally {
       setIsAiReviewLoading(false);
     }
@@ -67,22 +70,25 @@ function ReportCard({ r, getMemberById, isCore, isSuperAdmin, currentUser, appro
     if (isAiClassifyLoading) return;
     setIsAiClassifyLoading(true);
     try {
-      const res = await classifyReport(r.title, r.link || '');
+      const res = await classifyReport(r.title, r.description || '');
       setAiClassifyResult(res);
     } catch (err) {
-      console.error(err);
+      toast(err.message || 'Không phân loại được tài liệu.', 'error');
     } finally {
       setIsAiClassifyLoading(false);
     }
   };
 
-  const handleApplyClassification = (targetType, tags) => {
-    if (!updateReport) return;
-    updateReport(r.id, { 
+  const handleApplyClassification = async (targetType, tags) => {
+    if (!updateReport || isApplying) return;
+    setIsApplying(true);
+    const saved = await updateReport(r.id, {
       type: targetType, 
-      tags: tags || r.tags || [] 
+      tags: [...new Set([...(r.tags || []), ...(tags || [])])],
+      classification: { ...aiClassifyResult, classifiedAt: new Date().toISOString() },
     });
-    setAiClassifyResult(null);
+    setIsApplying(false);
+    if (saved) setAiClassifyResult(null);
   };
 
   const typeLabels = {
@@ -128,8 +134,8 @@ function ReportCard({ r, getMemberById, isCore, isSuperAdmin, currentUser, appro
             </div>
           )}
 
-          {r.link ? (
-            <a href={r.link} target="_blank" rel="noreferrer"
+          {safeDocumentUrl(r.link) ? (
+            <a href={safeDocumentUrl(r.link)} target="_blank" rel="noreferrer"
                className="inline-flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 mt-2 transition-colors">
               <ExternalLink className="w-3.5 h-3.5" /> Mở tài liệu
             </a>
@@ -256,12 +262,13 @@ function ReportCard({ r, getMemberById, isCore, isSuperAdmin, currentUser, appro
             )}
 
             <div className="flex items-center justify-between pt-2 border-t border-purple-500/20 mt-1">
-              {canEdit && aiClassifyResult.type !== r.type ? (
+              {canEdit ? (
                 <button
+                  disabled={isApplying}
                   onClick={() => handleApplyClassification(aiClassifyResult.type, aiClassifyResult.tags)}
                   className="px-2.5 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-[11px] font-bold transition-all shadow-md"
                 >
-                  Chuyển sang "{aiClassifyResult.typeName}"
+                  {isApplying ? 'Đang lưu…' : `Áp dụng: ${aiClassifyResult.typeName}`}
                 </button>
               ) : (
                 <span />
@@ -336,6 +343,7 @@ export default function Reports() {
   const [form, setForm]                   = useState({ title: '', link: '', type: 'event', tags: [] });
   const [selectedFile, setSelectedFile]   = useState(null);
   const [isUploading, setIsUploading]     = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [err, setErr]                     = useState('');
   const [isAddClassifying, setIsAddClassifying] = useState(false);
   const [addAiSuggestion, setAddAiSuggestion]   = useState(null);
@@ -346,6 +354,12 @@ export default function Reports() {
   const [editErr, setEditErr]                   = useState('');
   const [isEditClassifying, setIsEditClassifying] = useState(false);
   const [editAiSuggestion, setEditAiSuggestion] = useState(null);
+  const latestForm = useRef(form);
+  const latestEditForm = useRef(editForm);
+  latestForm.current = form;
+  latestEditForm.current = editForm;
+  useEffect(() => { setAddAiSuggestion(null); }, [form.title, form.description]);
+  useEffect(() => { setEditAiSuggestion(null); }, [editForm.title, editForm.description]);
 
   // AI Thematic Clustering state (Gom nhóm theo chủ đề)
   const [isGroupedByTopic, setIsGroupedByTopic]         = useState(false);
@@ -360,7 +374,7 @@ export default function Reports() {
     setIsGroupedByTopic(false);
     setTopicClusters([]);
     setSelectedTopicFilter('all');
-  }, [activeTab]);
+  }, [activeTab, reports, search]);
 
   // ── Lọc dữ liệu ──────────────────────────────────────────────────────────────
   const { myPending, otherPending, approved, pendingCount } = useMemo(() => {
@@ -399,7 +413,8 @@ export default function Reports() {
     if (!form.title.trim() || isAddClassifying) return;
     setIsAddClassifying(true);
     try {
-      const res = await classifyReport(form.title, form.link || selectedFile?.name || '');
+      const res = await classifyReport(form.title, form.description || selectedFile?.name || '');
+      if (latestForm.current.title !== form.title || latestForm.current.description !== form.description) return;
       setAddAiSuggestion(res);
       setForm(f => ({
         ...f,
@@ -407,7 +422,7 @@ export default function Reports() {
         tags: res.tags || []
       }));
     } catch (error) {
-      console.error(error);
+      setErr(error.message);
     } finally {
       setIsAddClassifying(false);
     }
@@ -415,8 +430,9 @@ export default function Reports() {
 
   // ── Xử lý thêm ───────────────────────────────────────────────────────────────
   const handleAdd = async () => {
+    if (isSaving || isUploading || isAddClassifying) return;
     if (!form.title.trim()) return setErr('Vui lòng nhập tên tài liệu');
-    if (!selectedFile && (!form.link.trim() || !form.link.startsWith('http')))
+    if (!selectedFile && !safeDocumentUrl(form.link.trim()))
       return setErr('Vui lòng chọn file hoặc nhập link hợp lệ');
     
     setErr('');
@@ -428,11 +444,11 @@ export default function Reports() {
         let token = await requireGoogleAuth();
         if (!token) { setIsUploading(false); return; }
         try {
-          finalLink = await uploadToDrive(token, selectedFile);
+          finalLink = await uploadToDrive(token, selectedFile, '2X18_Reports', message => toast(message, 'info'));
         } catch (uploadErr) {
           if (uploadErr.message === 'EXPIRED_TOKEN') {
             const newToken = await requireGoogleAuth(true);
-            if (newToken) finalLink = await uploadToDrive(newToken, selectedFile);
+            if (newToken) finalLink = await uploadToDrive(newToken, selectedFile, '2X18_Reports', message => toast(message, 'info'));
             else throw new Error('Phiên Google hết hạn. Vui lòng đăng nhập lại.');
           } else throw uploadErr;
         }
@@ -443,14 +459,19 @@ export default function Reports() {
       setIsUploading(false);
     }
 
-    addReport({
+    setIsSaving(true);
+    const saved = await addReport({
       title:    form.title.trim(),
       link:     finalLink,
       type:     form.type || activeTab,
       tags:     form.tags || (addAiSuggestion?.tags || []),
       status:   canModerate ? 'approved' : 'pending',
       authorId: currentUser?.id,
+      description: form.description || '',
+      ...(addAiSuggestion ? { classification: { ...addAiSuggestion, classifiedAt: new Date().toISOString() } } : {}),
     });
+    setIsSaving(false);
+    if (!saved) { setForm(f => ({ ...f, link: finalLink })); setSelectedFile(null); return setErr('Chưa lưu được báo cáo. Nội dung được giữ lại để thử lại.'); }
 
     setShowModal(false);
     setForm({ title: '', link: '', type: activeTab, tags: [] });
@@ -466,30 +487,39 @@ export default function Reports() {
       link: report.link || '',
       type: report.type || activeTab,
       tags: Array.isArray(report.tags) ? [...report.tags] : [],
+      description: report.description || '',
     });
     setEditErr('');
     setEditAiSuggestion(null);
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
+    if (isSaving || isEditClassifying) return;
     if (!editForm.title.trim()) {
       return setEditErr('Vui lòng nhập tên tài liệu');
     }
     setEditErr('');
-    updateReport(editingReport.id, {
+    if (editForm.link.trim() && !safeDocumentUrl(editForm.link.trim())) return setEditErr('Liên kết phải dùng http hoặc https.');
+    setIsSaving(true);
+    const saved = await updateReport(editingReport.id, {
       title: editForm.title.trim(),
       link: editForm.link.trim(),
       type: editForm.type,
       tags: editForm.tags || [],
+      description: editForm.description || '',
+      ...(editAiSuggestion ? { classification: { ...editAiSuggestion, classifiedAt: new Date().toISOString() } } : {}),
     });
-    setEditingReport(null);
+    setIsSaving(false);
+    if (saved) setEditingReport(null);
+    else setEditErr('Chưa lưu được thay đổi. Vui lòng thử lại.');
   };
 
   const handleAiClassifyEdit = async () => {
     if (!editForm.title.trim() || isEditClassifying) return;
     setIsEditClassifying(true);
     try {
-      const res = await classifyReport(editForm.title, editForm.link);
+      const res = await classifyReport(editForm.title, editForm.description || '');
+      if (latestEditForm.current.title !== editForm.title || latestEditForm.current.description !== editForm.description) return;
       setEditAiSuggestion(res);
       setEditForm(f => ({
         ...f,
@@ -497,7 +527,7 @@ export default function Reports() {
         tags: Array.from(new Set([...(f.tags || []), ...(res.tags || [])]))
       }));
     } catch (error) {
-      console.error(error);
+      setEditErr(error.message);
     } finally {
       setIsEditClassifying(false);
     }
@@ -519,7 +549,7 @@ export default function Reports() {
       }
     } catch (err) {
       console.error(err);
-      toast('Lỗi khi phân loại chủ đề.', 'error');
+      toast(err.message || 'Lỗi khi phân loại chủ đề.', 'error');
     } finally {
       setIsClustering(false);
     }
@@ -939,7 +969,7 @@ export default function Reports() {
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Tài liệu đính kèm <span className="text-red-500">*</span></label>
                   <div className="relative">
-                    <input type="file" disabled={isUploading}
+                    <input type="file" disabled={isUploading || isSaving}
                       onChange={e => {
                         const file = e.target.files[0];
                         setSelectedFile(file);
@@ -965,7 +995,7 @@ export default function Reports() {
                   </div>
 
                   <input
-                    type="url" value={form.link} disabled={isUploading}
+                    type="url" value={form.link} disabled={isUploading || isSaving}
                     onChange={e => { setForm({...form, link: e.target.value}); setSelectedFile(null); }}
                     placeholder="https://docs.google.com/..."
                     className="w-full h-10 px-4 bg-[#121212] border border-gray-700 rounded-xl text-sm text-white placeholder:text-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
@@ -973,6 +1003,11 @@ export default function Reports() {
                 </div>
 
                 {/* Phân loại & AI Button */}
+                <div className="space-y-1.5">
+                  <label htmlFor="report-description" className="text-xs font-bold text-gray-400">Mô tả hoặc trích đoạn cho DeepSeek</label>
+                  <textarea id="report-description" maxLength={6000} value={form.description || ''} onChange={e => setForm({ ...form, description: e.target.value })} rows={3} className="w-full rounded-xl border border-gray-700 bg-[#121212] p-3 text-sm text-white" placeholder="Tóm tắt nội dung để AI phân loại chính xác hơn…" />
+                  <p className="text-xs text-gray-500">AI dùng tiêu đề và mô tả bạn nhập; không đọc nội dung file từ đường dẫn. Nội dung này sẽ được gửi tới DeepSeek khi bấm phân loại.</p>
+                </div>
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Phân loại danh mục</label>
@@ -1044,7 +1079,7 @@ export default function Reports() {
                   className="px-5 h-10 rounded-xl text-sm font-bold text-gray-400 hover:text-white hover:bg-gray-800 transition-colors btn-active">
                   Hủy
                 </button>
-                <button onClick={handleAdd} disabled={isUploading}
+                <button onClick={handleAdd} disabled={isUploading || isSaving}
                   className="px-6 h-10 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-all flex items-center gap-2 btn-active shadow-lg shadow-blue-600/20">
                   {isUploading ? <><Clock className="w-4 h-4 animate-spin" /> Đang tải lên...</> : 'Đăng tài liệu'}
                 </button>
@@ -1150,6 +1185,11 @@ export default function Reports() {
                   </div>
                 </div>
 
+                <div className="space-y-1.5">
+                  <label htmlFor="edit-report-description" className="text-xs font-bold text-gray-400">Mô tả hoặc trích đoạn cho DeepSeek</label>
+                  <textarea id="edit-report-description" maxLength={6000} value={editForm.description || ''} onChange={e => setEditForm({ ...editForm, description: e.target.value })} rows={3} className="w-full rounded-xl border border-gray-700 bg-[#121212] p-3 text-sm text-white" />
+                  <p className="text-xs text-gray-500">AI chỉ dùng tiêu đề và mô tả, không đọc file từ liên kết.</p>
+                </div>
                 {/* AI Suggestion preview in edit */}
                 {editAiSuggestion && (
                   <div className="p-3 bg-purple-950/30 border border-purple-500/30 rounded-xl space-y-1.5 animate-fadeIn">
@@ -1204,7 +1244,7 @@ export default function Reports() {
                   className="px-5 h-10 rounded-xl text-sm font-bold text-gray-400 hover:text-white hover:bg-gray-800 transition-colors btn-active">
                   Hủy
                 </button>
-                <button onClick={handleSaveEdit}
+                <button onClick={handleSaveEdit} disabled={isSaving || isEditClassifying}
                   className="px-6 h-10 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-bold transition-all flex items-center gap-2 btn-active shadow-lg shadow-blue-600/20">
                   Lưu thay đổi
                 </button>
@@ -1216,4 +1256,3 @@ export default function Reports() {
     </motion.div>
   );
 }
-

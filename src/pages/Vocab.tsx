@@ -37,13 +37,14 @@ export default function Vocab() {
     s.description?.toLowerCase().includes(searchTerm.toLowerCase())
   ).sort((a, b) => (a.title || '').localeCompare(b.title || '', undefined, { numeric: true, sensitivity: 'base' }));
 
-  const handleAddSet = () => {
+  const handleAddSet = async () => {
     if (!newSet.title.trim()) return;
-    addVocabSet({
+    const saved = await addVocabSet({
       ...newSet,
       exampleSource, // Persist the AI source to DB
       terms: [] // Initially empty
     });
+    if (!saved) return;
     setNewSet({ title: '', description: '', terms: [] });
     setExampleSource('');
     setShowAddModal(false);
@@ -452,4 +453,3 @@ function VocabSetCard({ set, onDelete, isOwner, progress = {} }) {
       </motion.div>
   );
 }
-

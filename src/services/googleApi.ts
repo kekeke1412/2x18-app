@@ -1,21 +1,24 @@
 // @ts-nocheck
 // src/services/googleApi.js
+import { checkGoogleResponse } from './googleErrors.js';
 
 /**
  * Tạo sự kiện trên Google Calendar, có tùy chọn sinh link Google Meet.
  */
 export async function createCalendarEvent(token, { title, description, date, startTime, endTime, createMeetLink, reminderMinutes }) {
   // Định dạng ISO 8601 string
-  const startDateTime = new Date(`${date}T${startTime}:00`).toISOString();
+  const startDateTime = new Date(`${date}T${startTime}:00+07:00`).toISOString();
   // Nếu không có endTime, mặc định cộng 1 tiếng
   let endDateTime = '';
   if (endTime) {
-    endDateTime = new Date(`${date}T${endTime}:00`).toISOString();
+    endDateTime = new Date(`${date}T${endTime}:00+07:00`).toISOString();
   } else {
-    const end = new Date(`${date}T${startTime}:00`);
+    const end = new Date(`${date}T${startTime}:00+07:00`);
     end.setHours(end.getHours() + 1);
     endDateTime = end.toISOString();
   }
+
+  if (new Date(endDateTime) <= new Date(startDateTime)) throw new Error('Giờ kết thúc phải sau giờ bắt đầu.');
 
   const event = {
     summary: title,
@@ -52,11 +55,7 @@ export async function createCalendarEvent(token, { title, description, date, sta
     body: JSON.stringify(event)
   });
 
-  if (!response.ok) {
-    if (response.status === 401) throw new Error('EXPIRED_TOKEN');
-    const err = await response.json();
-    throw new Error(err.error?.message || 'Lỗi khi tạo sự kiện Calendar');
-  }
+  await checkGoogleResponse(response, 'Lỗi khi tạo sự kiện Calendar');
 
   const data = await response.json();
   return {
@@ -70,7 +69,7 @@ export async function createCalendarEvent(token, { title, description, date, sta
 /**
  * Upload file lên Google Drive, tự động gom vào thư mục "2X18_Reports"
  */
-export async function uploadToDrive(token, file, folderName = '2X18_Reports') {
+export async function uploadToDrive(token, file, folderName = '2X18_Reports', onWarning = console.warn) {
   // 1. Tìm xem thư mục đã tồn tại chưa
   let folderId = await getOrCreateFolder(token, folderName);
 
@@ -105,18 +104,14 @@ export async function uploadToDrive(token, file, folderName = '2X18_Reports') {
     body: multipartRequestBody
   });
 
-  if (!response.ok) {
-    if (response.status === 401) throw new Error('EXPIRED_TOKEN');
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error?.message || 'Lỗi khi upload file lên Drive');
-  }
+  await checkGoogleResponse(response, 'Lỗi khi upload file lên Drive');
 
   const data = await response.json();
   const fileId = data.id;
 
   // 3. Mở quyền xem cho bất kỳ ai có link (anyone with link can view)
   try {
-    await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
+    const sharing = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -127,63 +122,30 @@ export async function uploadToDrive(token, file, folderName = '2X18_Reports') {
         type: 'anyone'
       })
     });
+    await checkGoogleResponse(sharing, 'Chưa cấp được quyền chia sẻ tài liệu.');
   } catch (err) {
-    console.error('Lỗi khi set quyền Drive:', err);
+    onWarning('File đã tải lên; chưa mở được quyền xem cho nhóm. Hãy cấp quyền chia sẻ trong Google Drive.');
     // Vẫn tiếp tục vì file đã upload xong, chỉ là quyền có thể chưa mở
   }
 
   // WebViewLink là link có thể mở trực tiếp để xem file
-  return data.webViewLink;
+  return data.webViewLink || `https://drive.google.com/file/d/${encodeURIComponent(fileId)}/view`;
 }
 
 /**
  * Tìm thư mục theo tên, nếu không có thì tự tạo mới
  */
 async function getOrCreateFolder(token, folderName) {
-  // Tìm thư mục
-  const query = encodeURIComponent(`mimeType='application/vnd.google-apps.folder' and name='${folderName}' and trashed=false`);
-  try {
-    const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name)`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-
-    if (searchRes.ok) {
-      const data = await searchRes.json();
-      if (data.files && data.files.length > 0) {
-        return data.files[0].id;
-      }
-    } else if (searchRes.status === 401) {
-      throw new Error('EXPIRED_TOKEN');
-    }
-  } catch (err) {
-    if (err.message === 'EXPIRED_TOKEN') throw err;
-    console.warn('Không thể tìm kiếm thư mục Drive:', err);
-  }
-
-  // Không có -> Tạo mới
-  const metadata = {
-    name: folderName,
-    mimeType: 'application/vnd.google-apps.folder'
-  };
-
+  const escapedName = folderName.replaceAll('\\', '\\\\').replaceAll("'", "\\'");
+  const query = encodeURIComponent(`mimeType='application/vnd.google-apps.folder' and name='${escapedName}' and trashed=false`);
+  const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name)`, { headers: { Authorization: `Bearer ${token}` } });
+  await checkGoogleResponse(searchRes, 'Không tìm được thư mục Drive.');
+  const searchData = await searchRes.json();
+  if (searchData.files?.length) return searchData.files[0].id;
   const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(metadata)
+    method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: folderName, mimeType: 'application/vnd.google-apps.folder' })
   });
-
-  if (!createRes.ok) {
-    if (createRes.status === 401) {
-      throw new Error('EXPIRED_TOKEN');
-    }
-    console.warn('Không thể tạo thư mục Drive, sẽ lưu vào thư mục gốc.');
-    return null;
-  }
-
-  const createData = await createRes.json();
-  return createData.id;
+  await checkGoogleResponse(createRes, 'Không tạo được thư mục Drive.');
+  return (await createRes.json()).id;
 }
-

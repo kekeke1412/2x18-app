@@ -83,9 +83,9 @@ export default function Tasks() {
   // Môn đang học của tôi
   const userSubjects = subjectDatabase.filter(s => grades[s.id]?.status === 'Đang học');
 
-  const handleAddTask = () => {
+  const handleAddTask = async () => {
     if (!newTask.code || !newTask.title || !newTask.date) return;
-    ctxAddTask({
+    const saved = await ctxAddTask({
       userId:    newTask.assigneeId || currentUser?.id,
       code:      newTask.code,
       subjectId: newTask.code,
@@ -94,6 +94,7 @@ export default function Tasks() {
       date:      newTask.date,
       type:      newTask.type,
     });
+    if (!saved) return;
     setIsAdding(false);
     setAiSuggestion(null);
     setNewTask({ code:'', title:'', date:'', type:'Bắt buộc', assigneeId: currentUser?.id });
@@ -534,7 +535,7 @@ export default function Tasks() {
               </div>
               <AddDocForm
                 subjectCode={uploadSub.code}
-                onSubmit={f=>{ ctxAddDoc(uploadSub.id,f); setUploadSub(null); }}
+                onSubmit={async f => { const saved = await ctxAddDoc(uploadSub.id, f); if (saved) setUploadSub(null); return saved; }}
                 onClose={()=>setUploadSub(null)}
               />
             </motion.div>
@@ -561,11 +562,11 @@ function AddDocForm({ onSubmit, onClose, subjectCode = 'Tasks' }) {
         const token = await requireGoogleAuth();
         if (!token) return setIsUploading(false);
         try {
-          finalUrl = await uploadToDrive(token, selectedFile, `2X18_${subjectCode}`);
+          finalUrl = await uploadToDrive(token, selectedFile, `2X18_${subjectCode}`, message => toast(message, 'error'));
         } catch (uploadErr) {
           if (uploadErr.message === 'EXPIRED_TOKEN') {
             const newToken = await requireGoogleAuth(true);
-            if (newToken) finalUrl = await uploadToDrive(newToken, selectedFile, `2X18_${subjectCode}`);
+            if (newToken) finalUrl = await uploadToDrive(newToken, selectedFile, `2X18_${subjectCode}`, message => toast(message, 'error'));
             else throw new Error('Phiên Google hết hạn. Vui lòng đăng nhập lại.');
           } else {
             throw uploadErr;
@@ -577,7 +578,10 @@ function AddDocForm({ onSubmit, onClose, subjectCode = 'Tasks' }) {
       }
       setIsUploading(false);
     }
-    onSubmit({ ...form, url: finalUrl });
+    setIsUploading(true);
+    const saved = await onSubmit({ ...form, url: finalUrl });
+    setIsUploading(false);
+    if (!saved) { setForm(f => ({ ...f, url: finalUrl })); setSelectedFile(null); }
   };
 
   return (
@@ -688,4 +692,3 @@ function EmptyState({ icon: IconComponent, msg }) {
     </div>
   );
 }
-
