@@ -1,17 +1,20 @@
+const supportedModels = new Set(['deepseek-flash', 'deepseek-v4-pro', 'deepseek-chat', 'deepseek-reasoner', 'deepseek-v4-flash']);
+const normalizedModel = model => ['deepseek-v4-pro', 'deepseek-reasoner'].includes(model) ? 'deepseek-v4-pro' : 'deepseek-flash';
+
 export function validateRequest(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Nội dung yêu cầu không hợp lệ.');
-  const { systemPrompt, userPrompt, temperature = 0.3, history = [], responseMimeType = 'text/plain', model = 'deepseek-chat' } = body;
+  const { systemPrompt, userPrompt, temperature = 0.3, history = [], responseMimeType = 'text/plain', model = 'deepseek-flash' } = body;
   if (typeof systemPrompt !== 'string' || !systemPrompt.trim() || systemPrompt.length > 24000
     || typeof userPrompt !== 'string' || !userPrompt.trim() || userPrompt.length > 48000
     || !Array.isArray(history) || history.length > 30 || !Number.isFinite(temperature) || temperature < 0 || temperature > 2
     || !['text/plain', 'application/json'].includes(responseMimeType)
-    || !['deepseek-chat', 'deepseek-reasoner', 'deepseek-v4-flash', 'deepseek-v4-pro'].includes(model)) throw new Error('Yêu cầu AI quá dài hoặc không hợp lệ.');
+    || !supportedModels.has(model)) throw new Error('Yêu cầu AI quá dài hoặc không hợp lệ.');
   const messages = history.map(item => {
     if (!item || !['user', 'assistant', 'model'].includes(item.role) || typeof (item.text ?? item.content) !== 'string' || (item.text ?? item.content).length > 24000) throw new Error('Lịch sử trò chuyện không hợp lệ.');
     return { role: item.role === 'user' ? 'user' : 'assistant', content: item.text ?? item.content };
   });
   if (JSON.stringify(body).length > 120000) throw new Error('Yêu cầu AI quá dài. Hãy rút gọn nội dung.');
-  return { systemPrompt, userPrompt, temperature, messages, responseMimeType, model };
+  return { systemPrompt, userPrompt, temperature, messages, responseMimeType, model: normalizedModel(model) };
 }
 
 export function createAiHandler({ authenticate, fetchImpl = fetch, env = process.env, now = Date.now }) {
@@ -31,10 +34,11 @@ export function createAiHandler({ authenticate, fetchImpl = fetch, env = process
     if (bucket.count >= 12 || bucket.active >= 2) { res.setHeader('Retry-After', '60'); return res.status(429).json({ error: 'Bạn gửi yêu cầu AI quá nhanh. Vui lòng chờ một phút.' }); }
     bucket.count++; bucket.active++; usage.set(member.uid, bucket);
     try {
-      const reasoning = ['deepseek-reasoner', 'deepseek-v4-pro'].includes(input.model);
-      const model = reasoning ? env.DEEPSEEK_REASONING_MODEL || 'deepseek-reasoner' : env.DEEPSEEK_CHAT_MODEL || 'deepseek-chat';
-      const payload = { model, messages: [{ role: 'system', content: input.systemPrompt }, ...input.messages, { role: 'user', content: input.userPrompt }], max_tokens: reasoning ? 8192 : 4096 };
+      const reasoning = input.model === 'deepseek-v4-pro';
+      const model = reasoning ? env.DEEPSEEK_REASONING_MODEL || 'deepseek-v4-pro' : env.DEEPSEEK_CHAT_MODEL || 'deepseek-flash';
+      const payload = { model, messages: [{ role: 'system', content: input.systemPrompt }, ...input.messages, { role: 'user', content: input.userPrompt }], max_tokens: reasoning ? 8192 : 4096, stream: false };
       if (!reasoning) payload.temperature = input.temperature;
+      if (reasoning) { payload.thinking = { type: 'enabled' }; payload.reasoning_effort = 'high'; }
       if (input.responseMimeType === 'application/json') payload.response_format = { type: 'json_object' };
       const upstream = await fetchImpl('https://api.deepseek.com/v1/chat/completions', {
         method: 'POST', signal: AbortSignal.timeout(55000),

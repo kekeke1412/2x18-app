@@ -1,39 +1,22 @@
-import { getApps, initializeApp } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
-
-const projectId = process.env.FIREBASE_PROJECT_ID || 'haix18-app';
-const databaseUrl = process.env.FIREBASE_DATABASE_URL || 'https://haix18-app-default-rtdb.asia-southeast1.firebasedatabase.app';
-const app = getApps().find(item => item.name === 'ai-auth') || initializeApp({ projectId }, 'ai-auth');
+// Verify the Firebase ID token through Firebase Auth's public REST API. This avoids
+// an Admin SDK cold-start/init failure in the Vercel function.
+const defaultWebApiKey = 'AIzaSyDuJUSOBAXY_c497xFSCbZwDbcgh-Cqqhw';
 
 export async function authenticateMember(req) {
   const match = /^Bearer ([^\s]+)$/.exec(req.headers.authorization || '');
   if (!match) throw Object.assign(new Error('Vui lòng đăng nhập để sử dụng AI.'), { status: 401 });
-  let claims;
-  try { claims = await getAuth(app).verifyIdToken(match[1]); }
-  catch { throw Object.assign(new Error('Phiên đăng nhập không hợp lệ hoặc đã hết hạn.'), { status: 401 }); }
-  // Firebase Authentication is the access boundary for the AI endpoint. Member-state
-  // checking is deliberately best-effort: many existing RTDB rule sets allow a user to
-  // read their own profile but not the whole legacy members collection. Blocking a valid
-  // Firebase session in that case made the deployed AI appear broken.
-  const read = async path => {
-    const url = new URL(`${path}.json`, `${databaseUrl}/`);
-    url.searchParams.set('auth', match[1]);
-    const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
-    if (!response.ok) throw new Error(`Không đọc được hồ sơ thành viên (${response.status}).`);
-    return response.json();
-  };
+  let response;
   try {
-    // New accounts are keyed by uid. Do not scan the whole collection from a serverless
-    // request: legacy numeric keys commonly make that read fail under correct rules.
-    const member = await read(`2x18_members/${encodeURIComponent(claims.uid)}`);
-    if (member && member.status !== 'active') {
-      throw Object.assign(new Error('Tài khoản chưa được duyệt để sử dụng AI.'), { status: 403, memberStatus: true });
-    }
-  } catch (error) {
-    if (error.memberStatus) throw error;
-    // Keep the endpoint available for existing legacy profiles when their database rules
-    // do not expose this lookup to the caller. The client still requires a signed-in user.
-    console.warn('[AI] Could not verify member record; accepting verified Firebase user.', error.message);
+    response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(process.env.FIREBASE_WEB_API_KEY || defaultWebApiKey)}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken: match[1] }), signal: AbortSignal.timeout(10000),
+    });
+  } catch {
+    throw Object.assign(new Error('Không xác minh được phiên đăng nhập. Vui lòng thử lại.'), { status: 503 });
   }
-  return { uid: claims.uid };
+  const result = await response.json().catch(() => null);
+  const user = result?.users?.[0];
+  if (!response.ok || !user?.localId) throw Object.assign(new Error('Phiên đăng nhập không hợp lệ hoặc đã hết hạn.'), { status: 401 });
+  if (user.disabled) throw Object.assign(new Error('Tài khoản đã bị vô hiệu hóa.'), { status: 403 });
+  return { uid: user.localId };
 }
