@@ -108,7 +108,13 @@ export function SemesterSelector({ semGPA, semesterNames, updateSemesterName }) 
                           className="text-[10px] font-bold text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg px-2 py-1 w-20 outline-none text-center"
                           value={draft}
                           onChange={e => setDraft(e.target.value)}
-                          onKeyDown={e => { if (e.key === 'Enter') commit(sem); if (e.key === 'Escape') setEditing(null); }}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+                              commit(sem);
+                            }
+                            if (e.key === 'Escape') setEditing(null);
+                          }}
                           maxLength={20} />
                         <button onClick={() => commit(sem)} className="p-1 text-green-400 shrink-0 pointer-events-auto"><Check className="w-3 h-3" /></button>
                         <button onClick={() => setEditing(null)} className="p-1 text-gray-600 hover:text-white shrink-0 pointer-events-auto"><X className="w-3 h-3" /></button>

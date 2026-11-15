@@ -9,10 +9,30 @@ body { line-height: 1.6; letter-spacing: 0.012em; }
 /* Designed and Developed by Phạm Thiên - 2X18 */
 
 /* ── Custom Scrollbar ── */
-.custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #555; }
+.custom-scrollbar {
+  --scrollbar-thumb: rgba(255, 255, 255, 0.15);
+  --scrollbar-track: transparent;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+/* Legacy fallback for WebKit/Blink browsers */
+@supports not (scrollbar-color: auto) {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+}
 
 /* ── Progress bar animation ── */
 @keyframes progress-fill {
@@ -207,14 +227,6 @@ textarea:focus {
   box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6) !important;
 }
 
-/* Scrollbar premium styling */
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.08) !important;
-  border-radius: 4px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.15) !important;
-}
 
 /* Card hover glow effects globally for all dashboard, subjects, and task cards */
 div.bg-\[\#1a1a1a\],
