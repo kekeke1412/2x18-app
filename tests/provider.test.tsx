@@ -94,3 +94,16 @@ it.each(['Dashboard', 'Profile', 'Subjects', 'Tasks', 'Roadmap', 'CalendarPage',
   expect(mounted.container.textContent?.length).toBeGreaterThan(0);
   expect(mock.write).not.toHaveBeenCalled();
 });
+
+it('renders AIChatbot floating button, opens Gemini-style welcome screen, and toggles conversation history drawer', async () => {
+  const AIChatbot = (await import('../src/components/AIChatbot.tsx')).default;
+  render(<MemoryRouter><AppProvider><AIChatbot /></AppProvider></MemoryRouter>);
+  const openBtn = screen.getByRole('button', { name: /Mở trợ lý AI/i });
+  fireEvent.click(openBtn);
+  expect(screen.getByText(/Xin chào/i)).toBeTruthy();
+  expect(screen.getByText(/Báo cáo sức khỏe nhóm/i)).toBeTruthy();
+  const historyBtn = screen.getByRole('button', { name: /Lịch sử cuộc trò chuyện/i });
+  fireEvent.click(historyBtn);
+  expect(screen.getByPlaceholderText(/Tìm cuộc trò chuyện/i)).toBeTruthy();
+});
+

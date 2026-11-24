@@ -1,281 +1,879 @@
 @import "tailwindcss";
 
-/* Preserve the existing readable typography without injecting a style element at runtime. */
-html { font-size: 17px; }
-.text-xs { font-size: 0.85rem; }
-.text-sm { font-size: 0.95rem; }
-.text-base { font-size: 1.05rem; }
-body { line-height: 1.6; letter-spacing: 0.012em; }
-/* Designed and Developed by Phạm Thiên - 2X18 */
-
-/* ── Custom Scrollbar ── */
-.custom-scrollbar {
-  --scrollbar-thumb: rgba(255, 255, 255, 0.15);
-  --scrollbar-track: transparent;
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+/* ── Registered Custom Property for Smooth Progress Ring ── */
+@property --value {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
 }
 
-/* Legacy fallback for WebKit/Blink browsers */
+/* ── Root Design Tokens: Google Color Palette + Apple Liquid Glass ── */
+:root {
+  /* Google Brand 4-Color System */
+  --google-blue: #4285F4;
+  --google-blue-hover: #3367D6;
+  --google-red: #EA4335;
+  --google-red-hover: #D93025;
+  --google-yellow: #FBBC05;
+  --google-green: #34A853;
+  --google-green-hover: #2E8B47;
+
+  /* Light & Dark raw tokens (for fallback before light-dark()) */
+  --bg-canvas-light: #F8F9FA;
+  --bg-canvas-dark: #202124;
+
+  --bg-surface-light: #FFFFFF;
+  --bg-surface-dark: #303134;
+
+  --bg-subtle-light: #F1F3F4;
+  --bg-subtle-dark: #28292C;
+
+  --text-primary-light: #202124;
+  --text-primary-dark: #E8EAED;
+
+  --text-secondary-light: #5F6368;
+  --text-secondary-dark: #BDC1C6;
+
+  --text-muted-light: #5F6368;
+  --text-muted-dark: #9AA0A6;
+
+  --border-default-light: #DADCE0;
+  --border-default-dark: rgba(255, 255, 255, 0.12);
+
+  --glass-bg-light: rgba(255, 255, 255, 0.72);
+  --glass-bg-dark: rgba(48, 49, 52, 0.72);
+
+  --glass-strong-bg-light: rgba(255, 255, 255, 0.88);
+  --glass-strong-bg-dark: rgba(48, 49, 52, 0.88);
+
+  --glass-nav-bg-light: rgba(255, 255, 255, 0.80);
+  --glass-nav-bg-dark: rgba(32, 33, 36, 0.82);
+
+  --glass-border-light: rgba(218, 220, 224, 0.85);
+  --glass-border-dark: rgba(255, 255, 255, 0.12);
+
+  --glass-highlight-light: inset 0 1px 0 0 rgba(255, 255, 255, 0.95);
+  --glass-highlight-dark: inset 0 1px 0 0 rgba(255, 255, 255, 0.14);
+
+  --glass-shadow-light: 0 12px 32px -8px rgba(32, 33, 36, 0.08), 0 2px 6px -1px rgba(32, 33, 36, 0.04);
+  --glass-shadow-dark: 0 16px 38px -10px rgba(0, 0, 0, 0.55), 0 4px 12px -2px rgba(0, 0, 0, 0.35);
+
+  /* Semantic High-Contrast Text Colors (WCAG AA compliant on both Light & Dark glass)
+     NOTE: Yellow (#FBBC05) is NEVER used as text on light backgrounds; use dark amber #5F4300 instead */
+  --semantic-blue-text-light: #174EA6;
+  --semantic-blue-text-dark: #8AB4F8;
+  --semantic-green-text-light: #137333;
+  --semantic-green-text-dark: #81C995;
+  --semantic-red-text-light: #C5221F;
+  --semantic-red-text-dark: #F28B82;
+  --semantic-yellow-text-light: #5F4300;
+  --semantic-yellow-text-dark: #FDD663;
+
+  --scrollbar-thumb-light: #80868B;
+  --scrollbar-thumb-dark: #5F6368;
+  --scrollbar-track-light: #F1F3F4;
+  --scrollbar-track-dark: #202124;
+
+  /* Default (Light fallback) */
+  --bg-canvas: var(--bg-canvas-light);
+  --bg-surface: var(--bg-surface-light);
+  --bg-subtle: var(--bg-subtle-light);
+  --text-primary: var(--text-primary-light);
+  --text-secondary: var(--text-secondary-light);
+  --text-muted: var(--text-muted-light);
+  --border-default: var(--border-default-light);
+  --glass-bg: var(--glass-bg-light);
+  --glass-strong-bg: var(--glass-strong-bg-light);
+  --glass-nav-bg: var(--glass-nav-bg-light);
+  --glass-border: var(--glass-border-light);
+  --glass-highlight: var(--glass-highlight-light);
+  --glass-shadow: var(--glass-shadow-light);
+  --semantic-blue-text: var(--semantic-blue-text-light);
+  --semantic-green-text: var(--semantic-green-text-light);
+  --semantic-red-text: var(--semantic-red-text-light);
+  --semantic-yellow-text: var(--semantic-yellow-text-light);
+  --color-scrollbar-thumb: var(--scrollbar-thumb-light);
+  --color-scrollbar-track: var(--scrollbar-track-light);
+
+  /* MANDATORY: Fallback for browsers without light-dark() support */
+  @media (prefers-color-scheme: dark) {
+    --bg-canvas: var(--bg-canvas-dark);
+    --bg-surface: var(--bg-surface-dark);
+    --bg-subtle: var(--bg-subtle-dark);
+    --text-primary: var(--text-primary-dark);
+    --text-secondary: var(--text-secondary-dark);
+    --text-muted: var(--text-muted-dark);
+    --border-default: var(--border-default-dark);
+    --glass-bg: var(--glass-bg-dark);
+    --glass-strong-bg: var(--glass-strong-bg-dark);
+    --glass-nav-bg: var(--glass-nav-bg-dark);
+    --glass-border: var(--glass-border-dark);
+    --glass-highlight: var(--glass-highlight-dark);
+    --glass-shadow: var(--glass-shadow-dark);
+    --semantic-blue-text: var(--semantic-blue-text-dark);
+    --semantic-green-text: var(--semantic-green-text-dark);
+    --semantic-red-text: var(--semantic-red-text-dark);
+    --semantic-yellow-text: var(--semantic-yellow-text-dark);
+    --color-scrollbar-thumb: var(--scrollbar-thumb-dark);
+    --color-scrollbar-track: var(--scrollbar-track-dark);
+  }
+
+  /* Modern light-dark() resolution synced with color-scheme */
+  @supports (color: light-dark(white, black)) {
+    --bg-canvas: light-dark(var(--bg-canvas-light), var(--bg-canvas-dark));
+    --bg-surface: light-dark(var(--bg-surface-light), var(--bg-surface-dark));
+    --bg-subtle: light-dark(var(--bg-subtle-light), var(--bg-subtle-dark));
+    --text-primary: light-dark(var(--text-primary-light), var(--text-primary-dark));
+    --text-secondary: light-dark(var(--text-secondary-light), var(--text-secondary-dark));
+    --text-muted: light-dark(var(--text-muted-light), var(--text-muted-dark));
+    --border-default: light-dark(var(--border-default-light), var(--border-default-dark));
+    --glass-bg: light-dark(var(--glass-bg-light), var(--glass-bg-dark));
+    --glass-strong-bg: light-dark(var(--glass-strong-bg-light), var(--glass-strong-bg-dark));
+    --glass-nav-bg: light-dark(var(--glass-nav-bg-light), var(--glass-nav-bg-dark));
+    --glass-border: light-dark(var(--glass-border-light), var(--glass-border-dark));
+    --glass-highlight: light-dark(var(--glass-highlight-light), var(--glass-highlight-dark));
+    --glass-shadow: light-dark(var(--glass-shadow-light), var(--glass-shadow-dark));
+    --semantic-blue-text: light-dark(var(--semantic-blue-text-light), var(--semantic-blue-text-dark));
+    --semantic-green-text: light-dark(var(--semantic-green-text-light), var(--semantic-green-text-dark));
+    --semantic-red-text: light-dark(var(--semantic-red-text-light), var(--semantic-red-text-dark));
+    --semantic-yellow-text: light-dark(var(--semantic-yellow-text-light), var(--semantic-yellow-text-dark));
+    --color-scrollbar-thumb: light-dark(var(--scrollbar-thumb-light), var(--scrollbar-thumb-dark));
+    --color-scrollbar-track: light-dark(var(--scrollbar-track-light), var(--scrollbar-track-dark));
+  }
+
+  /* MANDATORY: Apply color-scheme to :root for viewport-wide theming */
+  color-scheme: light dark;
+  accent-color: var(--google-blue);
+  scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track);
+
+  &:has(> head > meta[name="color-scheme"][content="dark"]) {
+    color-scheme: dark;
+  }
+  &:has(> head > meta[name="color-scheme"][content="light"]) {
+    color-scheme: light;
+  }
+}
+
+/* Explicit fallback when light-dark() is absent and user pins theme */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg-canvas: var(--bg-canvas-light);
+  --bg-surface: var(--bg-surface-light);
+  --bg-subtle: var(--bg-subtle-light);
+  --text-primary: var(--text-primary-light);
+  --text-secondary: var(--text-secondary-light);
+  --text-muted: var(--text-muted-light);
+  --border-default: var(--border-default-light);
+  --glass-bg: var(--glass-bg-light);
+  --glass-strong-bg: var(--glass-strong-bg-light);
+  --glass-nav-bg: var(--glass-nav-bg-light);
+  --glass-border: var(--glass-border-light);
+  --glass-highlight: var(--glass-highlight-light);
+  --glass-shadow: var(--glass-shadow-light);
+  --semantic-blue-text: var(--semantic-blue-text-light);
+  --semantic-green-text: var(--semantic-green-text-light);
+  --semantic-red-text: var(--semantic-red-text-light);
+  --semantic-yellow-text: var(--semantic-yellow-text-light);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-canvas: var(--bg-canvas-dark);
+  --bg-surface: var(--bg-surface-dark);
+  --bg-subtle: var(--bg-subtle-dark);
+  --text-primary: var(--text-primary-dark);
+  --text-secondary: var(--text-secondary-dark);
+  --text-muted: var(--text-muted-dark);
+  --border-default: var(--border-default-dark);
+  --glass-bg: var(--glass-bg-dark);
+  --glass-strong-bg: var(--glass-strong-bg-dark);
+  --glass-nav-bg: var(--glass-nav-bg-dark);
+  --glass-border: var(--glass-border-dark);
+  --glass-highlight: var(--glass-highlight-dark);
+  --glass-shadow: var(--glass-shadow-dark);
+  --semantic-blue-text: var(--semantic-blue-text-dark);
+  --semantic-green-text: var(--semantic-green-text-dark);
+  --semantic-red-text: var(--semantic-red-text-dark);
+  --semantic-yellow-text: var(--semantic-yellow-text-dark);
+}
+
+/* ── Typography & Viewport Foundation ── */
+html {
+  font-size: 16.5px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, system-ui, sans-serif;
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  min-height: 100dvh;
+  line-height: 1.55;
+  letter-spacing: -0.008em;
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background-color: rgba(66, 133, 244, 0.25);
+  color: var(--text-primary);
+}
+
+/* ── Liquid Glass Surfaces (.glass, .glass-strong, .glass-nav) ── */
+.glass {
+  background-color: var(--glass-bg);
+  backdrop-filter: blur(24px) saturate(170%);
+  -webkit-backdrop-filter: blur(24px) saturate(170%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-highlight), var(--glass-shadow);
+  border-radius: 22px;
+}
+
+.glass-strong {
+  background-color: var(--glass-strong-bg);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-highlight), var(--glass-shadow);
+  border-radius: 24px;
+}
+
+.glass-nav {
+  background-color: var(--glass-nav-bg);
+  backdrop-filter: blur(26px) saturate(175%);
+  -webkit-backdrop-filter: blur(26px) saturate(175%);
+  border-color: var(--glass-border);
+  box-shadow: var(--glass-highlight), var(--glass-shadow);
+}
+
+/* Prevent nested backdrop-filter blurs to keep mobile 60fps smooth */
+.glass .glass,
+.glass .glass-strong,
+.glass-strong .glass,
+.glass-strong .glass-strong,
+.glass-nav .glass {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background-color: var(--bg-subtle);
+}
+
+/* Fallback for browsers without backdrop-filter support */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass,
+  .glass-strong,
+  .glass-nav {
+    background-color: var(--bg-surface);
+  }
+}
+
+/* ── Apple Inset Grouped List (.inset-group) ── */
+.inset-group {
+  background-color: var(--glass-strong-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-highlight), var(--glass-shadow);
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.inset-group > * + * {
+  border-top: 1px solid var(--border-default);
+}
+
+/* ── Ambient Multi-Layer Liquid Background Blobs ── */
+.liquid-ambient-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 12% 16%, rgba(66, 133, 244, 0.14) 0%, transparent 45%),
+    radial-gradient(circle at 86% 18%, rgba(52, 168, 83, 0.11) 0%, transparent 42%),
+    radial-gradient(circle at 78% 82%, rgba(251, 188, 5, 0.10) 0%, transparent 45%),
+    radial-gradient(circle at 18% 84%, rgba(234, 67, 53, 0.09) 0%, transparent 42%);
+}
+
+@keyframes liquidBlobDrift {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(24px, -18px, 0) scale(1.06); }
+  100% { transform: translate3d(-18px, 22px, 0) scale(0.96); }
+}
+
+.liquid-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(70px);
+  opacity: 0.45;
+  will-change: transform;
+  animation: liquidBlobDrift 26s ease-in-out infinite alternate;
+}
+
+/* ── Native Semantic Progress Ring (progress-ring guide) ── */
+.progress-ring-wrapper {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+}
+
+progress.progress-ring::-webkit-progress-bar {
+  display: none;
+  background: none;
+}
+progress.progress-ring::-webkit-progress-value {
+  display: none;
+  background: none;
+}
+progress.progress-ring::-moz-progress-bar {
+  display: none;
+  background: none;
+}
+progress.progress-ring::slider-fill {
+  display: none;
+  background: none;
+}
+
+progress.progress-ring {
+  --size: 48px;
+  --thickness: 5px;
+  --track-color: var(--bg-subtle);
+  --fill-color: var(--google-blue);
+  --value: attr(value type(<number>));
+  width: var(--size);
+  height: var(--size);
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--fill-color) calc(var(--value) * 1%),
+    var(--track-color) 0
+  );
+  background-clip: border-area;
+  border: var(--thickness) solid transparent;
+  background-origin: border-box;
+  transition: --value 0s ease-in-out;
+
+  @media (prefers-reduced-motion: no-preference) {
+    transition-duration: 0.45s;
+  }
+
+  @media (forced-colors: active) {
+    forced-color-adjust: none;
+    --fill-color: CanvasText;
+    --track-color: Canvas;
+  }
+}
+
+progress.progress-ring[value="100"] {
+  --fill-color: var(--google-green);
+}
+
+@supports not (background-clip: border-area) {
+  progress.progress-ring {
+    mask-image: radial-gradient(
+      transparent calc(50% - var(--thickness)),
+      black calc(50% - var(--thickness) + 0.5px)
+    );
+    -webkit-mask-image: radial-gradient(
+      transparent calc(50% - var(--thickness)),
+      black calc(50% - var(--thickness) + 0.5px)
+    );
+    border: 0;
+  }
+}
+
+.progress-ring-content {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Shrinking Header on Scroll (shrinking-header-on-scroll guide) ── */
+@keyframes shrinkHeaderTitle {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(0.92);
+  }
+}
+
+@supports ((animation-timeline: scroll()) and (animation-range: 0% 100%)) {
+  @media (prefers-reduced-motion: no-preference) {
+    .shrinking-title {
+      transform-origin: left center;
+      animation: shrinkHeaderTitle auto linear both;
+      animation-timeline: scroll(block nearest);
+      animation-range: 0px 96px;
+    }
+  }
+}
+
+/* ── Native Modal <dialog> Containment (dialog & light-dismiss-a-dialog guides) ── */
+dialog:modal {
+  overscroll-behavior: contain;
+}
+
+dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+  background-color: rgba(15, 17, 21, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* ── Auto-growing Form Controls (form-fields-automatically-fit-contents guide) ── */
+textarea.auto-fit-textarea {
+  field-sizing: content;
+  height: auto;
+  width: 100%;
+  min-block-size: 1.5lh;
+  max-block-size: 7lh;
+  resize: none;
+}
+
+@supports not (field-sizing: content) {
+  .growable-textarea {
+    display: grid;
+    width: 100%;
+  }
+  .growable-textarea::after,
+  .growable-textarea > textarea.auto-fit-textarea {
+    grid-area: 1 / 1 / 2 / 2;
+    font: inherit;
+    line-height: inherit;
+    padding: 0.5rem 0.25rem;
+  }
+  .growable-textarea::after {
+    content: attr(data-replicated-value) " ";
+    white-space: pre-wrap;
+    word-break: break-word;
+    visibility: hidden;
+    pointer-events: none;
+    max-block-size: 7lh;
+    overflow: hidden;
+  }
+}
+
+/* ── Accessible Copy Button & Live Bubble (copy-button guide) ── */
+.copyable {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.copyable .copy {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.copy-button {
+  min-inline-size: 28px;
+  min-block-size: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 10px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.12s ease, border-color 0.15s ease;
+}
+
+.copy-button:hover {
+  color: var(--text-primary);
+  border-color: var(--google-blue);
+}
+
+.copy-button[data-copied] {
+  color: var(--semantic-green-text);
+  border-color: var(--google-green);
+}
+
+.copy-button[data-failed] {
+  color: var(--semantic-red-text);
+  border-color: var(--google-red);
+}
+
+.copy .tip {
+  position: absolute;
+  inset-block-end: calc(100% + 6px);
+  inset-inline-end: 0;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background-color: var(--text-primary);
+  color: var(--bg-surface);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 30;
+}
+
+.copy-button[data-copied] + .tip,
+.copy-button[data-failed] + .tip {
+  opacity: 1;
+}
+
+@media (hover: hover) {
+  .copyable {
+    display: block;
+    position: relative;
+  }
+  .copyable .copy {
+    position: absolute;
+    inset-block-start: 0.5rem;
+    inset-inline-end: 0.5rem;
+  }
+  .copyable .copy-button {
+    opacity: 0;
+  }
+  .copyable:hover .copy-button,
+  .copyable:focus-within .copy-button,
+  .copyable .copy-button:focus-visible,
+  .copyable .copy-button[data-copied],
+  .copyable .copy-button[data-failed] {
+    opacity: 1;
+  }
+}
+
+/* ── Custom Scrollbars (dark-mode & browser-ui-theming guides) ── */
+.custom-scrollbar {
+  scrollbar-color: var(--color-scrollbar-thumb) transparent;
+}
+
 @supports not (scrollbar-color: auto) {
+  .custom-scrollbar {
+    scrollbar-width: auto;
+  }
   .custom-scrollbar::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
+    width: 8px;
+    height: 8px;
   }
   .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--color-scrollbar-thumb);
+    border-radius: 9999px;
   }
 }
 
-/* ── Progress bar animation ── */
+/* ── Semantic Google Status Badges ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+.badge-blue {
+  background: rgba(66, 133, 244, 0.14);
+  color: var(--semantic-blue-text);
+  border: 1px solid rgba(66, 133, 244, 0.32);
+}
+.badge-green {
+  background: rgba(52, 168, 83, 0.14);
+  color: var(--semantic-green-text);
+  border: 1px solid rgba(52, 168, 83, 0.32);
+}
+.badge-yellow {
+  background: rgba(251, 188, 5, 0.18);
+  color: var(--semantic-yellow-text);
+  border: 1px solid rgba(251, 188, 5, 0.42);
+}
+.badge-red {
+  background: rgba(234, 67, 53, 0.14);
+  color: var(--semantic-red-text);
+  border: 1px solid rgba(234, 67, 53, 0.32);
+}
+.badge-gray {
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+}
+.badge-purple {
+  background: rgba(66, 133, 244, 0.14);
+  color: var(--semantic-blue-text);
+  border: 1px solid rgba(66, 133, 244, 0.32);
+}
+
+/* ── Form Controls & Inputs ── */
+.input-dark,
+.glass-input {
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+  border-radius: 14px;
+  padding: 9px 13px;
+  font-size: 0.92rem;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.input-dark:focus,
+.glass-input:focus {
+  border-color: var(--google-blue);
+  box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.22);
+  background-color: var(--bg-surface);
+}
+
+.input-dark::placeholder,
+.glass-input::placeholder {
+  color: var(--text-muted);
+}
+
+input:not([type="range"]):user-invalid,
+textarea:user-invalid,
+select:user-invalid {
+  border-color: var(--google-red);
+}
+
+/* ── Animations & Apple Spring Micro-Interactions ── */
 @keyframes progress-fill {
   from { width: 0%; }
   to { width: var(--target-width); }
 }
-.animate-progress { animation: progress-fill 0.8s ease-out forwards; }
+.animate-progress { animation: progress-fill 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
 
-/* ── Fade in ── */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.fade-in { animation: fadeIn 0.25s ease-out forwards; }
+.fade-in { animation: fadeIn 0.22s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
 
-/* ── Pulse glow for active status ── */
-@keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.4); }
-  50%       { box-shadow: 0 0 0 6px rgba(59,130,246,0); }
-}
-.pulse-glow { animation: pulseGlow 2s infinite; }
-
-/* ── Calendar cells ── */
-.cal-cell { min-height: 110px; }
-.cal-cell:hover .add-event-hint { opacity: 1; }
-.add-event-hint { opacity: 0; transition: opacity 0.15s; }
-
-/* ── Status badges ── */
-.badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; }
-.badge-blue   { background: rgba(59,130,246,0.15);  color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
-.badge-green  { background: rgba(34,197,94,0.15);   color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
-.badge-yellow { background: rgba(234,179,8,0.15);   color: #facc15; border: 1px solid rgba(234,179,8,0.3); }
-.badge-red    { background: rgba(239,68,68,0.15);   color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
-.badge-gray   { background: rgba(107,114,128,0.15); color: #9ca3af; border: 1px solid rgba(107,114,128,0.3); }
-.badge-purple { background: rgba(168,85,247,0.15);  color: #c084fc; border: 1px solid rgba(168,85,247,0.3); }
-
-/* ── Card hover ── */
-.card-hover { transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s; }
-.card-hover:hover { border-color: rgba(59,130,246,0.4); transform: translateY(-1px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
-
-/* ── Input focus ── */
-.input-dark {
-  background: #1a1a1a;
-  border: 1px solid #374151;
-  color: #fff;
-  border-radius: 10px;
-  padding: 8px 12px;
-  font-size: 14px;
-  width: 100%;
-  outline: none;
-  transition: border-color 0.15s;
-}
-.input-dark:focus { border-color: #3b82f6; }
-.input-dark::placeholder { color: #6b7280; }
-
-/* ── Table sticky header ── */
-.table-sticky thead th { position: sticky; top: 0; z-index: 10; }
-
-/* ── Google Calendar event pill ── */
-.event-pill {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  cursor: pointer;
-  transition: opacity 0.1s;
-  line-height: 1.4;
-}
-.event-pill:hover { opacity: 0.85; }
-
-/* ── Animations ── */
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.fade-in-up { animation: fadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-
-@keyframes slideInRight {
-  from { opacity: 0; transform: translateX(20px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-.slide-in-right { animation: slideInRight 0.3s ease-out forwards; }
+.fade-in-up { animation: fadeInUp 0.32s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
 
 @keyframes scaleIn {
   from { opacity: 0; transform: scale(0.96); }
   to   { opacity: 1; transform: scale(1); }
 }
-.scale-in { animation: scaleIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+.scale-in { animation: scaleIn 0.22s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
 
-/* ── Interactive Effects ── */
-.btn-active:active { transform: scale(0.96); transition: transform 0.1s; }
-.tap-highlight:active { background-color: rgba(255,255,255,0.05); }
-
-.tab-transition { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-
-/* ── Card hover ── */
-.card-hover { transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
-.card-hover:hover { 
-  border-color: rgba(59,130,246,0.5); 
-  transform: translateY(-4px); 
-  box-shadow: 0 12px 30px -10px rgba(0,0,0,0.5), 0 0 20px -5px rgba(59,130,246,0.15); 
+@keyframes googleGradientFlow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
-/* ── Sidebar transition ── */
-.sidebar-item { 
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); 
+.google-thinking-bar {
+  background: linear-gradient(90deg, #4285F4, #EA4335, #FBBC05, #34A853, #4285F4);
+  background-size: 300% 100%;
+  animation: googleGradientFlow 2.4s linear infinite;
+}
+
+.spring-press {
+  transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease;
+}
+.spring-press:active {
+  transform: scale(0.97);
+}
+
+.card-hover {
+  transition: border-color 0.22s ease, transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease;
+}
+.card-hover:hover {
+  border-color: rgba(66, 133, 244, 0.45);
+  transform: translateY(-2px);
+  box-shadow: var(--glass-highlight), 0 14px 32px -10px rgba(66, 133, 244, 0.18);
+}
+
+/* ── Sidebar Navigation Item ── */
+.sidebar-item {
+  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
   position: relative;
   overflow: hidden;
 }
 .sidebar-item::after {
   content: '';
   position: absolute;
-  left: 0; top: 0; bottom: 0; width: 0;
-  background: #3b82f6;
+  left: 0;
+  top: 20%;
+  bottom: 20%;
+  width: 0;
+  border-radius: 0 4px 4px 0;
+  background: var(--google-blue);
   transition: width 0.2s ease;
-  z-index: 0;
 }
-.sidebar-item.active::after { width: 3px; }
-.sidebar-item:active { transform: scale(0.98); }
+.sidebar-item.active::after {
+  width: 3.5px;
+}
+.sidebar-item:active {
+  transform: scale(0.98);
+}
 
-/* ── Modal transition ── */
-.modal-enter { animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
-.backdrop-enter { animation: fadeIn 0.2s ease-out forwards; }
+/* ── Calendar & Table Helpers ── */
+.cal-cell { min-height: 110px; }
+.cal-cell:hover .add-event-hint { opacity: 1; }
+.add-event-hint { opacity: 0; transition: opacity 0.15s; }
+.table-sticky thead th { position: sticky; top: 0; z-index: 10; }
 
-/* ── UI/UX Color Synchronization & Design Upgrade ── */
-/* Deep backgrounds */
-body, 
+.event-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  line-height: 1.4;
+}
+.event-pill:hover { opacity: 0.85; }
+
+/* ── Touch Device Action Affordance: Never hide hover-only controls on touchscreens ── */
+@media (hover: none) {
+  .group-hover\:opacity-100 {
+    opacity: 1 !important;
+  }
+}
+
+/* ── Unified Surface Mapping Across All 14 Pages (Light & Dark Mode Adaptive) ── */
 .bg-\[\#121212\],
 .bg-\[\#111\],
+.bg-\[\#0d0d0d\],
 .bg-zinc-950,
-.bg-black,
 .bg-gray-950 {
-  background-color: #0a0a0c !important;
+  background-color: var(--bg-canvas);
 }
 
-/* Panel backgrounds */
-aside.w-60,
 .bg-\[\#1a1a1a\],
 .bg-\[\#141414\],
 .bg-\[\#181818\],
 .bg-zinc-900,
 .bg-gray-900 {
-  background-color: #111115 !important;
+  background-color: var(--glass-bg);
+  border-color: var(--glass-border);
+  box-shadow: var(--glass-highlight), var(--glass-shadow);
 }
 
-/* Card & Modal backgrounds */
 .bg-\[\#1e1e1e\],
 .bg-\[\#222\],
 .bg-\[\#252525\],
+.bg-\[\#1f1f1f\],
 .bg-zinc-800,
 .bg-gray-800 {
-  background-color: #16161c !important;
+  background-color: var(--bg-subtle);
 }
 
-/* Glassmorphism for sidebars and headers */
-aside.w-60 {
-  border-right: 1px solid rgba(255, 255, 255, 0.04) !important;
-}
-
-/* Input boxes styling */
-.input-dark,
-input,
-select,
-textarea {
-  background-color: #15151b !important;
-  border-color: rgba(255, 255, 255, 0.06) !important;
-  color: #f4f4f5 !important;
-}
-
-input:focus,
-select:focus,
-textarea:focus {
-  border-color: #3b82f6 !important;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15) !important;
-}
-
-/* Glass borders for cards */
+.border-gray-800,
 .border-gray-800\/60,
 .border-gray-800\/40,
-.border-gray-800 {
-  border-color: rgba(255, 255, 255, 0.04) !important;
+.border-gray-700,
+.border-\[\#2d2d2d\],
+.border-\[\#333\] {
+  border-color: var(--border-default);
 }
 
-/* Modern shadows for cards */
-.shadow-sm,
-.shadow-md,
-.shadow-lg,
-.shadow-2xl {
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6) !important;
+.divide-gray-800\/40 > :not([hidden]) ~ :not([hidden]),
+.divide-gray-800\/60 > :not([hidden]) ~ :not([hidden]),
+.divide-gray-800 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border-default);
 }
 
+/* Harmonize primary action blues with Google Blue (#4285F4) */
+.bg-blue-600 { background-color: var(--google-blue); }
+.hover\:bg-blue-500:hover,
+.hover\:bg-blue-700:hover { background-color: var(--google-blue-hover); }
 
-/* Card hover glow effects globally for all dashboard, subjects, and task cards */
-div.bg-\[\#1a1a1a\],
-div.bg-zinc-900 {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+/* Ensure WCAG AA Contrast in Light Mode on Legacy Text Classes */
+:root[data-theme="light"] {
+  .text-white:not(button):not(a[class*="bg-"]):not(span[class*="bg-"]):not(div[class*="bg-blue-"]):not(div[class*="bg-red-"]):not(div[class*="bg-green-"]):not(div[class*="bg-emerald-"]):not(div[class*="bg-purple-"]):not(div[class*="bg-indigo-"]):not(div[class*="from-"]),
+  .text-gray-100,
+  .text-gray-200 {
+    color: var(--text-primary-light);
+  }
+  .text-gray-300,
+  .text-gray-400,
+  .text-gray-500,
+  .text-gray-600 {
+    color: var(--text-secondary-light);
+  }
+  .text-blue-400,
+  .text-blue-300 {
+    color: var(--semantic-blue-text-light);
+  }
+  .text-green-400,
+  .text-emerald-400 {
+    color: var(--semantic-green-text-light);
+  }
+  .text-red-400,
+  .text-rose-400 {
+    color: var(--semantic-red-text-light);
+  }
+  /* CRITICAL: Never allow yellow text on light surfaces; use high-contrast dark amber (#5F4300) for text while keeping icons golden */
+  .text-yellow-400:not(svg),
+  .text-yellow-300:not(svg),
+  .text-amber-400:not(svg),
+  .text-amber-300:not(svg) {
+    color: var(--semantic-yellow-text-light);
+  }
 }
 
-div.bg-\[\#1a1a1a\]:hover,
-div.bg-zinc-900:hover {
-  border-color: rgba(59, 130, 246, 0.35) !important;
-  box-shadow: 0 0 20px -2px rgba(59, 130, 246, 0.15), 0 10px 30px -10px rgba(0, 0, 0, 0.6) !important;
-  transform: translateY(-2.5px) !important;
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    .text-white:not(button):not(a[class*="bg-"]):not(span[class*="bg-"]):not(div[class*="bg-blue-"]):not(div[class*="bg-red-"]):not(div[class*="bg-green-"]):not(div[class*="bg-emerald-"]):not(div[class*="bg-purple-"]):not(div[class*="bg-indigo-"]):not(div[class*="from-"]),
+    .text-gray-100,
+    .text-gray-200 {
+      color: var(--text-primary-light);
+    }
+    .text-gray-300,
+    .text-gray-400,
+    .text-gray-500,
+    .text-gray-600 {
+      color: var(--text-secondary-light);
+    }
+    .text-blue-400,
+    .text-blue-300 {
+      color: var(--semantic-blue-text-light);
+    }
+    .text-green-400,
+    .text-emerald-400 {
+      color: var(--semantic-green-text-light);
+    }
+    .text-red-400,
+    .text-rose-400 {
+      color: var(--semantic-red-text-light);
+    }
+    .text-yellow-400:not(svg),
+    .text-yellow-300:not(svg),
+    .text-amber-400:not(svg),
+    .text-amber-300:not(svg) {
+      color: var(--semantic-yellow-text-light);
+    }
+  }
 }
 
-/* Interactive Rating Star rotating & hover transition */
-svg.cursor-pointer.text-yellow-400,
-svg.cursor-pointer.text-gray-700,
-svg.cursor-pointer.text-yellow-500 {
-  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
-}
-
-svg.cursor-pointer:hover {
-  transform: scale(1.35) rotate(18deg) !important;
-  filter: drop-shadow(0 0 4px rgba(234, 179, 8, 0.5)) !important;
-}
-
-/* ── One visual language: slate surfaces + a single cobalt accent ── */
-:root { --accent-500: #5b7cfa; --accent-600: #4665e7; --accent-300: #b8c5ff; --accent-400: #91a6ff; }
-
-/* Purple and indigo were page-specific accents. They now share the same action color
-   as the rest of the application; green/red/amber remain reserved for status only. */
-.bg-blue-600, .bg-indigo-600, .bg-purple-600 { background-color: var(--accent-600) !important; }
-.bg-blue-500, .bg-indigo-500, .bg-purple-500 { background-color: var(--accent-500) !important; }
-.text-blue-300, .text-indigo-300, .text-purple-300 { color: var(--accent-300) !important; }
-.text-blue-400, .text-indigo-400, .text-purple-400 { color: var(--accent-400) !important; }
-.border-blue-500, .border-indigo-500, .border-purple-500 { border-color: var(--accent-500) !important; }
-.from-blue-600, .from-indigo-600, .from-purple-600 { --tw-gradient-from: var(--accent-600) var(--tw-gradient-from-position) !important; --tw-gradient-to: rgb(70 101 231 / 0) var(--tw-gradient-to-position) !important; }
-.to-blue-600, .to-indigo-600, .to-purple-600, .to-indigo-800 { --tw-gradient-to: var(--accent-600) var(--tw-gradient-to-position) !important; }
-.to-blue-500, .to-indigo-500, .to-purple-500 { --tw-gradient-to: var(--accent-500) var(--tw-gradient-to-position) !important; }
-
-/* Keep motion understated: it is clearer on dense screens and avoids repaint-heavy glow. */
-div.bg-\[\#1a1a1a\]:hover,
-div.bg-zinc-900:hover {
-  border-color: rgba(145, 166, 255, 0.22) !important;
-  box-shadow: 0 8px 22px -12px rgba(0, 0, 0, 0.7) !important;
-  transform: none !important;
-}
-svg.cursor-pointer:hover { transform: none !important; filter: none !important; }
-
+/* ── Reduced Motion Support ── */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

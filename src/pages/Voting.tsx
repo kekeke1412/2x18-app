@@ -426,26 +426,26 @@ export default function Voting() {
       transition={{ duration: 0.4 }}
       className="h-full bg-[#121212] text-gray-200 flex flex-col overflow-hidden"
     >
-      <div className="px-6 py-4 border-b border-gray-800/60 bg-[#141414] shrink-0">
-        <div className="flex items-center justify-between gap-4">
+      <div className="px-4 sm:px-6 py-4 border-b border-gray-800/60 glass-nav shrink-0">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-black text-white flex items-center gap-2">
               <Vote className="w-5 h-5 text-blue-400"/> Bình chọn nhóm
             </h1>
             <p className="text-xs text-gray-500 mt-0.5">Bình chọn giờ học, địa điểm, quyết định nhóm</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1 bg-[#1e1e1e] border border-gray-800 rounded-xl overflow-hidden">
               {[['all','Tất cả'],['open','Đang mở'],['closed','Đã đóng']].map(([v,l])=>(
                 <button key={v} onClick={()=>setFilter(v)}
-                  className={`px-3 py-1.5 text-xs font-bold transition-all ${filter===v?'bg-blue-600 text-white':'text-gray-500 hover:text-gray-300'}`}>
+                  className={`px-3 py-1.5 text-xs font-bold transition-all min-h-[36px] ${filter===v?'bg-blue-600 text-white':'text-gray-500 hover:text-gray-300'}`}>
                   {l}
                 </button>
               ))}
             </div>
             {canManage && (
               <button onClick={()=>setShowCreate(true)}
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white transition-all">
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white transition-all min-h-[36px]">
                 <Plus className="w-3.5 h-3.5"/> Tạo vote
               </button>
             )}
@@ -453,7 +453,7 @@ export default function Voting() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 pb-28 lg:pb-6">
         {filtered.length === 0 ? (
           <motion.div 
             initial={{ opacity: 0 }}

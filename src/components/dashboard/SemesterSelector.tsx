@@ -1,140 +1,186 @@
 import React, { useState, useRef, useEffect, useId } from 'react';
 import { TrendingUp, Check, X, Edit3 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+} from 'recharts';
+import { isImeComposing } from '../../utils/stringUtils';
 
-export function SemesterSelector({ semGPA, semesterNames, updateSemesterName }) {
-  const [editing, setEditing] = useState(null);
+if (typeof window !== 'undefined' && !('ResizeObserver' in window)) {
+  (window as any).ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
+
+export function SemesterSelector({ semGPA, semesterNames, updateSemesterName }: any) {
+  const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
-  const [hoveredSem, setHoveredSem] = useState(null);
-  const inputRef = useRef(null);
-  const gradId = useId();
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const gradId = useId().replace(/:/g, '');
 
   useEffect(() => {
     if (editing !== null && inputRef.current) inputRef.current.focus();
   }, [editing]);
 
-  const sems = Object.keys(semGPA).sort((a, b) => Number(a) - Number(b));
+  const sems = Object.keys(semGPA || {}).sort((a, b) => Number(a) - Number(b));
   if (!sems.length) return null;
 
-  const commit = (sem) => {
+  const commit = (sem: string) => {
     if (draft.trim()) updateSemesterName(sem, draft.trim());
     setEditing(null);
   };
 
-  const N = sems.length;
-  const chartMin = 0.0;
-  const chartMax = 4.0;
-  const range = chartMax - chartMin;
-
-  const getX = (i) => ((i + 0.5) / N) * 100;
-  const getY = (gpa) => 90 - (parseFloat(gpa) / range) * 65;
-
-  const points = sems.map((sem, i) => `${getX(i)},${getY(semGPA[sem])}`).join(' ');
-  const polygonPoints = `${getX(0)},90 ${points} ${getX(N - 1)},90`;
-  const yAxisTicks = [4.0, 3.0, 2.0, 1.0, 0.0];
+  const chartData = sems.map(sem => ({
+    sem,
+    name: semesterNames[sem] || `Học kỳ ${sem}`,
+    gpa: Number(parseFloat(semGPA[sem]).toFixed(2)) || 0,
+  }));
 
   return (
-    <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl overflow-hidden mb-6">
-      <div className="px-5 py-3.5 border-b border-gray-800/60 flex items-center gap-2">
-        <TrendingUp className="w-4 h-4 text-red-400" />
-        <h3 className="font-bold text-white text-sm">GPA theo học kỳ</h3>
-        <span className="text-[10px] text-gray-600 ml-1">· Click tên kỳ để đổi tên</span>
+    <div className="glass overflow-hidden mb-6">
+      <div className="px-5 py-4 border-b border-[var(--border-default)] flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-[#4285F4]/15 flex items-center justify-center text-[#4285F4]">
+            <TrendingUp className="w-4 h-4" strokeWidth={1.85} />
+          </div>
+          <div>
+            <h3 className="font-bold text-[var(--text-primary)] text-sm">GPA theo học kỳ</h3>
+            <p className="text-[11px] text-[var(--text-secondary)]">
+              Biểu đồ xu hướng hệ 4.0 · Nhấn vào nhãn học kỳ bên dưới để đổi tên
+            </p>
+          </div>
+        </div>
+        <span className="badge badge-blue tabular-nums">{sems.length} học kỳ</span>
       </div>
-      <div className="flex pt-5 pb-2">
-        <div className="w-10 shrink-0 relative h-[180px]">
-          {yAxisTicks.map(v => {
-            const y = getY(v);
+
+      <div className="p-5">
+        <div className="w-full h-[210px]" aria-label="Biểu đồ xu hướng GPA theo học kỳ">
+          <ResponsiveContainer width="100%" height="100%" minWidth={180} minHeight={180}>
+            <AreaChart data={chartData} margin={{ top: 14, right: 16, left: -16, bottom: 4 }}>
+              <defs>
+                <linearGradient id={`googleBlueGrad-${gradId}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#4285F4" stopOpacity={0.38} />
+                  <stop offset="100%" stopColor="#34A853" stopOpacity={0.04} />
+                </linearGradient>
+                <pattern
+                  id={`diagPattern-${gradId}`}
+                  width="8"
+                  height="8"
+                  patternUnits="userSpaceOnUse"
+                  patternTransform="rotate(45)"
+                >
+                  <line x1="0" y1="0" x2="0" y2="8" stroke="#4285F4" strokeWidth="1.5" strokeOpacity="0.18" />
+                </pattern>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-default)" vertical={false} />
+              <XAxis
+                dataKey="name"
+                tick={{ fontSize: 11, fill: 'var(--text-secondary)', fontWeight: 600 }}
+                axisLine={{ stroke: 'var(--border-default)' }}
+                tickLine={false}
+              />
+              <YAxis
+                domain={[0, 4]}
+                ticks={[0, 1, 2, 3, 4]}
+                tick={{ fontSize: 11, fill: 'var(--text-secondary)', fontWeight: 600 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'var(--bg-surface)',
+                  borderColor: 'var(--border-default)',
+                  borderRadius: '14px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
+                }}
+                formatter={(val: any) => [`${Number(val).toFixed(2)} / 4.0`, 'GPA']}
+              />
+              <Area
+                type="monotone"
+                dataKey="gpa"
+                stroke="#4285F4"
+                strokeWidth={2.75}
+                fill={`url(#googleBlueGrad-${gradId})`}
+                dot={{ r: 5, fill: '#4285F4', stroke: '#FFFFFF', strokeWidth: 2 }}
+                activeDot={{ r: 7, fill: '#34A853', stroke: '#FFFFFF', strokeWidth: 2 }}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Accessible semester pills with direct values & rename controls */}
+        <div className="mt-4 pt-3.5 border-t border-[var(--border-default)] flex flex-wrap gap-2">
+          {sems.map(sem => {
+            const isEd = editing === sem;
+            const gpa = semGPA[sem];
             return (
-              <div key={v} className="absolute w-full text-right pr-2 text-[10px] font-bold text-gray-500"
-                style={{ top: `${y}%`, transform: 'translateY(-50%)' }}>
-                {v.toFixed(1)}
+              <div
+                key={sem}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[var(--bg-subtle)] border border-[var(--border-default)]"
+              >
+                {isEd ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      ref={inputRef}
+                      aria-label={`Đổi tên học kỳ ${sem}`}
+                      className="text-xs font-bold text-[var(--text-primary)] bg-[var(--bg-surface)] border border-[#4285F4] rounded-lg px-2 py-0.5 w-24 outline-none"
+                      value={draft}
+                      onChange={e => setDraft(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          if (isImeComposing(e)) return;
+                          commit(sem);
+                        }
+                        if (e.key === 'Escape') setEditing(null);
+                      }}
+                      maxLength={20}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => commit(sem)}
+                      aria-label="Lưu tên học kỳ"
+                      className="p-1 text-[#34A853] hover:opacity-80"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditing(null)}
+                      aria-label="Hủy đổi tên"
+                      className="p-1 text-[var(--text-secondary)] hover:text-[#EA4335]"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditing(sem);
+                      setDraft(semesterNames[sem] || `Học kỳ ${sem}`);
+                    }}
+                    className="group flex items-center gap-1.5 text-left"
+                    title="Nhấn để đổi tên học kỳ"
+                  >
+                    <span className="text-xs font-semibold text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">
+                      {semesterNames[sem] || `Học kỳ ${sem}`}:
+                    </span>
+                    <span className="text-xs font-extrabold text-[#4285F4] tabular-nums">{gpa}</span>
+                    <Edit3 className="w-3 h-3 text-[var(--text-muted)] opacity-60 group-hover:opacity-100 group-hover:text-[#4285F4] transition-all" />
+                  </button>
+                )}
               </div>
             );
           })}
-        </div>
-
-        <div className="flex-1 overflow-x-auto custom-scrollbar pr-5">
-          <div className="relative min-w-[600px] h-[220px] mx-auto">
-            <div className="absolute inset-0 w-full h-[180px] pointer-events-none">
-              {yAxisTicks.map(v => {
-                const y = getY(v);
-                return (
-                  <div key={v} className="absolute w-full border-t border-gray-800/50"
-                    style={{ top: `${y}%` }}></div>
-                );
-              })}
-            </div>
-
-            <svg className="absolute top-0 left-0 w-full h-[180px]" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id={`semAreaGrad-${gradId}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#ef4444" stopOpacity="0.4" />
-                  <stop offset="100%" stopColor="#ef4444" stopOpacity="0.0" />
-                </linearGradient>
-              </defs>
-              <polygon points={polygonPoints} fill={`url(#semAreaGrad-${gradId})`} />
-              <polyline points={points} fill="none" stroke="#ef4444" strokeWidth="2.5" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-
-            <div className="absolute top-0 left-0 w-full h-[180px] pointer-events-none">
-              {sems.map((sem, i) => {
-                const gpa = semGPA[sem];
-                const x = getX(i);
-                const y = getY(gpa);
-                const isHovered = hoveredSem === sem;
-                return (
-                  <div key={sem} className="absolute flex flex-col items-center justify-center w-10 h-10 pointer-events-auto cursor-pointer"
-                    style={{ left: `${x}%`, top: `${y}%`, transform: 'translate(-50%, -50%)' }}
-                    onMouseEnter={() => setHoveredSem(sem)}
-                    onMouseLeave={() => setHoveredSem(null)}>
-                    <div className={`absolute bottom-8 text-sm font-black whitespace-nowrap drop-shadow-md transition-colors ${isHovered ? 'text-red-400' : 'text-white'}`}>
-                      {gpa}
-                    </div>
-                    <div className={`w-3.5 h-3.5 rounded-full border-[3px] transition-all duration-200 ${isHovered ? 'bg-red-500 border-white shadow-[0_0_12px_rgba(239,68,68,0.8)] scale-125' : 'bg-[#1a1a1a] border-red-500'}`} />
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="absolute bottom-0 left-0 w-full flex h-[40px]">
-              {sems.map((sem) => {
-                const isEd = editing === sem;
-                const isHovered = hoveredSem === sem;
-                return (
-                  <div key={sem} className="flex-1 flex justify-center items-end pb-1"
-                    onMouseEnter={() => setHoveredSem(sem)}
-                    onMouseLeave={() => setHoveredSem(null)}>
-                    {isEd ? (
-                      <div className="flex items-center gap-1">
-                        <input ref={inputRef}
-                          className="text-[10px] font-bold text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg px-2 py-1 w-20 outline-none text-center"
-                          value={draft}
-                          onChange={e => setDraft(e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') {
-                              if (e.nativeEvent.isComposing || e.keyCode === 229) return;
-                              commit(sem);
-                            }
-                            if (e.key === 'Escape') setEditing(null);
-                          }}
-                          maxLength={20} />
-                        <button onClick={() => commit(sem)} className="p-1 text-green-400 shrink-0 pointer-events-auto"><Check className="w-3 h-3" /></button>
-                        <button onClick={() => setEditing(null)} className="p-1 text-gray-600 hover:text-white shrink-0 pointer-events-auto"><X className="w-3 h-3" /></button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => { setEditing(sem); setDraft(semesterNames[sem] || `Học kỳ ${sem}`); }}
-                        className="group flex items-center gap-1 pointer-events-auto" title="Click để đổi tên">
-                        <span className={`text-[10px] font-bold uppercase tracking-wide transition-colors truncate max-w-[90px] ${isHovered ? 'text-red-400' : 'text-gray-500'}`}>
-                          {semesterNames[sem] || `Học kỳ ${sem}`}
-                        </span>
-                        <Edit3 className="w-2 h-2 text-gray-700 group-hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all shrink-0" />
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
         </div>
       </div>
     </div>

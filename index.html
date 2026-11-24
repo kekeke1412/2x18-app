@@ -6,9 +6,21 @@
     <!-- PWA viewport – prevents tap zoom on mobile -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
+    <!-- ── Color Scheme & FOUC Prevention (Light / Dark / System) ── -->
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      try {
+        var storedScheme = localStorage.getItem("color-scheme");
+        if (storedScheme === "light" || storedScheme === "dark") {
+          document.querySelector('meta[name="color-scheme"]').content = storedScheme;
+          document.documentElement.dataset.theme = storedScheme;
+        }
+      } catch (e) {}
+    </script>
+
     <!-- ── PWA / App meta ── -->
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#2563eb" />
+    <meta name="theme-color" content="#4285F4" />
     <meta name="mobile-web-app-capable" content="yes" />
     <!-- iOS -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -16,22 +28,20 @@
     <meta name="apple-mobile-web-app-title" content="2X18" />
     <link rel="apple-touch-icon" href="/icon-192.jpg" />
     <!-- MS Tiles -->
-    <meta name="msapplication-TileColor" content="#121212" />
+    <meta name="msapplication-TileColor" content="#202124" />
     <meta name="msapplication-TileImage" content="/icon-192.jpg" />
 
     <!-- ── SEO ── -->
-    <meta name="description" content="Ứng dụng quản lý nhóm 2X18 – APP" />
+    <meta name="description" content="Ứng dụng quản lý nhóm học tập K70 Công nghệ Bán dẫn 2X18 – HUS" />
     <meta name="robots" content="noindex" />
 
-    <link rel="icon" type="image/jpeg" href="/icon-192.jpg" />
-    <title>2X18 – APP</title>
+    <!-- ── Typography (Inter + Apple System SF Fallback + KaTeX CSS) ── -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
 
-    <!-- ── Base font size bump (+1px → 17px) for better readability ── -->
-    <style>
-      html { font-size: 17px; }
-      /* safe-area padding for notch phones */
-      body { padding-top: env(safe-area-inset-top); }
-    </style>
+    <link rel="icon" type="image/jpeg" href="/icon-192.jpg" />
+    <title>2X18 – Quản lý Nhóm Học Tập Bán Dẫn</title>
   </head>
   <body>
     <div id="root"></div>

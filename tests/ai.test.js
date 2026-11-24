@@ -89,6 +89,9 @@ it('handles upstream failures and enforces per-user request limits', async () =>
   for (let i = 0; i < 12; i++) { const res = response(); await handler({ method: 'POST', body }, res); expect(res.statusCode).toBe(502); }
   const res = response(); await handler({ method: 'POST', body }, res); expect(res.statusCode).toBe(429);
 });
+import { renderLatexString, safeSetHTML } from '../src/utils/sanitizeHtml.ts';
+import { applyColorScheme } from '../src/components/ui/ThemeToggle.tsx';
+
 it('recognizes missing Google scopes and retries only after visible reauthorization', async () => {
   await expect(checkGoogleResponse({ ok: false, status: 403, json: async () => ({ error: { errors: [{ reason: 'insufficientPermissions' }] } }) }, 'error')).rejects.toThrow('EXPIRED_TOKEN');
   const requireAuth = vi.fn().mockResolvedValueOnce('old').mockResolvedValueOnce('new');
@@ -96,3 +99,82 @@ it('recognizes missing Google scopes and retries only after visible reauthorizat
   expect(await withGoogleAuthorization(requireAuth, operation)).toBe('ok');
   expect(requireAuth.mock.calls).toEqual([[], [true]]); expect(operation.mock.calls).toEqual([['old'], ['new']]);
 });
+
+it('streams SSE deltas and collapsible reasoning chunks when stream: true is requested', async () => {
+  const sseChunks = [
+    'data: {"choices":[{"delta":{"reasoning_content":"Bước 1: phân tích..."},"finish_reason":null}]}\n\n',
+    'data: {"choices":[{"delta":{"content":"Xin chào 2X18!"},"finish_reason":"stop"}]}\n\n',
+    'data: [DONE]\n\n',
+  ];
+  const streamFetch = vi.fn(async () => ({
+    ok: true,
+    status: 200,
+    body: (async function* () {
+      for (const chunk of sseChunks) yield chunk;
+    })(),
+  }));
+
+  const handler = createAiHandler({
+    authenticate: async () => ({ uid: 'u1' }),
+    fetchImpl: streamFetch,
+    env: { DEEPSEEK_API_KEY: 'test-only' },
+  });
+
+  const written = [];
+  const res = {
+    statusCode: 200,
+    headers: {},
+    setHeader(k, v) { this.headers[k] = v; },
+    status(c) { this.statusCode = c; return this; },
+    json(b) { this.body = b; return this; },
+    write(chunk) { written.push(chunk); },
+    end() { this.ended = true; },
+  };
+
+  await handler(
+    {
+      method: 'POST',
+      body: {
+        systemPrompt: '2X18 Copilot',
+        userPrompt: 'Chào bạn',
+        responseMimeType: 'text/plain',
+        model: 'deepseek-reasoner',
+        stream: true,
+      },
+    },
+    res
+  );
+
+  expect(res.headers['Content-Type']).toContain('text/event-stream');
+  expect(res.ended).toBe(true);
+  const fullStream = written.join('');
+  expect(fullStream).toContain('"type":"meta"');
+  expect(fullStream).toContain('"type":"reasoning"');
+  expect(fullStream).toContain('Bước 1: phân tích...');
+  expect(fullStream).toContain('"type":"delta"');
+  expect(fullStream).toContain('Xin chào 2X18!');
+  expect(fullStream).toContain('data: [DONE]');
+});
+
+it('renders KaTeX math and strips XSS payloads via safeSetHTML and syncs color-scheme meta', async () => {
+  const mathHtml = renderLatexString('E_g = 1.12\\text{ eV}', false);
+  expect(mathHtml).toContain('katex');
+
+  const el = document.createElement('div');
+  await safeSetHTML(
+    el,
+    `<p>An toàn</p><script>window.__xss = true;</script><img src="x" onerror="alert(1)"><span>${mathHtml}</span>`
+  );
+  expect(el.innerHTML).toContain('An toàn');
+  expect(el.innerHTML).not.toContain('<script');
+  expect(el.innerHTML).not.toContain('onerror');
+
+  applyColorScheme('light');
+  expect(document.querySelector('meta[name="color-scheme"]')?.getAttribute('content')).toBe('light');
+  expect(document.documentElement.dataset.theme).toBe('light');
+
+  applyColorScheme('system');
+  expect(document.querySelector('meta[name="color-scheme"]')?.getAttribute('content')).toBe('light dark');
+  expect(document.documentElement.dataset.theme).toBeUndefined();
+});
+

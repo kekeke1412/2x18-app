@@ -1,19 +1,23 @@
 import React, { useMemo } from 'react';
 import { BarChart2 } from 'lucide-react';
 import { subjectDatabase } from '../../data';
+import ProgressRing from '../ui/ProgressRing';
 
-export function LearningProgressCard({ myGrades, allGrades, members }) {
+export function LearningProgressCard({ myGrades, allGrades, members }: any) {
   const { myPct, groupPct, myDone, myLearning, totalSubs } = useMemo(() => {
-    let myDone = 0, myLearning = 0;
+    let myDone = 0,
+      myLearning = 0;
     const total = subjectDatabase.length;
     subjectDatabase.forEach(sub => {
-      const g = myGrades[sub.id]; if (!g) return;
+      const g = myGrades[sub.id];
+      if (!g) return;
       if (g.status === 'Đã học' || g.status === 'Được miễn' || g.status === 'Đạt') myDone++;
       else if (g.status === 'Đang học') myLearning++;
     });
     const myP = Math.round((myDone / total) * 100);
 
-    let totalProg = 0, countProg = 0;
+    let totalProg = 0,
+      countProg = 0;
     members.forEach((m: any) => {
       const g = allGrades[m.id] || {};
       let done = 0;
@@ -21,7 +25,10 @@ export function LearningProgressCard({ myGrades, allGrades, members }) {
         const sg = g[sub.id];
         if (sg?.status === 'Đã học' || sg?.status === 'Được miễn' || sg?.status === 'Đạt') done++;
       });
-      if (done > 0) { totalProg += done; countProg++; }
+      if (done > 0) {
+        totalProg += done;
+        countProg++;
+      }
     });
     const grpP = countProg > 0 ? Math.round((totalProg / (countProg * total)) * 100) : 0;
 
@@ -29,53 +36,106 @@ export function LearningProgressCard({ myGrades, allGrades, members }) {
   }, [myGrades, allGrades, members]);
 
   const segments = [
-    { label: 'Hoàn thành', count: myDone, color: 'bg-green-500', textColor: 'text-green-400' },
-    { label: 'Đang học', count: myLearning, color: 'bg-blue-500', textColor: 'text-blue-400' },
-    { label: 'Chưa học', count: totalSubs - myDone - myLearning, color: 'bg-gray-700', textColor: 'text-gray-500' },
+    {
+      label: 'Hoàn thành',
+      marker: '●',
+      count: myDone,
+      textColor: 'text-[#34A853]',
+      bg: 'bg-[#34A853]/12 border-[#34A853]/25',
+    },
+    {
+      label: 'Đang học',
+      marker: '▲',
+      count: myLearning,
+      textColor: 'text-[#4285F4]',
+      bg: 'bg-[#4285F4]/12 border-[#4285F4]/25',
+    },
+    {
+      label: 'Chưa học',
+      marker: '■',
+      count: totalSubs - myDone - myLearning,
+      textColor: 'text-[var(--text-secondary)]',
+      bg: 'bg-[var(--bg-subtle)] border-[var(--border-default)]',
+    },
   ];
 
   return (
-    <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-2xl overflow-hidden">
-      <div className="px-5 py-3.5 border-b border-gray-800/60 flex items-center gap-2">
-        <BarChart2 className="w-4 h-4 text-purple-400" />
-        <h3 className="font-bold text-white text-sm">Tiến độ học tập</h3>
+    <div className="glass overflow-hidden">
+      <div className="px-5 py-4 border-b border-[var(--border-default)] flex items-center gap-2.5">
+        <div className="w-8 h-8 rounded-xl bg-[#4285F4]/15 flex items-center justify-center text-[#4285F4]">
+          <BarChart2 className="w-4 h-4" strokeWidth={1.85} />
+        </div>
+        <h3 className="font-bold text-[var(--text-primary)] text-sm">Tiến độ học tập</h3>
       </div>
+
       <div className="p-5 space-y-4">
-        <div>
-          <div className="flex justify-between text-[10px] text-gray-500 mb-1.5">
-            <span className="font-bold text-gray-300">Cá nhân bạn</span>
-            <span className="font-bold text-white">{myPct}%</span>
+        {/* Apple Fitness / Health style dual progress rings */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex items-center gap-3 p-3 rounded-2xl bg-[var(--bg-subtle)] border border-[var(--border-default)]">
+            <ProgressRing
+              value={myPct}
+              max={100}
+              size={54}
+              thickness={6}
+              color="#4285F4"
+              label="Tiến độ hoàn thành môn học cá nhân"
+              valueText={`${myPct}% (${myDone}/${totalSubs} môn)`}
+            >
+              <span className="text-xs font-black text-[#4285F4]">{myPct}%</span>
+            </ProgressRing>
+            <div className="min-w-0">
+              <div className="text-xs font-extrabold text-[var(--text-primary)]">Cá nhân bạn</div>
+              <div className="text-[11px] text-[var(--text-secondary)] tabular-nums">
+                {myDone}/{totalSubs} môn
+              </div>
+            </div>
           </div>
-          <div className="h-2.5 bg-gray-800 rounded-full overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded-full transition-all"
-              style={{ width: `${myPct}%` }} />
+
+          <div className="flex items-center gap-3 p-3 rounded-2xl bg-[var(--bg-subtle)] border border-[var(--border-default)]">
+            <ProgressRing
+              value={groupPct}
+              max={100}
+              size={54}
+              thickness={6}
+              color="#34A853"
+              label="Tiến độ hoàn thành trung bình của nhóm"
+              valueText={`${groupPct}% (${members.length} thành viên)`}
+            >
+              <span className="text-xs font-black text-[#34A853]">{groupPct}%</span>
+            </ProgressRing>
+            <div className="min-w-0">
+              <div className="text-xs font-extrabold text-[var(--text-primary)]">TB nhóm</div>
+              <div className="text-[11px] text-[var(--text-secondary)] tabular-nums">
+                {members.length} thành viên
+              </div>
+            </div>
           </div>
         </div>
-        <div>
-          <div className="flex justify-between text-[10px] text-gray-500 mb-1.5">
-            <span className="font-bold text-gray-400">Trung bình nhóm ({members.length} người)</span>
-            <span className="font-bold text-gray-300">{groupPct}%</span>
-          </div>
-          <div className="h-2.5 bg-gray-800 rounded-full overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-purple-600 to-purple-400 rounded-full transition-all"
-              style={{ width: `${groupPct}%` }} />
-          </div>
-        </div>
+
         {myPct > 0 && (
-          <div className={`text-center text-xs font-bold px-3 py-2 rounded-xl ${myPct >= groupPct
-            ? 'text-green-400 bg-green-500/10 border border-green-500/20'
-            : 'text-amber-400 bg-amber-500/10 border border-amber-500/20'
-            }`}>
+          <div
+            className={`text-center text-xs font-bold px-3.5 py-2.5 rounded-2xl tabular-nums ${
+              myPct >= groupPct
+                ? 'badge-green w-full justify-center py-2.5 text-xs'
+                : 'badge-yellow w-full justify-center py-2.5 text-xs'
+            }`}
+          >
             {myPct >= groupPct
               ? `↑ Bạn học nhanh hơn TB nhóm ${myPct - groupPct}%`
               : `↓ Bạn cần cố gắng hơn ${groupPct - myPct}% so với TB nhóm`}
           </div>
         )}
-        <div className="grid grid-cols-3 gap-2 pt-1 border-t border-gray-800/40">
+
+        <div className="grid grid-cols-3 gap-2.5 pt-2">
           {segments.map(s => (
-            <div key={s.label} className="text-center">
-              <div className={`text-lg font-black ${s.textColor}`}>{s.count}</div>
-              <div className="text-[10px] text-gray-600">{s.label}</div>
+            <div key={s.label} className={`text-center p-2.5 rounded-2xl border ${s.bg}`}>
+              <div className={`text-lg font-black tabular-nums ${s.textColor}`}>{s.count}</div>
+              <div className="text-[11px] font-semibold text-[var(--text-secondary)]">
+                <span aria-hidden="true" className="mr-1">
+                  {s.marker}
+                </span>
+                {s.label}
+              </div>
             </div>
           ))}
         </div>

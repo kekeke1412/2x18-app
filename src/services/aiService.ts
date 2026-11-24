@@ -35,44 +35,156 @@ export function classifyIntent(userMessage, preferredModel = 'auto') {
 }
 
 /**
- * Gọi DeepSeek thông qua Vercel Proxy với cơ chế định tuyến mô hình kép (Dual-Model Routing):
- * Hỗ trợ deepseek-chat & deepseek-reasoner.
+ * Gọi DeepSeek thông qua Vercel Proxy với cơ chế định tuyến mô hình kép (Dual-Model Routing)
+ * và hỗ trợ SSE Streaming từng chữ (stream: true) + AbortController.
  */
 export async function callAI(systemPrompt, userPrompt, options = {}) {
   const {
     temperature = 0.5,
     history = [],
     responseMimeType = 'text/plain',
-    model = 'deepseek-chat'
+    model = 'deepseek-chat',
+    stream = false,
+    signal,
+    onStreamUpdate,
   } = options;
 
   return await callDeepSeekProxy(systemPrompt, userPrompt, {
     temperature,
-    history: history.slice(-12).map(message => ({ ...message, text: String(message.text || message.content || '').slice(0, 12000) })),
+    history: history
+      .slice(-12)
+      .map(message => ({
+        role: message.role === 'user' ? 'user' : 'assistant',
+        text: String(message.text || message.content || '').slice(0, 12000),
+      })),
     responseMimeType,
-    model
+    model,
+    stream: Boolean(stream && responseMimeType === 'text/plain'),
+    signal,
+    onStreamUpdate,
   });
 }
 
-async function callDeepSeekProxy(systemPrompt, userPrompt, { temperature, history, responseMimeType, model }) {
+async function callDeepSeekProxy(
+  systemPrompt,
+  userPrompt,
+  { temperature, history, responseMimeType, model, stream = false, signal, onStreamUpdate }
+) {
   const user = auth.currentUser;
   if (!user) throw new Error('Vui lòng đăng nhập để sử dụng AI.');
   const token = await user.getIdToken();
+
+  const timeoutController = new AbortController();
+  const timeoutId = setTimeout(() => timeoutController.abort(new DOMException('Timeout', 'TimeoutError')), 65000);
+  const onExternalAbort = () => timeoutController.abort(signal?.reason || new DOMException('Aborted', 'AbortError'));
+  if (signal) {
+    if (signal.aborted) {
+      clearTimeout(timeoutId);
+      throw new DOMException('Đã dừng tạo câu trả lời.', 'AbortError');
+    }
+    signal.addEventListener('abort', onExternalAbort, { once: true });
+  }
+
   let res;
   try {
     res = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      signal: AbortSignal.timeout(65000),
-      body: JSON.stringify({ systemPrompt, userPrompt, temperature, history, responseMimeType, model }),
+      signal: timeoutController.signal,
+      body: JSON.stringify({
+        systemPrompt,
+        userPrompt,
+        temperature,
+        history,
+        responseMimeType,
+        model,
+        stream,
+      }),
     });
   } catch (error) {
-    throw new Error(error.name === 'TimeoutError' ? 'DeepSeek phản hồi quá lâu. Vui lòng thử lại.' : 'Không kết nối được dịch vụ AI.');
+    clearTimeout(timeoutId);
+    signal?.removeEventListener('abort', onExternalAbort);
+    if (signal?.aborted || error?.name === 'AbortError') {
+      throw new DOMException('Đã dừng tạo câu trả lời.', 'AbortError');
+    }
+    if (error?.name === 'TimeoutError') {
+      throw new Error('DeepSeek phản hồi quá thời gian chờ. Vui lòng bấm Thử lại.');
+    }
+    throw new Error('Không kết nối được dịch vụ AI. Vui lòng kiểm tra mạng và thử lại.');
   }
+
+  const contentType = res.headers?.get?.('content-type') || '';
+
+  if (stream && res.ok && contentType.includes('text/event-stream') && res.body) {
+    let text = '';
+    let reasoning = '';
+    let modelUsed = model;
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    const handleSseLine = line => {
+      const trimmed = line.trim();
+      if (!trimmed || !trimmed.startsWith('data:')) return;
+      const payloadStr = trimmed.slice(5).trim();
+      if (payloadStr === '[DONE]') return;
+      try {
+        const evt = JSON.parse(payloadStr);
+        if (evt.type === 'meta' && evt.modelUsed) {
+          modelUsed = evt.modelUsed;
+        } else if (evt.type === 'reasoning' && typeof evt.reasoning === 'string') {
+          reasoning += evt.reasoning;
+          onStreamUpdate?.({ text, reasoning, modelUsed });
+        } else if (evt.type === 'delta' && typeof evt.text === 'string') {
+          text += evt.text;
+          onStreamUpdate?.({ text, reasoning, modelUsed });
+        } else if (evt.type === 'truncated' && typeof evt.warning === 'string') {
+          text += evt.warning;
+          onStreamUpdate?.({ text, reasoning, modelUsed });
+        } else if (evt.type === 'error' && evt.error) {
+          throw new Error(evt.error);
+        }
+      } catch (e) {
+        if (e instanceof Error && e.message && !e.message.includes('JSON')) {
+          throw e;
+        }
+      }
+    };
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const line of lines) handleSseLine(line);
+      }
+      if (buffer.trim()) handleSseLine(buffer);
+    } catch (error) {
+      if (signal?.aborted || error?.name === 'AbortError') {
+        throw new DOMException('Đã dừng tạo câu trả lời.', 'AbortError');
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+      signal?.removeEventListener('abort', onExternalAbort);
+    }
+
+    if (!text.trim()) {
+      throw new Error('Mô hình trả về nội dung trống. Vui lòng bấm Thử lại.');
+    }
+    return { text, reasoning, modelUsed };
+  }
+
+  clearTimeout(timeoutId);
+  signal?.removeEventListener('abort', onExternalAbort);
+
   const data = await res.json().catch(() => null);
   if (!data) throw new Error('Máy chủ AI chưa sẵn sàng. Cần chạy API /api/ai cùng ứng dụng.');
   if (!res.ok) throw new Error(data.error || 'Không thể xử lý yêu cầu AI.');
   if (typeof data.text !== 'string' || !data.text.trim()) throw new Error('DeepSeek trả về nội dung trống.');
+  onStreamUpdate?.({ text: data.text, reasoning: data.reasoning || '', modelUsed: data.modelUsed || model });
   return { text: data.text, reasoning: data.reasoning || '', modelUsed: data.modelUsed };
 }
 
@@ -425,8 +537,18 @@ function buildResearchAndCopilotModulePrompt() {
   * TSRI - Trung tâm chế tạo và đo kiểm thử nghiệm vi mạch Đài Loan.`;
 }
 
-// ── HÀM CHÍNH: Chat Với AI (Hỗ trợ Dual-Model deepseek-chat & deepseek-reasoner) ──
-export async function chatWithAI(userMessage, context, history = [], preferredModel = 'auto') {
+// ── HÀM CHÍNH: Chat Với AI (Hỗ trợ Dual-Model deepseek-chat & deepseek-reasoner + SSE Stream) ──
+export async function chatWithAI(
+  userMessage,
+  context,
+  history = [],
+  preferredModel = 'auto',
+  streamOptions: {
+    stream?: boolean;
+    signal?: AbortSignal;
+    onStreamUpdate?: (partial: { text: string; reasoning: string; modelUsed: string }) => void;
+  } = {}
+) {
   const { isCore, currentUser, rawGrades, myTasks, smeMap } = context;
   const myGradesEnriched = context.myGradesEnriched || context.detailedGrades || [];
   const userName = currentUser?.fullName || 'bạn';
@@ -434,26 +556,47 @@ export async function chatWithAI(userMessage, context, history = [], preferredMo
 
   // 1. Tự động định tuyến mô hình thông minh (Model Routing)
   const selectedModel = classifyIntent(userMessage, preferredModel);
-  const isReasoning = selectedModel === 'deepseek-v4-pro';
+  const isReasoning = selectedModel === 'deepseek-v4-pro' || selectedModel === 'deepseek-reasoner';
 
   const copilotResearchPrompt = buildResearchAndCopilotModulePrompt();
+
+  const geminiStyleGuidelines = `=== QUY CHUẨN PHONG CÁCH TRẢ LỜI & ĐỊNH DẠNG ===
+1. DANH TÍNH TRỢ LÝ:
+   - Bạn là "${isCore ? '2X18 Core Advisor' : '2X18 Copilot'}" (vận hành trên nền tảng mô hình DeepSeek của nhóm 2X18 — K70 Công nghệ Bán dẫn, HUS-VNU).
+   - TUYỆT ĐỐI KHÔNG tự nhận mình là Gemini, ChatGPT hay trợ lý của bên thứ ba.
+2. NGÔN NGỮ & GIỌNG ĐIỆU:
+   - Trả lời bằng tiếng Việt tự nhiên, thân thiện, ấm áp, tích cực và rõ ràng; nếu người dùng đặt câu hỏi bằng ngôn ngữ khác (tiếng Anh, tiếng Trung/TOCFL...), hãy tự động chuyển sang ngôn ngữ đó để trả lời.
+   - Xưng "mình", gọi người dùng là "${isCore ? `Core ${firstName}` : firstName}".
+3. CẤU TRÚC TRẢ LỜI TRỰC DIỆN & DỄ ĐỌC:
+   - Đi thẳng vào câu trả lời cốt lõi ngay ở câu đầu tiên (không mở đầu rườm rà).
+   - Với câu hỏi đơn giản: trả lời ngắn gọn, súc tích, không kéo dài dòng.
+   - Với câu hỏi học thuật / phân tích: trình bày có cấu trúc rõ ràng bằng tiêu đề ngắn (## / ###), gạch đầu dòng, bảng Markdown khi so sánh, công thức toán/vật lý viết bằng LaTeX ($...$ hoặc $$...$$), và khối code có tên ngôn ngữ.
+4. TRUNG THỰC & CHÍNH XÁC:
+   - Thành thật khi không chắc chắn hoặc thiếu dữ liệu; TUYỆT ĐỐI không bịa số liệu điểm số, điểm danh hay nội dung tài liệu bên ngoài chưa được cung cấp.
+   - Nếu yêu cầu của người dùng còn mơ hồ, hãy trả lời phần khả dĩ nhất và hỏi lại 1 câu ngắn gọn để làm rõ.
+5. CHỦ ĐỘNG GỢI Ý BƯỚC TIẾP THEO:
+   - Khi hợp lý, hãy gợi ý bước hành động tiếp theo và kết thúc câu trả lời bằng đúng 1 dòng cuối theo mẫu:
+     [GỢI Ý]: Câu hỏi gợi ý ngắn 1? | Câu hỏi gợi ý ngắn 2? | Câu hỏi gợi ý ngắn 3?`;
+
   let systemPrompt = '';
 
   if (isCore) {
     // ══════════════════════════════════════════════════════════════════════════
-    // CHẾ ĐỘ 1: CORE / SUPER ADMIN (Trợ lý Tác chiến & Cố Vấn Chiến Lược Toàn Đoàn)
+    // CHẾ ĐỘ 1: CORE / SUPER ADMIN (2X18 Core Advisor)
     // ══════════════════════════════════════════════════════════════════════════
     const coreReportText = formatCoreGroupReport(context);
     const personalGradesText = formatMemberGrades(myGradesEnriched, rawGrades, smeMap);
     const personalTasksText = formatMemberTasks(myTasks);
 
-    systemPrompt = `Bạn là "2X18 Core Advisor" — Trợ lý Tác chiến Khoa học và Công nghệ Bán dẫn nội bộ của Ban Điều Hành nhóm 2X18 (Đại học Khoa học Tự nhiên, ĐHQGHN).
+    systemPrompt = `Bạn là "2X18 Core Advisor" — Trợ lý Tác chiến Khoa học & Quản trị Học thuật nội bộ của Ban Điều Hành nhóm 2X18 (Đại học Khoa học Tự nhiên, ĐHQGHN).
 
 MÔ HÌNH ĐANG CHẠY: ${selectedModel} ${isReasoning ? '(Deep Reasoning CoT - Chuyên sâu Toán lý, Phòng sạch, Giải phẫu bài báo)' : '(High Speed - Tổng hợp, Quản trị, Lập lịch)'}
 
+${geminiStyleGuidelines}
+
 QUYỀN HẠN & VAI TRÒ CỦA BẠN:
-- Bạn được trao quyền truy cập toàn bộ dữ liệu thành viên đang hoạt động của nhóm 2X18 (Học lực, CPA, Task, Chuyên cần, Phân công SME, Quy trình lab phòng sạch, Kế hoạch học bổng Đài Loan).
-- Người đang trao đổi với bạn là ${userName} (Ban Quản trị / Nhóm Core 2X18).
+- Bạn được quyền truy cập dữ liệu thành viên đang hoạt động của nhóm 2X18 (Học lực, CPA, Task, Chuyên cần, Phân công SME, Quy trình lab phòng sạch, Kế hoạch học bổng Đài Loan).
+- Người đang trao đổi với bạn là ${userName} (Ban Điều Hành / Core Team 2X18).
 
 ${copilotResearchPrompt}
 
@@ -462,32 +605,31 @@ ${coreReportText}
 
 DỮ LIỆU CÁ NHÂN CỦA CORE (${userName}):
 ${personalGradesText}
-${personalTasksText}
-
-NGUYÊN TẮC GIAO TIẾP & TÁC CHIẾN (FIRST PRINCIPLES):
-1. Không dùng các câu mở đầu rập khuôn thảo mai ("Chào bạn, tôi là AI..."). Đi thẳng vào trọng tâm vấn đề ngay từ câu đầu tiên.
-2. Giải thích hiện tượng từ Nguyên lý thứ nhất (Vùng năng lượng, nhiệt động học màng mỏng, Maxwell, phân phối thống kê).
-3. Sử dụng chính xác thuật ngữ chuyên ngành bán dẫn (Cleanroom, Sputtering, Base vacuum, RF power, Ohmic contact, High-k, TSV, Metrology, SPC, Yield).
-4. Phân tích quản trị sắc bén: Chỉ rõ ai đang quá tải, ai đang hổng kiến thức môn nào, đề xuất SME tương ứng mở buổi phụ đạo, gợi ý lab Đài Loan (NYCU/NTHU/NTU) phù hợp hồ sơ.
-5. Nếu ${userName} hỏi về cá nhân mình, hãy phân tích chi tiết dữ liệu học tập và công việc của ${firstName}.
-6. Xưng "mình", gọi người dùng là "${firstName}" hoặc "Core ${firstName}". Trình bày súc tích, chuyên nghiệp, cấu trúc rõ ràng với icon phân loại 🔴 🟡 🟢.`;
-
+${personalTasksText}`;
   } else {
     // ══════════════════════════════════════════════════════════════════════════
-    // CHẾ ĐỘ 2: MEMBER THÔNG THƯỜNG (Cố Vấn Học Thuật & Phát Triển Cá Nhân)
+    // CHẾ ĐỘ 2: MEMBER THÔNG THƯỜNG (2X18 Copilot)
     // ══════════════════════════════════════════════════════════════════════════
     const memberGradesText = formatMemberGrades(myGradesEnriched, rawGrades, smeMap);
     const memberTasksText = formatMemberTasks(myTasks);
-    const { attendanceRate = 100, attendanceSummary = {}, vocabStats = {}, points = 0, upcomingEvents = [] } = context;
+    const {
+      attendanceRate = 100,
+      attendanceSummary = {},
+      vocabStats = {},
+      points = 0,
+      upcomingEvents = [],
+    } = context;
 
-    systemPrompt = `Bạn là "2X18 Copilot" — Cố vấn Học thuật & Phát triển Cá nhân độc quyền của ${userName} tại nhóm 2X18 (Trường ĐHKHTN, ĐHQGHN).
+    systemPrompt = `Bạn là "2X18 Copilot" — Cố vấn Học thuật & Phát triển Cá nhân của ${userName} tại nhóm 2X18 (Trường ĐHKHTN, ĐHQGHN).
 
 MÔ HÌNH ĐANG CHẠY: ${selectedModel} ${isReasoning ? '(Deep Reasoning CoT - Phân tích Toán lý, Bắt lỗi tư duy, Phòng sạch)' : '(High Speed - Trả lời nhanh, Lập kế hoạch)'}
 
+${geminiStyleGuidelines}
+
 CHÍNH SÁCH BẢO MẬT DỮ LIỆU NGHIÊM NGẶT (STRICT PRIVACY):
-- Bạn CHỈ ĐƯỢC PHÉP xem và phân tích dữ liệu của ${userName}.
-- Bạn TUYỆT ĐỐI KHÔNG có quyền truy cập dữ liệu của các thành viên khác.
-- Nếu người dùng hỏi về điểm số, task hay thông tin riêng tư của bạn khác, BẮT BUỘC TỪ CHỐI: "Vì chính sách bảo mật dữ liệu học tập của nhóm 2X18, mình chỉ có thể hỗ trợ và phân tích dữ liệu của riêng bạn thôi nhé!"
+- Bạn CHỈ ĐƯỢC PHÉP xem và phân tích dữ liệu học tập tối thiểu cần thiết của riêng ${userName}.
+- Bạn TUYỆT ĐỐI KHÔNG có quyền truy cập và KHÔNG ĐƯỢC tiết lộ dữ liệu của bất kỳ thành viên nào khác.
+- Nếu người dùng hỏi về điểm số, điểm danh hay nhiệm vụ riêng của thành viên khác, BẮT BUỘC TỪ CHỐI LỊCH SỰ: "Vì chính sách bảo mật dữ liệu học tập của nhóm 2X18, mình chỉ có thể hỗ trợ và phân tích dữ liệu của riêng bạn thôi nhé!"
 
 ${copilotResearchPrompt}
 
@@ -495,31 +637,31 @@ DỮ LIỆU CÁ NHÂN CỦA ${userName}:
 - Họ tên: ${userName} | MSSV: ${context.mssv || 'N/A'}
 - Điểm cống hiến: ${points} điểm
 - Chuyên cần: ${attendanceRate}% (${attendanceSummary.attended || 0}/${attendanceSummary.total || 0} buổi tham gia)
-- Từ vựng: Đã thuộc ${vocabStats.learnedWords || 0} từ
-- Sự kiện / Deadline nhóm: ${upcomingEvents.map(e => `${e.title} (${e.date})`).join(', ') || 'Không có'}
+- Từ vựng Flashcard: Đã thuộc ${vocabStats.learnedWords || 0} từ (trên ${vocabStats.totalSets || 0} bộ)
+- Sự kiện / Lịch sắp tới: ${upcomingEvents.map(e => `${e.title} (${e.date})`).join(', ') || 'Không có'}
 
 ${memberGradesText}
 
 ${memberTasksText}
 
 NGUYÊN TẮC CỐ VẤN HỌC THUẬT:
-1. Không giải bài toán thụ động từ A-Z. Hãy rà soát từng dòng biến đổi để chỉ ra VẾT GÃY TƯ DUY và hướng dẫn theo Nguyên lý thứ nhất.
-2. Công thức tính điểm HUS: Điểm HP = CC*0.2 + GK*0.2 + CK*0.6. Luôn tính ngược điểm CK cần đạt khi thành viên hỏi về mục tiêu điểm chữ.
-3. Khi thành viên hỏi về quy trình phòng sạch (Sputtering, ALD, đo 4 mũi nhọn) hoặc bài báo, áp dụng chuẩn cẩm nang phòng sạch NEC/HUS.
-4. Xưng "mình", gọi người dùng là "${firstName}". Đĩnh đạc, chuẩn xác, mang phong thái Trợ giảng cao cấp kiêm Kỹ sư Trưởng.`;
+1. Khi rà soát bài giải toán/lý: chỉ ra điểm nghẽn tư duy từ Nguyên lý thứ nhất và gợi mở rõ ràng.
+2. Công thức tính điểm HUS: Điểm HP = CC×0.2 + GK×0.2 + CK×0.6. Chủ động tính ngược điểm CK cần đạt khi thành viên hỏi về mục tiêu điểm chữ (D/B/B+/A).`;
   }
 
-  // Gọi AI với model được định tuyến
   const aiResult = await callAI(systemPrompt, userMessage, {
-    temperature: isReasoning ? undefined : 0.5,
+    temperature: isReasoning ? undefined : 0.45,
     history,
-    model: selectedModel
+    model: selectedModel,
+    stream: Boolean(streamOptions.stream),
+    signal: streamOptions.signal,
+    onStreamUpdate: streamOptions.onStreamUpdate,
   });
 
   return {
     text: aiResult.text || '',
     reasoning: aiResult.reasoning || '',
-    modelUsed: aiResult.modelUsed || selectedModel
+    modelUsed: aiResult.modelUsed || selectedModel,
   };
 }
 

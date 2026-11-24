@@ -12,6 +12,15 @@ import { useApp, toArr } from '../context/AppContext';
 import { suggestDefinitions } from '../services/vocabService';
 import { isImeComposing } from '../utils/stringUtils';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+} from 'recharts';
 import { useVocab, useUserVocab, useQuizHistory } from '../hooks/useDomainQueries';
 
 const EMPTY_SET = Object.freeze({ title: '', description: '', terms: [] });
@@ -1027,68 +1036,59 @@ export default function FlashcardSet() {
   );
 }
 
-function QuizHistoryChart({ data }) {
-  const chartId = useId();
-  const height = 150;
-  const width = 500;
-  const padding = 20;
-
-  const maxValue = 100;
-  const points = data.map((d, i) => {
-    const x = padding + (i / (data.length - 1)) * (width - padding * 2);
-    const y = height - padding - (d.percentage / maxValue) * (height - padding * 2);
-    return { x, y };
-  });
-
-  const linePath = points.map((p, i) => (i === 0 ? `M ${p.x},${p.y}` : `L ${p.x},${p.y}`)).join(' ');
-  const areaPath = `${linePath} L ${points[points.length - 1].x},${height - padding} L ${points[0].x},${height - padding} Z`;
+function QuizHistoryChart({ data }: any) {
+  const chartId = useId().replace(/:/g, '');
+  const chartData = data.map((d: any, i: number) => ({
+    attempt: `Lần ${i + 1}`,
+    percentage: Number(d.percentage) || 0,
+  }));
 
   return (
-    <div className="w-full overflow-x-auto no-scrollbar">
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[400px] h-auto overflow-visible">
-        <defs>
-          <linearGradient id={`quizAreaGrad-${chartId}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#6366f1" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="#6366f1" stopOpacity="0" />
-          </linearGradient>
-          <linearGradient id={`quizLineGrad-${chartId}`} x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#818cf8" />
-            <stop offset="100%" stopColor="#6366f1" />
-          </linearGradient>
-        </defs>
-
-        {/* Grid lines */}
-        {[0, 25, 50, 75, 100].map(v => {
-          const y = height - padding - (v / 100) * (height - padding * 2);
-          return (
-            <g key={v}>
-              <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="#ffffff" strokeOpacity="0.05" strokeDasharray="4 4" />
-              <text x={0} y={y + 3} fontSize="8" fill="#4b5563" fontWeight="bold">{v}%</text>
-            </g>
-          );
-        })}
-
-        {/* Area */}
-        <motion.path
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1 }}
-          d={areaPath} fill={`url(#quizAreaGrad-${chartId})`}
-        />
-
-        {/* Line */}
-        <motion.path
-          initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1.5, ease: "easeInOut" }}
-          d={linePath} fill="none" stroke={`url(#quizLineGrad-${chartId})`} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
-        />
-
-        {/* Points */}
-        {points.map((p, i) => (
-          <motion.circle
-            key={i}
-            initial={{ r: 0 }} animate={{ r: 4 }} transition={{ delay: 1 + i * 0.1 }}
-            cx={p.x} cy={p.y} fill="#1a1a1a" stroke="#6366f1" strokeWidth="2"
+    <div className="w-full h-44" aria-label="Biểu đồ tiến trình điểm kiểm tra Flashcard">
+      <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={160}>
+        <AreaChart data={chartData} margin={{ top: 10, right: 12, left: -18, bottom: 0 }}>
+          <defs>
+            <linearGradient id={`quizAreaGrad-${chartId}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#4285F4" stopOpacity={0.35} />
+              <stop offset="100%" stopColor="#34A853" stopOpacity={0.04} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-default)" vertical={false} />
+          <XAxis
+            dataKey="attempt"
+            tick={{ fontSize: 10, fill: 'var(--text-secondary)', fontWeight: 700 }}
+            axisLine={{ stroke: 'var(--border-default)' }}
+            tickLine={false}
           />
-        ))}
-      </svg>
+          <YAxis
+            domain={[0, 100]}
+            ticks={[0, 25, 50, 75, 100]}
+            tick={{ fontSize: 10, fill: 'var(--text-secondary)' }}
+            axisLine={false}
+            tickLine={false}
+            unit="%"
+          />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: 'var(--bg-surface)',
+              borderColor: 'var(--border-default)',
+              borderRadius: '14px',
+              fontSize: '12px',
+              fontWeight: 700,
+            }}
+            formatter={(val: any) => [`${val}%`, 'Điểm số']}
+          />
+          <Area
+            type="monotone"
+            dataKey="percentage"
+            stroke="#4285F4"
+            strokeWidth={2.75}
+            fill={`url(#quizAreaGrad-${chartId})`}
+            dot={{ r: 4, fill: '#4285F4', stroke: '#FFFFFF', strokeWidth: 2 }}
+            activeDot={{ r: 6, fill: '#34A853', stroke: '#FFFFFF', strokeWidth: 2 }}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
     </div>
   );
 }

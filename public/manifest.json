@@ -4,8 +4,8 @@
   "description": "Ứng dụng quản lý nhóm học tập K70 Công nghệ Bán dẫn — HUS",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#09090b",
-  "theme_color": "#2563eb",
+  "background_color": "#202124",
+  "theme_color": "#4285F4",
   "orientation": "portrait-primary",
   "lang": "vi",
   "scope": "/",
@@ -14,13 +14,19 @@
       "src": "/icon-192.jpg",
       "sizes": "192x192",
       "type": "image/jpeg",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "maskable"
     },
     {
       "src": "/icon-192.jpg",
       "sizes": "512x512",
       "type": "image/jpeg",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ],
   "shortcuts": [
