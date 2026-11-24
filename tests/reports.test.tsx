@@ -3,11 +3,14 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 
 const mocks = vi.hoisted(() => ({ save: vi.fn(), classify: vi.fn(), toast: vi.fn(), reports: [] }));
-vi.mock('../src/context/AppContext', () => ({ useApp: () => ({
-  currentUser: { id: 'member', fullName: 'Test' }, isCore: true, isSuperAdmin: false,
-  addReport: mocks.save, updateReport: vi.fn(), deleteReport: vi.fn(), approveReport: vi.fn(),
-  getMemberById: () => null, requireGoogleAuth: vi.fn(), toast: mocks.toast,
-}) }));
+vi.mock('../src/context/AppContext', () => {
+  const ctx = {
+    currentUser: { id: 'member', fullName: 'Test' }, isCore: true, isSuperAdmin: false,
+    addReport: mocks.save, updateReport: vi.fn(), deleteReport: vi.fn(), approveReport: vi.fn(),
+    getMemberById: () => null, requireGoogleAuth: vi.fn(), toast: mocks.toast,
+  };
+  return { useApp: () => ctx, useOptionalApp: () => ctx };
+});
 vi.mock('../src/hooks/useDomainQueries', () => ({ useReports: () => ({ data: mocks.reports }) }));
 vi.mock('../src/services/aiService', () => ({ classifyReport: mocks.classify, reviewReport: vi.fn(), groupReportsByTopic: vi.fn() }));
 import Reports from '../src/pages/Reports';

@@ -1,7 +1,7 @@
 // @ts-nocheck
 // src/App.jsx
 /* __AUTHOR__: Phạm Thiên - 2X18 */
-import React, { useState, lazy, Suspense } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import {
   BrowserRouter as Router, Routes, Route, Navigate,
   Link, useLocation, useNavigate
@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 
 import { AppProvider, useApp } from './context/AppContext';
+import { REQUIRED_FIELDS } from './constants/profileConstants';
 import { motion, AnimatePresence } from 'framer-motion';
 import UserAvatar from './components/UserAvatar';
 const Auth = lazy(() => import('./pages/Auth'));
@@ -454,12 +455,25 @@ function AppLayout() {
       const next = !prev;
       try {
         localStorage.setItem('sidebar_collapsed', String(next));
-      } catch {}
+      } catch {
+        // Ignore storage errors in private browsing mode
+      }
       return next;
     });
   };
 
   const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const onSwNavigate = (event: any) => {
+      if (typeof event?.detail === 'string' && event.detail.startsWith('/')) {
+        navigate(event.detail);
+      }
+    };
+    window.addEventListener('sw-navigate', onSwNavigate);
+    return () => window.removeEventListener('sw-navigate', onSwNavigate);
+  }, [navigate]);
 
   if (isLoading) return <LoadingScreen />;
 

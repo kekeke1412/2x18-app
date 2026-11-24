@@ -2,13 +2,14 @@
 // src/pages/Vocab.jsx
 import React, { useState } from 'react';
 import { 
-  Book, Plus, Search, Trash2, Edit3, ChevronRight, 
-  Layers, Clock, User, Star, BookOpen, Sparkles, X, PlusCircle,
-  AlertCircle, CheckCircle2, Users, Trophy
+  Book, Plus, Search, Trash2, ChevronRight, 
+  Layers, Clock, Star, BookOpen, Sparkles, X, PlusCircle,
+  Users, Trophy
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import UserAvatar from '../components/UserAvatar';
 import { useVocab, useMembers, useUserVocab, useQuizHistory } from '../hooks/useDomainQueries';
 
 // Safe array coerce
@@ -57,7 +58,7 @@ export default function Vocab() {
   
   const getLevels = (uid) => {
     const data = userVocab[uid] || {};
-    let lvCounts = { 1:0, 2:0, 3:0, 4:0, 5:0, 6:0 };
+    const lvCounts = { 1:0, 2:0, 3:0, 4:0, 5:0, 6:0 };
     Object.values(data).forEach(setProg => {
       if (!setProg) return;
       // Handle both old array and new object structures
@@ -180,7 +181,7 @@ export default function Vocab() {
               </div>
 
               <div className="lg:col-span-3 bg-[#1a1a1a] border border-gray-800/60 rounded-3xl p-6 flex flex-col justify-between">
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
                   <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
                     <Star className="w-4 h-4 text-yellow-500" /> TIẾN ĐỘ CÁ NHÂN
                   </h3>
@@ -216,7 +217,7 @@ export default function Vocab() {
                   </div>
                   <h2 className="text-sm font-black text-gray-400 uppercase tracking-[0.2em]">Bảng vàng tiến độ (Admin)</h2>
                 </div>
-                <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-3xl overflow-hidden">
+                <div className="bg-[#1a1a1a] border border-gray-800/60 rounded-3xl overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-gray-800/20 border-b border-gray-800/60">
@@ -230,7 +231,7 @@ export default function Vocab() {
                     <tbody className="divide-y divide-gray-800/40">
                       {members
                         .filter(m => m.status === 'active')
-                        .sort((a,b) => (a.fullName || '').localeCompare(b.fullName || '')) // Xếp theo ABC
+                        .sort((a,b) => (a.fullName || '').localeCompare(b.fullName || ''))
                         .map(m => {
                           const lvs = getLevels(m.id);
                           const quiz = getMemberQuizStats(m.id);
@@ -240,13 +241,7 @@ export default function Vocab() {
                             <tr key={m.id} className="hover:bg-white/[0.02] transition-colors">
                               <td className="px-6 py-4">
                                 <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-[10px] font-black text-gray-400 overflow-hidden border border-gray-700">
-                                    {m.avatarUrl ? (
-                                      <img src={m.avatarUrl} alt={m.fullName} className="w-full h-full object-cover" />
-                                    ) : (
-                                      <span>{m.fullName?.slice(0,2).toUpperCase()}</span>
-                                    )}
-                                  </div>
+                                  <UserAvatar user={m} size={32} />
                                   <div className="text-sm font-bold text-gray-200">{m.fullName}</div>
                                 </div>
                               </td>
@@ -312,7 +307,7 @@ export default function Vocab() {
                     isOwner={s.authorId === currentUser?.id || isSuperAdmin || isCore}
                     progress={userVocab[currentUser?.id]?.[s.id] || {}}
                     onDelete={() => {
-                      if (window.confirm(`Bạn có chắc chắn muốn xóa học phần "${s.title}"? Dữ liệu sẽ được chuyển vào thùng rác.`)) {
+                      if (window.confirm(`Bạn có chắc chắn muốn chuyển học phần "${s.title}" vào thùng rác?`)) {
                         deleteVocabSet(s.id);
                       }
                     }}
@@ -397,7 +392,7 @@ function VocabSetCard({ set, onDelete, isOwner, progress = {} }) {
   const termCount = toArr(set.terms).length;
   const masteredCount = Object.values(progress).filter(lv => Number(lv) === 6).length;
   const pct = termCount > 0 ? Math.round((masteredCount / termCount) * 100) : 0;
-  const author = getMemberById(set.authorId);
+  const author = getMemberById(set.authorId) || (set.authorName ? { fullName: set.authorName } : undefined);
 
   return (
     <motion.div 
@@ -413,7 +408,7 @@ function VocabSetCard({ set, onDelete, isOwner, progress = {} }) {
             <Clock className="w-3 h-3" /> {termCount} thuật ngữ
           </div>
           {isOwner && (
-            <button onClick={onDelete} className="p-1.5 text-gray-600 hover:text-red-400 transition-colors rounded-lg hover:bg-red-400/10">
+            <button onClick={onDelete} className="p-1.5 text-gray-600 hover:text-red-400 transition-colors rounded-lg hover:bg-red-400/10" title="Chuyển vào thùng rác">
               <Trash2 className="w-4 h-4" />
             </button>
           )}
@@ -426,13 +421,7 @@ function VocabSetCard({ set, onDelete, isOwner, progress = {} }) {
 
       <div className="px-5 py-4 bg-[#141414] border-t border-gray-800/60 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-[10px] font-black text-gray-400 overflow-hidden border border-gray-800/60 shadow-inner">
-            {author?.avatarUrl ? (
-              <img src={author.avatarUrl} alt={set.authorName} className="w-full h-full object-cover" />
-            ) : (
-              <span>{set.authorName?.split(' ').slice(-1)[0][0] || <User className="w-3 h-3" />}</span>
-            )}
-          </div>
+          <UserAvatar user={author} size={32} />
           <div className="text-xs">
             <div className="text-gray-400 font-bold">{set.authorName || 'Thành viên'}</div>
             <div className="text-gray-600 text-[10px]">Đã nhớ sâu: {masteredCount}/{termCount}</div>
@@ -450,6 +439,6 @@ function VocabSetCard({ set, onDelete, isOwner, progress = {} }) {
           style={{ width: `${pct}%` }}
         />
       </div>
-      </motion.div>
+    </motion.div>
   );
 }

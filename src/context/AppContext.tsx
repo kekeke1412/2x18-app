@@ -248,18 +248,19 @@ export function AppProvider({ children }) {
     if (Object.keys(updates).length) await update(ref(db), updates);
   });
   const knownNotifications = useRef(null);
+  const currentUserId = currentUser?.id;
   useEffect(() => {
-    if (!currentUser || isLoading) { knownNotifications.current = null; return; }
+    if (!currentUserId || isLoading) { knownNotifications.current = null; return; }
     const ids = new Set(notifications.map(n => n.id));
     if (knownNotifications.current) notifications.forEach(n => {
-      if (!knownNotifications.current.has(n.id) && n.senderId !== currentUser.id && !n.read) void showNotification('2X18 — Thông báo mới', n.msg, { tag: n.id, data: { url: n.link || '/' } });
+      if (!knownNotifications.current.has(n.id) && n.senderId !== currentUserId && !n.read) void showNotification('2X18 — Thông báo mới', n.msg, { tag: n.id, data: { url: n.link || '/' } });
     }); knownNotifications.current = ids;
-  }, [notifications, currentUser?.id, isLoading]);
+  }, [notifications, currentUserId, isLoading]);
   useEffect(() => {
     const meetings = data.attendance.map(session => ({ ...session, id: `attendance-${session.sessionId}`, title: session.sessionTitle }));
-    syncAllReminders(currentUser ? [...data.calEvents, ...meetings] : []);
+    syncAllReminders(currentUserId ? [...data.calEvents, ...meetings] : []);
     return () => syncAllReminders([]);
-  }, [data.calEvents, data.attendance, currentUser?.id]);
+  }, [data.calEvents, data.attendance, currentUserId]);
   const addAttendanceSession = session => perform('addAttendance', async () => {
     await store.add('2x18_attendance', { ...session, sessionId: uid(), present: [], total: stateRef.current.data.members.filter(m => m.status === 'active').length }, 'sessionId');
     await secondary(() => notify(`📅 Buổi họp mới: ${session.sessionTitle}`, 'calendar', '/attendance'));
@@ -346,4 +347,5 @@ export function AppProvider({ children }) {
     </div>}
   </AppContext.Provider>;
 }
+export const useOptionalApp = () => useContext(AppContext);
 export const useApp = () => { const context = useContext(AppContext); if (!context) throw new Error('useApp must be used within AppProvider'); return context; };

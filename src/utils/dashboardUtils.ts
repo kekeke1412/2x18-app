@@ -1,61 +1,33 @@
 import { useMemo } from 'react';
-import { subjectDatabase, calculateHe10, getHe4 } from '../data';
+import { calcGpaStats } from './gradeUtils';
 
-export const DEFAULT_SEM_NAMES = {
+export const DEFAULT_SEM_NAMES: Record<number | string, string> = {
   1: 'HKI 2025–26', 2: 'HKII 2025–26', 3: 'HK Hè 26',
   4: 'HKI 2026–27', 5: 'HKII 2026–27', 6: 'HKI 2027–28',
   7: 'HKII 2027–28', 8: 'HKI 2028–29',
 };
 
-export function useSemesterNames(semesterLabels, updateSemesterLabel) {
+export function useSemesterNames(semesterLabels: Record<string, string>, updateSemesterLabel: (k: string, v: string) => void) {
   const names = useMemo(() => ({ ...DEFAULT_SEM_NAMES, ...semesterLabels }), [semesterLabels]);
-  const updateName = (sem, val) => updateSemesterLabel(String(sem), val);
-  return [names, updateName];
+  const updateName = (sem: string | number, val: string) => updateSemesterLabel(String(sem), val);
+  return [names, updateName] as const;
 }
 
-export function computeCPA(grades) {
-  let w = 0, c = 0, passed = 0, learning = 0;
-  subjectDatabase.forEach(sub => {
-    const g = grades[sub.id]; if (!g) return;
-    if (g.status === 'Đang học') learning++;
-    if (!sub.excludeCPA) {
-      if (g.status === 'Được miễn') passed += sub.credits;
-      if (g.status === 'Đã học') {
-        const h10 = calculateHe10(parseFloat(g.cc), parseFloat(g.gk), parseFloat(g.ck));
-        const h4 = getHe4(h10);
-        if (h10 !== null && h4 >= 1.0) {
-          w += h4 * sub.credits;
-          c += sub.credits;
-          passed += sub.credits;
-        }
-      }
-    }
-  });
-  const semGPA: Record<string, { w: number; c: number }> = {};
-  subjectDatabase.forEach(sub => {
-    const g = grades[sub.id]; if (!g) return;
-    if (g.status === 'Đã học' && !sub.excludeCPA) {
-      const h10 = calculateHe10(parseFloat(g.cc), parseFloat(g.gk), parseFloat(g.ck));
-      const h4 = getHe4(h10);
-      if (h10 !== null && h4 >= 1.0) {
-        const sem = String(g.semester || '?');
-        if (!semGPA[sem]) semGPA[sem] = { w: 0, c: 0 };
-        semGPA[sem].w += h4 * sub.credits; semGPA[sem].c += sub.credits;
-      }
-    }
-  });
-  const semResult: Record<string, string> = {};
-  Object.entries(semGPA).sort(([a], [b]) => Number(a) - Number(b)).forEach(([k, v]) => {
-    semResult[k] = v.c > 0 ? (Math.round((v.w / v.c + Number.EPSILON) * 100) / 100).toFixed(2) : '0.00';
-  });
+export function computeCPA(grades: Record<string, any> = {}) {
+  const stats = calcGpaStats(grades);
   return {
-    cpa: c > 0 ? (Math.round((w / c + Number.EPSILON) * 100) / 100).toFixed(2) : '0.00',
-    credits: passed, learning, semGPA: semResult,
+    cpa: stats.cpa,
+    credits: stats.credits,
+    learning: stats.learning,
+    done: stats.done,
+    failed: stats.failed,
+    semGPA: stats.semGPA,
   };
 }
 
-export const cpaColor = v => {
-  const n = parseFloat(v);
+export const cpaColor = (v: string | number) => {
+  const n = typeof v === 'number' ? v : parseFloat(v);
+  if (Number.isNaN(n)) return 'text-gray-400';
   if (n >= 3.6) return 'text-green-400';
   if (n >= 3.2) return 'text-blue-400';
   if (n >= 2.5) return 'text-yellow-400';

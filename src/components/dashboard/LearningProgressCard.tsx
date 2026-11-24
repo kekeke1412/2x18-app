@@ -8,18 +8,18 @@ export function LearningProgressCard({ myGrades, allGrades, members }) {
     const total = subjectDatabase.length;
     subjectDatabase.forEach(sub => {
       const g = myGrades[sub.id]; if (!g) return;
-      if (g.status === 'Đã học' || g.status === 'Được miễn') myDone++;
+      if (g.status === 'Đã học' || g.status === 'Được miễn' || g.status === 'Đạt') myDone++;
       else if (g.status === 'Đang học') myLearning++;
     });
     const myP = Math.round((myDone / total) * 100);
 
     let totalProg = 0, countProg = 0;
-    members.forEach(m => {
+    members.forEach((m: any) => {
       const g = allGrades[m.id] || {};
       let done = 0;
       subjectDatabase.forEach(sub => {
         const sg = g[sub.id];
-        if (sg?.status === 'Đã học' || sg?.status === 'Được miễn') done++;
+        if (sg?.status === 'Đã học' || sg?.status === 'Được miễn' || sg?.status === 'Đạt') done++;
       });
       if (done > 0) { totalProg += done; countProg++; }
     });

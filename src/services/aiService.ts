@@ -2,6 +2,7 @@
 // src/services/aiService.ts
 import { subjectDatabase, calculateHe10, getHe4 } from '../data';
 import { getLetterGrade, calcGpaStats } from '../utils/gradeUtils';
+import { daysDiffLocal } from '../utils/stringUtils';
 import { RESEARCH_KNOWLEDGE_BASE } from '../data/researchKnowledge';
 import { auth } from '../firebase';
 import { createClassificationCache, validateTopics } from './reportClassification.js';
@@ -83,9 +84,9 @@ export function safeJson(input, fallback) {
     return JSON.parse(text);
   } catch {
     try {
-      const match = text.match(/[\{\[]([\s\S]*)[\}\]]/);
+      const match = text.match(/[{[]([\s\S]*)[}\]]/);
       if (match) return JSON.parse(match[0]);
-    } catch (e) {
+    } catch {
       console.warn('[safeJson] AI response is not valid JSON.');
     }
     return fallback;
@@ -94,12 +95,7 @@ export function safeJson(input, fallback) {
 
 // ── Helper: Tính số ngày chênh lệch với deadline ────────────────────────────
 export function daysDiff(deadline) {
-  if (!deadline) return 999;
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  const target = new Date(deadline);
-  target.setHours(0, 0, 0, 0);
-  return Math.round((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  return daysDiffLocal(deadline);
 }
 
 // ── Helper: Tính ngược điểm thi Cuối Kỳ cần đạt ─────────────────────────────
@@ -431,12 +427,14 @@ function buildResearchAndCopilotModulePrompt() {
 
 // ── HÀM CHÍNH: Chat Với AI (Hỗ trợ Dual-Model deepseek-chat & deepseek-reasoner) ──
 export async function chatWithAI(userMessage, context, history = [], preferredModel = 'auto') {
-  const { isCore, currentUser, myGradesEnriched, rawGrades, myTasks, smeMap } = context;
+  const { isCore, currentUser, rawGrades, myTasks, smeMap } = context;
+  const myGradesEnriched = context.myGradesEnriched || context.detailedGrades || [];
   const userName = currentUser?.fullName || 'bạn';
   const firstName = userName.split(' ').filter(Boolean).slice(-1)[0] || 'bạn';
 
   // 1. Tự động định tuyến mô hình thông minh (Model Routing)
   const selectedModel = classifyIntent(userMessage, preferredModel);
+  const isReasoning = selectedModel === 'deepseek-v4-pro';
 
   const copilotResearchPrompt = buildResearchAndCopilotModulePrompt();
   let systemPrompt = '';
@@ -451,11 +449,11 @@ export async function chatWithAI(userMessage, context, history = [], preferredMo
 
     systemPrompt = `Bạn là "2X18 Core Advisor" — Trợ lý Tác chiến Khoa học và Công nghệ Bán dẫn nội bộ của Ban Điều Hành nhóm 2X18 (Đại học Khoa học Tự nhiên, ĐHQGHN).
 
-MÔ HÌNH ĐANG CHẠY: ${selectedModel} ${selectedModel === 'deepseek-reasoner' ? '(Deep Reasoning CoT - Chuyên sâu Toán lý, Phòng sạch, Giải phẫu bài báo)' : '(High Speed - Tổng hợp, Quản trị, Lập lịch)'}
+MÔ HÌNH ĐANG CHẠY: ${selectedModel} ${isReasoning ? '(Deep Reasoning CoT - Chuyên sâu Toán lý, Phòng sạch, Giải phẫu bài báo)' : '(High Speed - Tổng hợp, Quản trị, Lập lịch)'}
 
 QUYỀN HẠN & VAI TRÒ CỦA BẠN:
-- Bạn được trao quyền truy cập toàn bộ dữ liệu 16 thành viên nhóm 2X18 (Học lực, CPA, Task, Chuyên cần, Phân công SME, Quy trình lab phòng sạch, Kế hoạch học bổng Đài Loan).
-- Người đang trao đổi với bạn là ${userName} (Ban Quản trị / Nhóm Core 2X18: Hưng, Long, Ngọc, Phúc, Độ).
+- Bạn được trao quyền truy cập toàn bộ dữ liệu thành viên đang hoạt động của nhóm 2X18 (Học lực, CPA, Task, Chuyên cần, Phân công SME, Quy trình lab phòng sạch, Kế hoạch học bổng Đài Loan).
+- Người đang trao đổi với bạn là ${userName} (Ban Quản trị / Nhóm Core 2X18).
 
 ${copilotResearchPrompt}
 
@@ -484,7 +482,7 @@ NGUYÊN TẮC GIAO TIẾP & TÁC CHIẾN (FIRST PRINCIPLES):
 
     systemPrompt = `Bạn là "2X18 Copilot" — Cố vấn Học thuật & Phát triển Cá nhân độc quyền của ${userName} tại nhóm 2X18 (Trường ĐHKHTN, ĐHQGHN).
 
-MÔ HÌNH ĐANG CHẠY: ${selectedModel} ${selectedModel === 'deepseek-reasoner' ? '(Deep Reasoning CoT - Phân tích Toán lý, Bắt lỗi tư duy, Phòng sạch)' : '(High Speed - Trả lời nhanh, Lập kế hoạch)'}
+MÔ HÌNH ĐANG CHẠY: ${selectedModel} ${isReasoning ? '(Deep Reasoning CoT - Phân tích Toán lý, Bắt lỗi tư duy, Phòng sạch)' : '(High Speed - Trả lời nhanh, Lập kế hoạch)'}
 
 CHÍNH SÁCH BẢO MẬT DỮ LIỆU NGHIÊM NGẶT (STRICT PRIVACY):
 - Bạn CHỈ ĐƯỢC PHÉP xem và phân tích dữ liệu của ${userName}.
@@ -513,7 +511,7 @@ NGUYÊN TẮC CỐ VẤN HỌC THUẬT:
 
   // Gọi AI với model được định tuyến
   const aiResult = await callAI(systemPrompt, userMessage, {
-    temperature: selectedModel === 'deepseek-reasoner' ? undefined : 0.5,
+    temperature: isReasoning ? undefined : 0.5,
     history,
     model: selectedModel
   });

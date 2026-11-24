@@ -34,7 +34,6 @@ export default function Auth() {
   const handleGoogle = async () => {
     setLoading(true);
     try {
-      console.log('[AuthPage] Initiating Google login...');
       const result = await loginWithGoogle();
       if (result?.status === 'pending') {
         setPendingInfo({ name: result?.name, email: result?.email });

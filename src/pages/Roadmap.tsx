@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Target, Save, Edit3, Award, Plus, Trash2, CheckCircle2, Clock, TrendingUp, Flag, X, CalendarPlus } from 'lucide-react';
 import { useApp, uid } from '../context/AppContext';
+import { isImeComposing } from '../utils/stringUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRoadmap } from '../hooks/useDomainQueries';
 
@@ -115,7 +116,7 @@ function AddYearModal({ existingYears, onSave, onClose }) {
             type="number" placeholder="VD: 2030"
             value={yearInput}
             onChange={e => setYearInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && isValid && (onSave(yearNum), onClose())}
+            onKeyDown={e => { if (e.key === 'Enter' && !isImeComposing(e) && isValid) { onSave(yearNum); onClose(); } }}
             autoFocus
           />
           {yearInput && !isValid && (
@@ -480,15 +481,15 @@ export default function Roadmap() {
                   <Trash2 className="w-5 h-5 text-red-400"/>
                 </div>
                 <div>
-                  <div className="font-bold text-white">Xóa năm {confirmDelYear}?</div>
+                  <div className="font-bold text-white">Chuyển năm {confirmDelYear} vào thùng rác?</div>
                   <div className="text-xs text-gray-500 mt-0.5">
-                    {(roadmap.find(r=>r.year===confirmDelYear)?.events?.length||0)} mốc sẽ bị xóa vĩnh viễn
+                    {(roadmap.find(r=>r.year===confirmDelYear)?.events?.length||0)} mốc sẽ được chuyển vào thùng rác (Core Team có thể khôi phục)
                   </div>
                 </div>
               </div>
               <div className="flex gap-3">
                 <button onClick={()=>setConfirmDelYear(null)} className="flex-1 py-2 border border-gray-700 rounded-xl text-sm text-gray-400 hover:bg-[#252525]">Hủy</button>
-                <button onClick={()=>handleDeleteYear(confirmDelYear)} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-sm rounded-xl">Xóa năm {confirmDelYear}</button>
+                <button onClick={()=>handleDeleteYear(confirmDelYear)} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-sm rounded-xl">Chuyển thùng rác</button>
               </div>
             </motion.div>
           </motion.div>

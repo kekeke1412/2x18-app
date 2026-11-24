@@ -1,9 +1,9 @@
 // @ts-nocheck
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, Trash2, Edit3, X, Save, Clock, Check, Users, LayoutGrid, List, Download, Search, Eye } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { roleLabel, getInitials, toDisplay } from '../../utils/stringUtils';
+import { roleLabel, getInitials, toDisplay, safeExternalUrl } from '../../utils/stringUtils';
 import { useUserVocab, useQuizHistory } from '../../hooks/useDomainQueries';
 import { ETHNICITIES, BLOOD_TYPES, PROVINCES } from '../../constants/profileConstants';
 import { ProfileForm } from './ProfileForm';
@@ -17,9 +17,12 @@ function MemberDetail({ member, onBack, canEdit }) {
 
   const [tab, setTab] = useState('profile');
   const [isEditing, setIsEditing] = useState(false);
-  const [profile, setProfile] = useState({ ...member });
+  const [profile, setProfile] = useState(() => ({ ...member }));
 
-  useEffect(() => { setProfile({ ...member }); }, [member]);
+  const startEdit = () => {
+    setProfile({ ...member });
+    setIsEditing(true);
+  };
 
   const handleSaveProfile = async () => {
     if (await updateMemberProfile(member.id, profile)) setIsEditing(false);
@@ -53,17 +56,17 @@ function MemberDetail({ member, onBack, canEdit }) {
           <span className={`text-[10px] md:text-xs font-bold px-2.5 py-1 rounded-xl shrink-0 ${rl.cls}`}>{rl.text}</span>
           {isSuperAdmin && !isEditing && (
             <button onClick={() => {
-              if (window.confirm(`Bạn có chắc chắn muốn XÓA TOÀN BỘ dữ liệu của ${member.fullName}? Hành động này KHÔNG THỂ hoàn tác!`)) {
+              if (window.confirm(`Bạn có chắc chắn muốn vô hiệu hóa quyền truy cập của ${member.fullName} khỏi nhóm?`)) {
                 kickMember(member.id);
                 onBack();
               }
             }}
               className="flex items-center gap-1.5 text-xs text-red-400 border border-red-500/20 px-3 py-2 rounded-xl hover:bg-red-500/10 transition-all font-bold">
-              <Trash2 className="w-3.5 h-3.5" /> Kick
+              <Trash2 className="w-3.5 h-3.5" /> Vô hiệu hóa
             </button>
           )}
           {canEdit && tab === 'profile' && !isEditing && (
-            <button onClick={() => setIsEditing(true)}
+            <button onClick={startEdit}
               className="flex items-center gap-1.5 text-xs text-blue-400 border border-blue-500/20 px-3 py-2 rounded-xl hover:bg-blue-500/10 transition-all font-bold">
               <Edit3 className="w-3.5 h-3.5" /> Chỉnh sửa
             </button>
@@ -96,7 +99,7 @@ function MemberDetail({ member, onBack, canEdit }) {
 
       <div className="p-6">
         {tab === 'profile' && (
-          <ProfileForm profile={profile} setProfile={setProfile}
+          <ProfileForm profile={isEditing ? profile : member} setProfile={setProfile}
             isEditing={isEditing} isSuperAdmin={isSuperAdmin} isOwnProfile={false} />
         )}
         {tab === 'grades' && (
@@ -116,7 +119,7 @@ function MemberCard({ member, onClick, index }) {
 
   const memberVocab = userVocab[member.id] || {};
   const totalLearned = Object.values(memberVocab).reduce((sum, set) => {
-    return sum + Object.values(set).filter(lv => lv >= 3).length;
+    return sum + Object.values(set || {}).filter(lv => Number(lv) >= 6).length;
   }, 0);
 
   const history = quizHistory[member.id] || [];
@@ -152,7 +155,7 @@ function MemberCard({ member, onClick, index }) {
         <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-800/40">
           <div className="bg-blue-600/5 border border-blue-500/10 rounded-xl px-3 py-2 flex flex-col">
             <span className="text-[8px] font-black text-blue-500 uppercase tracking-widest">Từ vựng</span>
-            <span className="text-xs font-black text-gray-300">Đã học {totalLearned} từ</span>
+            <span className="text-xs font-black text-gray-300">Thuộc {totalLearned} từ</span>
           </div>
           <div className="bg-purple-600/5 border border-purple-500/10 rounded-xl px-3 py-2 flex flex-col">
             <span className="text-[8px] font-black text-purple-500 uppercase tracking-widest">Quiz TB</span>
@@ -173,6 +176,7 @@ export function MembersTab() {
   const [viewMode, setViewMode] = useState('table');
   const [tableDataType, setTableDataType] = useState('info');
   const [isTableEditing, setIsTableEditing] = useState(false);
+  const [isSavingTable, setIsSavingTable] = useState(false);
   const [tableData, setTableData] = useState({});
 
   const gradeColor = (v) => {
@@ -182,8 +186,8 @@ export function MembersTab() {
     if (n >= 5.5) return 'text-yellow-400'; return 'text-red-400';
   };
 
-  const activeMembers = members.filter(m => m.status !== 'pending');
-  const pendingMembers = members.filter(m => m.status === 'pending');
+  const activeMembers = useMemo(() => members.filter(m => m.status === 'active'), [members]);
+  const pendingMembers = useMemo(() => members.filter(m => m.status === 'pending'), [members]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -224,16 +228,26 @@ export function MembersTab() {
     setIsTableEditing(true);
   };
 
-  const handleSaveTable = () => {
-    activeMembers.forEach(m => {
-      const draft = tableData[m.id];
-      if (!draft) return;
-      const isChanged = Object.keys(draft).some(k => draft[k] !== m[k]);
-      if (isChanged && updateMemberProfile) {
-        updateMemberProfile(m.id, draft);
+  const handleSaveTable = async () => {
+    if (!updateMemberProfile || isSavingTable) return;
+    setIsSavingTable(true);
+    try {
+      const tasks = [];
+      for (const m of activeMembers) {
+        const draft = tableData[m.id];
+        if (!draft) continue;
+        const isChanged = Object.keys(draft).some(k => draft[k] !== m[k]);
+        if (isChanged) {
+          tasks.push(updateMemberProfile(m.id, draft));
+        }
       }
-    });
-    setIsTableEditing(false);
+      const results = await Promise.all(tasks);
+      if (results.every(Boolean)) {
+        setIsTableEditing(false);
+      }
+    } finally {
+      setIsSavingTable(false);
+    }
   };
 
   const handleTableChange = (id, field, value) => {
@@ -249,7 +263,7 @@ export function MembersTab() {
     setApprovingId(null);
   };
   const handleReject = async (id) => {
-    if (!window.confirm('Từ chối và xoá đơn này?')) return;
+    if (!window.confirm('Từ chối đơn đăng ký này?')) return;
     setRejectingId(id);
     if (rejectUser) await rejectUser(id);
     setRejectingId(null);
@@ -259,6 +273,7 @@ export function MembersTab() {
     const fresh = activeMembers.find(m => m.id === selectedMember.id) || selectedMember;
     return (
       <MemberDetail
+        key={fresh.id}
         member={fresh}
         canEdit={isCore || isSuperAdmin}
         onBack={() => setSelectedMember(null)}
@@ -344,13 +359,13 @@ export function MembersTab() {
           )}
           {viewMode === 'table' && tableDataType === 'info' && isTableEditing && (
             <div className="flex gap-2">
-               <button onClick={() => setIsTableEditing(false)}
-                 className="flex items-center gap-1.5 text-xs text-gray-400 border border-gray-700 px-3 py-1.5 rounded-xl hover:bg-[#252525] transition-all font-bold">
+               <button disabled={isSavingTable} onClick={() => setIsTableEditing(false)}
+                 className="flex items-center gap-1.5 text-xs text-gray-400 border border-gray-700 px-3 py-1.5 rounded-xl hover:bg-[#252525] transition-all font-bold disabled:opacity-50">
                  <X className="w-3.5 h-3.5" /> Huỷ
                </button>
-               <button onClick={handleSaveTable}
-                 className="flex items-center gap-1.5 text-xs text-white bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded-xl transition-all font-bold">
-                 <Save className="w-3.5 h-3.5" /> Lưu
+               <button disabled={isSavingTable} onClick={handleSaveTable}
+                 className="flex items-center gap-1.5 text-xs text-white bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded-xl transition-all font-bold disabled:opacity-50">
+                 <Save className="w-3.5 h-3.5" /> {isSavingTable ? 'Đang lưu...' : 'Lưu'}
                </button>
             </div>
           )}
@@ -404,6 +419,7 @@ export function MembersTab() {
               <tbody className="divide-y divide-gray-800/60">
                 {filtered.map((m, i) => {
                   const draft = tableData[m.id] || m;
+                  const safeFb = safeExternalUrl(m.facebook, { allowBareDomain: true });
                   return (
                     <tr key={m.id} className="hover:bg-[#252525] transition-colors group">
                       <td className="px-4 py-3 text-gray-500 text-xs text-center font-medium">
@@ -485,9 +501,13 @@ export function MembersTab() {
                       <td className="px-4 py-3 text-gray-400 text-xs">
                         {isTableEditing ? <input value={draft.facebook || ''} onChange={e => handleTableChange(m.id, 'facebook', e.target.value)} className="w-24 bg-transparent border-b border-gray-700 outline-none focus:border-blue-500 text-gray-300" /> : (
                           m.facebook ? (
-                            <a href={m.facebook} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline truncate inline-block max-w-[120px]">
-                              {m.facebook}
-                            </a>
+                            safeFb ? (
+                              <a href={safeFb} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline truncate inline-block max-w-[120px]">
+                                {m.facebook}
+                              </a>
+                            ) : (
+                              <span className="truncate inline-block max-w-[120px]">{m.facebook}</span>
+                            )
                           ) : '—'
                         )}
                       </td>
@@ -543,7 +563,7 @@ export function MembersTab() {
                     </td>
                     {filtered.map(m => {
                       const g = (grades[m.id] || {})[sub.id] || {};
-                      let st = g.status || 'Chưa học';
+                      const st = g.status || 'Chưa học';
                       let cellContent = <span className="text-gray-600">—</span>;
 
                       if (sub.excludeCPA) {

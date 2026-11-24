@@ -376,7 +376,7 @@ export default function Reports() {
     if (selectedFile) {
       setIsUploading(true);
       try {
-        let token = await requireGoogleAuth();
+        const token = await requireGoogleAuth();
         if (!token) { setIsUploading(false); return; }
         try {
           finalLink = await uploadToDrive(token, selectedFile, '2X18_Reports', message => toast(message, 'info'));

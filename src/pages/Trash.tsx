@@ -29,7 +29,7 @@ function getItemName(item) {
     case 'doc':               return item.data?.name         || '(Không tên)';
     case 'event':             return item.data?.title        || '(Không tên)';
     case 'subjectTask':       return item.data?.title        || '(Không tên)';
-    case 'roadmapEvent':      return item.data?.title        || '(Không tên)';
+    case 'roadmapEvent':      return item.data?.level || item.data?.task || item.data?.goal || item.data?.title || '(Không tên)';
     case 'vote':              return item.data?.title        || '(Không tên)';
     case 'attendanceSession': return item.data?.sessionTitle || '(Không tên)';
     case 'report':            return item.data?.title        || '(Không tên)';
@@ -48,7 +48,7 @@ function getItemSub(item) {
     case 'roadmapEvent':      return item.meta?.year ? `Năm: ${item.meta.year}` : '';
     case 'vote':              return item.data?.creator ? `Tạo bởi: ${item.data.creator}` : '';
     case 'attendanceSession': return item.data?.date ? `Ngày họp: ${item.data.date}` : '';
-    case 'report':            return item.data?.type === 'event' ? 'Tóm tắt sự kiện' : 'Báo cáo nghiên cứu';
+    case 'report':            return item.data?.type === 'event' ? 'Tóm tắt sự kiện' : item.data?.type === 'book' ? 'Sách / Giáo trình' : 'Báo cáo nghiên cứu';
     default:                  return '';
   }
 }
@@ -113,7 +113,6 @@ function TrashRow({ item, onRestore, onDelete }) {
 
   return (
     <>
-    <>
       <motion.div 
         layout
         initial={{ opacity: 0, x: -10 }}
@@ -167,7 +166,6 @@ function TrashRow({ item, onRestore, onDelete }) {
           />
         )}
       </AnimatePresence>
-    </>
     </>
   );
 }

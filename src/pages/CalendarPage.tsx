@@ -3,12 +3,13 @@
 // Full Google Calendar–style: Month / Week / Day views
 // Auto-syncs: tasks deadlines, attendance sessions, votes with deadlines
 // Real-time current-time indicator (Google Calendar style) in Week + Day views
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Plus, X, Clock, MapPin, Users, AlignLeft, ExternalLink, CalendarCheck } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { createCalendarEvent } from '../services/googleApi';
-import { requestNotificationPermission, scheduleReminder, cancelReminder, syncAllReminders } from '../services/notificationService';
+import { scheduleReminder, cancelReminder } from '../services/notificationService';
 import { withGoogleAuthorization } from '../services/googleErrors.js';
+import { localDateStr, safeExternalUrl } from '../utils/stringUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const REMINDER_OPTIONS = [
@@ -41,8 +42,6 @@ const EVENT_TYPES = [
 const typeStyle  = t => EVENT_TYPES.find(e => e.value === t) || EVENT_TYPES[6];
 const ds         = (y,m,d) => `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
 const fmtDate    = (iso) => { if (!iso) return ''; const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`; };
-const todayObj   = new Date();
-const todayStr   = ds(todayObj.getFullYear(), todayObj.getMonth(), todayObj.getDate());
 
 import { useCalEvents, useTasks, useAttendance, useVotes } from '../hooks/useDomainQueries';
 
@@ -61,18 +60,19 @@ export default function CalendarPage() {
   const myTasks = tasks.filter((t: any) => t.userId === currentUser?.id || t.assignees?.includes(currentUser?.id));
   const [isSyncing, setIsSyncing] = useState(false);
 
-  const [curYear,  setCurYear]  = useState(todayObj.getFullYear());
-  const [curMonth, setCurMonth] = useState(todayObj.getMonth());
-  const [curDay,   setCurDay]   = useState(todayObj.getDate());
+  const [nowTime,  setNowTime]  = useState(() => new Date()); // real-time clock
+  const todayStr = localDateStr(nowTime);
+
+  const [curYear,  setCurYear]  = useState(() => new Date().getFullYear());
+  const [curMonth, setCurMonth] = useState(() => new Date().getMonth());
+  const [curDay,   setCurDay]   = useState(() => new Date().getDate());
   const [view,     setView]     = useState('month');
   const [modal,    setModal]    = useState(null); // { mode:'new'|'edit', event? }
   const [form,     setForm]     = useState<any>({});
   const [popup,    setPopup]    = useState(null); // { event, x, y }
-  const [nowTime,  setNowTime]  = useState(new Date()); // real-time clock
 
   const popupRef    = useRef(null);
   const scrollRef   = useRef(null); // ref for the hour-grid scroll container
-  const nextId      = useRef(Date.now());
 
   // ── Auto-generated events from other modules ─────────────
   const autoEvents = useMemo(() => {
@@ -170,7 +170,12 @@ export default function CalendarPage() {
     if (view==='month'){ let m=curMonth+1,y=curYear; if(m>11){m=0;y++;} setCurMonth(m);setCurYear(y); }
     else { const d=new Date(curYear,curMonth,curDay+(view==='week'?7:1)); setCurYear(d.getFullYear());setCurMonth(d.getMonth());setCurDay(d.getDate()); }
   };
-  const goToday = () => { setCurYear(todayObj.getFullYear());setCurMonth(todayObj.getMonth());setCurDay(todayObj.getDate()); };
+  const goToday = () => {
+    const now = new Date();
+    setCurYear(now.getFullYear());
+    setCurMonth(now.getMonth());
+    setCurDay(now.getDate());
+  };
 
   const weekStart = () => {
     const d=new Date(curYear,curMonth,curDay); const dow=d.getDay();
@@ -228,8 +233,8 @@ export default function CalendarPage() {
       scheduleReminder(ev);
       const label = REMINDER_OPTIONS.find(o => o.value === ev.reminderMinutes)?.label || `${ev.reminderMinutes} phút trước`;
       if (!syncToGoogle) toast(`⏰ Đã đặt nhắc: ${label}`, 'success');
-    } else {
-      cancelReminder(ev.id || nextId.current);
+    } else if (ev.id) {
+      cancelReminder(ev.id);
     }
 
     setModal(null);
@@ -577,14 +582,15 @@ export default function CalendarPage() {
                         <Clock className="w-3.5 h-3.5 shrink-0"/>
                         <span>{fmtDate(ev.date)}{ev.startTime&&` · ${ev.startTime}`}{ev.endTime&&`–${ev.endTime}`}{ev.allDay&&' · Cả ngày'}</span>
                       </div>
-                      {ev.location && (
-                        ev.location.startsWith('http')
-                          ? <a href={ev.location} target="_blank" rel="noopener noreferrer"
+                      {ev.location && (() => {
+                        const safeLoc = safeExternalUrl(ev.location);
+                        return safeLoc
+                          ? <a href={safeLoc} target="_blank" rel="noopener noreferrer"
                               className="flex items-center gap-2 text-blue-400 hover:underline">
                               <ExternalLink className="w-3.5 h-3.5 shrink-0"/><span>Tham gia cuộc họp</span>
                             </a>
-                          : <div className="flex items-center gap-2"><MapPin className="w-3.5 h-3.5 shrink-0"/><span>{ev.location}</span></div>
-                      )}
+                          : <div className="flex items-center gap-2"><MapPin className="w-3.5 h-3.5 shrink-0"/><span>{ev.location}</span></div>;
+                      })()}
                       {ev.guests && <div className="flex items-center gap-2"><Users className="w-3.5 h-3.5 shrink-0"/><span>{ev.guests}</span></div>}
                       {ev.desc   && <div className="flex items-start gap-2"><AlignLeft className="w-3.5 h-3.5 shrink-0 mt-0.5"/><span className="line-clamp-3">{ev.desc}</span></div>}
                     </div>

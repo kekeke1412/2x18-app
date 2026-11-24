@@ -1,24 +1,26 @@
-// src/registerSW.js — Đăng ký Service Worker cho PWA
-// Import file này một lần trong src/main.jsx
+// src/registerSW.ts — Đăng ký Service Worker cho PWA (chỉ chạy ở bản build production)
+
+let registered = false;
 
 export function registerServiceWorker() {
-  if (import.meta.env.DEV) return;
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker
-        .register('/sw.js')
-        .then((reg) => {
-          console.log('[SW] Registered:', reg.scope);
+  if (import.meta.env.DEV || registered) return;
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
+  registered = true;
 
-          // Lắng nghe message NAVIGATE từ SW (khi click notification)
-          navigator.serviceWorker.addEventListener('message', (event) => {
-            if (event.data?.type === 'NAVIGATE' && event.data.url) {
-              const target = new URL(event.data.url, window.location.origin);
-              if (target.origin === window.location.origin) window.location.href = target.href;
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/sw.js', { scope: '/' })
+      .then(() => {
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          if (event.data?.type === 'NAVIGATE' && event.data.url) {
+            const target = new URL(event.data.url, window.location.origin);
+            if (target.origin === window.location.origin) {
+              const path = `${target.pathname}${target.search}${target.hash}`;
+              window.dispatchEvent(new CustomEvent('sw-navigate', { detail: path }));
             }
-          });
-        })
-        .catch((err) => console.warn('[SW] Registration failed:', err));
-    });
-  }
+          }
+        });
+      })
+      .catch((err) => console.warn('[SW] Registration failed:', err));
+  });
 }

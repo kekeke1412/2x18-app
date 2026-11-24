@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { User, BookOpen, Users, CheckCircle2, AlertTriangle, Edit3, X, Save } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,42 +10,35 @@ import { MembersTab } from '../components/profile/MembersTab';
 
 import { useMembers } from '../hooks/useDomainQueries';
 
-export default function Profile() {
+function ProfileInner({ initialTab }: { initialTab: string }) {
   const {
     currentUser, updateProfile, myGrades, syncGrades,
     isProfileComplete, isCore, isSuperAdmin,
   } = useApp();
 
   const { data: members = [] } = useMembers();
-  const location = useLocation();
 
-  const [activeTab, setActiveTab] = useState(location.state?.tab || 'profile');
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [isEditing, setIsEditing] = useState(false);
-  const [profileState, setProfileState] = useState({ ...currentUser });
-
-  useEffect(() => {
-    if (location.state?.tab) {
-      setActiveTab(location.state.tab);
-    }
-  }, [location.state]);
-
-  useEffect(() => {
-    if (!isEditing) setProfileState({ ...currentUser });
-  }, [currentUser, isEditing]);
+  const [profileState, setProfileState] = useState(() => ({ ...(currentUser || {}) }));
 
   const complete = isProfileComplete(currentUser);
   const initials = getInitials(currentUser?.fullName);
   const rl = roleLabel(currentUser?.role);
-  const activeMembers = members?.filter(m => m.status === 'active') || [];
+  const activeMembers = members?.filter((m: any) => m.status === 'active') || [];
 
+  const handleStartEdit = () => {
+    setProfileState({ ...(currentUser || {}) });
+    setIsEditing(true);
+  };
   const handleSaveProfile = async () => {
     if (await updateProfile(profileState)) setIsEditing(false);
   };
-  const handleSaveGrades = (updatedGrades) => {
+  const handleSaveGrades = (updatedGrades: any) => {
     return syncGrades(currentUser.id, updatedGrades);
   };
   const handleCancelEdit = () => {
-    setProfileState({ ...currentUser });
+    setProfileState({ ...(currentUser || {}) });
     setIsEditing(false);
   };
 
@@ -80,7 +73,7 @@ export default function Profile() {
           {activeTab === 'profile' && (
             <div className="flex gap-2">
               {!isEditing && (
-                <button onClick={() => setIsEditing(true)}
+                <button onClick={handleStartEdit}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl transition-all">
                   <Edit3 className="w-3.5 h-3.5" /> Chỉnh sửa
                 </button>
@@ -132,12 +125,12 @@ export default function Profile() {
           >
             {activeTab === 'profile' && (
               <ProfileForm
-                profile={profileState}
+                profile={isEditing ? profileState : (currentUser || {})}
                 setProfile={setProfileState}
                 isEditing={isEditing}
                 isSuperAdmin={isSuperAdmin}
                 isOwnProfile={true}
-                onStartEdit={() => setIsEditing(true)}
+                onStartEdit={handleStartEdit}
               />
             )}
 
@@ -158,4 +151,10 @@ export default function Profile() {
       </div>
     </div>
   );
+}
+
+export default function Profile() {
+  const location = useLocation();
+  const initialTab = location.state?.tab || 'profile';
+  return <ProfileInner key={`${location.key}-${initialTab}`} initialTab={initialTab} />;
 }

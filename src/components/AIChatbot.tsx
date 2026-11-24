@@ -207,13 +207,16 @@ export default function AIChatbot() {
   const { data: docs = {} } = useDocs();
   const { data: smeMap = {} } = useSmeMap();
   const { data: reports = [] } = useReports();
+  const activeOnlyMembers = useMemo(
+    () => (members.length > 0 ? members : activeMembers || []).filter(m => m.status === 'active'),
+    [members, activeMembers]
+  );
 
   const firstName = currentUser?.fullName?.split(' ').filter(Boolean).slice(-1)[0] || 'bạn';
 
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [hasApiKey, setHasApiKey] = useState(true);
 
   // Bộ chọn mô hình kép: auto, deepseek-reasoner, deepseek-chat
   const [selectedModelMode, setSelectedModelMode] = useState('auto');
@@ -221,7 +224,7 @@ export default function AIChatbot() {
   // Câu chào mừng tự động tùy biến
   const initialWelcome = useMemo(() => {
     if (isCoreUser) {
-      return `Chào Core ${firstName}! Mình là 2X18 Core Advisor (Hệ thống định tuyến kép DeepSeek Chat & Reasoner) 🤖👑\n\nMình được tích hợp **tri thức phòng sạch NEC/HUS**, **toán lý Boas & Griffiths**, **bán dẫn Sze**, và **học bổng Đài Loan (NYCU, NTHU, NTU)**.\n\nBạn có thể hỏi về **sức khỏe nhóm**, **chẩn đoán phòng sạch**, **giải phẫu bài báo**, hay **chiến lược học bổng**!`;
+      return `Chào Core ${firstName}! Mình là 2X18 Core Advisor (Hệ thống định tuyến kép DeepSeek Flash & Reasoner) 🤖👑\n\nMình được tích hợp **tri thức phòng sạch NEC/HUS**, **toán lý Boas & Griffiths**, **bán dẫn Sze**, và **học bổng Đài Loan (NYCU, NTHU, NTU)**.\n\nBạn có thể hỏi về **sức khỏe nhóm**, **chẩn đoán phòng sạch**, **giải phẫu bài báo**, hay **chiến lược học bổng**!`;
     }
     return `Chào ${firstName}! Mình là 2X18 Copilot (Dual-Model DeepSeek-V4) 🤖✨\n\nMình là Cố vấn học thuật cá nhân của bạn — sẵn sàng **rà soát bài tập bắt lỗi tư duy**, **tính điểm thi CK**, **hỗ trợ thông số lab phòng sạch** và **lập lộ trình du học Đài Loan**!`;
   }, [isCoreUser, firstName]);
@@ -263,6 +266,11 @@ export default function AIChatbot() {
       const myUserTasks = tasks.filter(t => t.userId === currentUser?.id || t.assignees?.includes(currentUser?.id));
       const userPresentCount = attendance.filter(s => (s.present || []).includes(currentUser?.id)).length;
       const userAttRate = attendance?.length ? Math.round((userPresentCount / attendance.length) * 100) : 100;
+      const myLearnedWords = Object.values(userVocab[currentUser?.id] || {}).reduce(
+        (sum, setProg) => sum + Object.values(setProg || {}).filter(lv => Number(lv) >= 6).length,
+        0
+      );
+      const nowLocalDate = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
 
       let context = {};
 
@@ -270,7 +278,7 @@ export default function AIChatbot() {
         context = {
           isCore: true,
           currentUser,
-          members: members.length > 0 ? members : activeMembers,
+          members: activeOnlyMembers,
           allGrades: allGrades || {},
           allTasks: tasks || [],
           attendance: attendance || [],
@@ -288,15 +296,9 @@ export default function AIChatbot() {
           isCore: false,
           currentUser,
           mssv: currentUser?.mssv,
-          personalInfo: {
-            gender: currentUser?.gender,
-            dob: currentUser?.dob,
-            pob: currentUser?.pob,
-            phone: currentUser?.phone,
-          },
           points: contributions[currentUser?.id] || 0,
           upcomingEvents: (calEvents || [])
-            .filter(e => new Date(e.date) >= new Date())
+            .filter(e => e.date && String(e.date).slice(0, 10) >= nowLocalDate)
             .slice(0, 5),
           myTasks: myUserTasks,
           attendanceRate: userAttRate,
@@ -306,12 +308,12 @@ export default function AIChatbot() {
           },
           vocabStats: {
             totalSets: Object.keys(vocab || {}).length,
-            learnedWords: Object.values(userVocab[currentUser?.id] || {}).flat().length
+            learnedWords: myLearnedWords
           },
+          myGradesEnriched,
           detailedGrades: myGradesEnriched,
           rawGrades: myGrades,
           smeMap: smeMap || {},
-          allDocuments: docs
         };
       }
 
@@ -333,11 +335,7 @@ export default function AIChatbot() {
       ]);
     } catch (err) {
       console.error('[AIChatbot Error]', err);
-      let errMsg = 'Ối, mình gặp sự cố kết nối với hệ thống AI rồi 😅 Bạn thử lại sau giây lát nhé!';
-      if (err.message === 'MISSING_API_KEY') {
-        errMsg = 'Hệ thống AI chưa được cấu hình API Key. Vui lòng liên hệ Admin 🔑';
-        setHasApiKey(false);
-      }
+      const errMsg = err?.message || 'Ối, mình gặp sự cố kết nối với hệ thống AI rồi 😅 Bạn thử lại sau giây lát nhé!';
       setMessages(prev => [...prev, { role: 'assistant', text: errMsg }]);
     } finally {
       setIsTyping(false);

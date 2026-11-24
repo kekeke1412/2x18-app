@@ -30,7 +30,10 @@ import { AppProvider, useApp } from '../src/context/AppContext';
 import { useReports } from '../src/hooks/useDomainQueries';
 
 function Probe() {
-  mock.api = useApp();
+  const api = useApp();
+  React.useEffect(() => {
+    mock.api = api;
+  }, [api]);
   const { data: reports } = useReports();
   return <div>{reports.map((report: any) => <span key={report.id}>{report.title}</span>)}</div>;
 }

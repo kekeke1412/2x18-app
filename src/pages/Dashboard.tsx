@@ -6,6 +6,7 @@ import {
 import { subjectDatabase } from '../data';
 import { useApp } from '../context/AppContext';
 import { analyzeEarlyWarning } from '../services/aiService';
+import { daysDiffLocal } from '../utils/stringUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { useSemesterNames, computeCPA, cpaColor } from '../utils/dashboardUtils';
@@ -21,8 +22,10 @@ import {
   useContributions, useSemesterLabels, useAttendance
 } from '../hooks/useDomainQueries';
 
+const EMPTY_GRADES: Record<string, any> = {};
+
 export default function Dashboard() {
-  const { currentUser, grades: allGrades, updateSemesterLabel } = useApp();
+  const { currentUser, grades: allGrades, updateSemesterLabel, isCore, toast } = useApp();
   
   const { data: members = [] } = useMembers();
   const { data: tasks = [] } = useTasks();
@@ -32,22 +35,35 @@ export default function Dashboard() {
   const { data: semesterLabels = {} } = useSemesterLabels();
   const { data: attendance = [] } = useAttendance();
 
-  const myGrades = allGrades[currentUser?.id] || {};
-  const myTasks = tasks.filter((t: any) => t.assignees?.includes(currentUser?.id));
+  const activeMembers = useMemo(
+    () => members.filter((m: any) => m.status === 'active'),
+    [members]
+  );
+
+  const myGrades = useMemo(
+    () => (currentUser?.id ? allGrades[currentUser.id] || EMPTY_GRADES : EMPTY_GRADES),
+    [allGrades, currentUser?.id]
+  );
+  const myTasks = useMemo(
+    () => tasks.filter((t: any) => t.userId === currentUser?.id || (Array.isArray(t.assignees) && t.assignees.includes(currentUser?.id))),
+    [tasks, currentUser?.id]
+  );
 
   const [semesterNames, updateSemesterName] = useSemesterNames(semesterLabels, updateSemesterLabel);
   const [activeTab, setActiveTab] = useState('overview');
   const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
-  const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [aiAnalysis, setAiAnalysis] = useState<any>(null);
 
   const handleAiAnalysis = async () => {
+    if (!isCore) return;
     setIsAiAnalyzing(true);
     setAiAnalysis(null);
     try {
-      const res = await analyzeEarlyWarning(members, attendance, tasks, allGrades);
+      const res = await analyzeEarlyWarning(activeMembers, attendance, tasks, allGrades);
       setAiAnalysis(res);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      toast?.(err?.message || 'Không thể phân tích sức khỏe nhóm lúc này.', 'error');
     } finally {
       setIsAiAnalyzing(false);
     }
@@ -57,28 +73,26 @@ export default function Dashboard() {
 
   const mySmeSubjects = useMemo(() =>
     Object.entries(smeMap)
-      .filter(([, name]) => name === currentUser?.fullName)
+      .filter(([, owner]) => owner === currentUser?.id || owner === currentUser?.fullName)
       .map(([id]) => subjectDatabase.find(s => s.id === id))
       .filter(Boolean),
-    [smeMap, currentUser?.id]
+    [smeMap, currentUser?.id, currentUser?.fullName]
   );
 
   const upcomingTasks = useMemo(() =>
     [...myTasks].filter(t => !t.done)
-      .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+      .sort((a, b) => daysDiffLocal(a.deadline) - daysDiffLocal(b.deadline))
       .slice(0, 5),
     [myTasks]
   );
 
   const topMembers = useMemo(() =>
-    [...members]
+    [...activeMembers]
       .map(m => ({ ...m, points: Number(contributions[m.id]) || 0 }))
       .sort((a, b) => b.points - a.points)
       .slice(0, 5),
-    [members, contributions]
+    [activeMembers, contributions]
   );
-
-  const daysDiff = d => Math.ceil((new Date(d).getTime() - new Date().getTime()) / 86400000);
 
   return (
     <div className="h-full bg-[#121212] text-gray-200 overflow-y-auto custom-scrollbar">
@@ -124,7 +138,7 @@ export default function Dashboard() {
                 <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="3" fill="transparent" className="text-gray-800" />
                 <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="3" fill="transparent"
                   strokeDasharray={`${2 * Math.PI * 16}`}
-                  strokeDashoffset={`${2 * Math.PI * 16 * (1 - myStats.credits / 133)}`}
+                  strokeDashoffset={`${2 * Math.PI * 16 * (1 - Math.min(1, myStats.credits / 133))}`}
                   strokeLinecap="round"
                   className="text-blue-500 transition-all duration-1000 ease-out" />
               </svg>
@@ -179,18 +193,18 @@ export default function Dashboard() {
                     </div>
                     <div className="divide-y divide-gray-800/40">
                       {upcomingTasks.length > 0 ? upcomingTasks.map(t => {
-                        const d = daysDiff(t.deadline);
+                        const d = daysDiffLocal(t.deadline);
                         return (
                           <div key={t.id} className="flex items-center justify-between px-5 py-3.5 hover:bg-[#222] transition-colors group">
                             <div className="min-w-0 flex-1">
                               <div className="font-bold text-sm text-gray-200 truncate group-hover:text-blue-400 transition-colors">{t.task}</div>
                               <div className="text-[11px] text-gray-500 mt-0.5 flex items-center gap-2">
-                                <span className="px-1.5 py-0.5 bg-gray-800 rounded text-blue-400 font-bold">{t.subjectId}</span>
+                                <span className="px-1.5 py-0.5 bg-gray-800 rounded text-blue-400 font-bold">{t.subjectId || t.code}</span>
                                 <span>· {t.deadline}</span>
                               </div>
                             </div>
-                            <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg ${d <= 0 ? 'bg-red-500/10 text-red-400 border border-red-500/20' : d <= 3 ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' : 'bg-gray-800 text-gray-500'}`}>
-                              {d <= 0 ? 'TRỄ HẠN' : d === 0 ? 'HÔM NAY' : `CÒN ${d} NGÀY`}
+                            <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg ${d < 0 ? 'bg-red-500/10 text-red-400 border border-red-500/20' : d <= 3 ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' : 'bg-gray-800 text-gray-500'}`}>
+                              {d < 0 ? `TRỄ ${Math.abs(d)} NGÀY` : d === 0 ? 'HÔM NAY' : `CÒN ${d} NGÀY`}
                             </span>
                           </div>
                         );
@@ -223,7 +237,7 @@ export default function Dashboard() {
                         <Zap className="w-4 h-4" /> Môn phụ trách (SME)
                       </h3>
                       <div className="space-y-3">
-                        {mySmeSubjects.map(s => (
+                        {mySmeSubjects.map((s: any) => (
                           <div key={s.id} className="flex items-center gap-3">
                             <div className="w-8 h-8 bg-blue-500/20 rounded-xl flex items-center justify-center shrink-0">
                               <BookOpen className="w-4 h-4 text-blue-400" />
@@ -249,11 +263,11 @@ export default function Dashboard() {
                     <div className="space-y-4">
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-gray-500">Thành viên</span>
-                        <span className="text-xs font-black text-white">{members.length}</span>
+                        <span className="text-xs font-black text-white">{activeMembers.length}</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-gray-500">Phân hệ Core</span>
-                        <span className="text-xs font-black text-white">{members.filter(m => m.role === 'core' || m.role === 'super_admin').length}</span>
+                        <span className="text-xs font-black text-white">{activeMembers.filter(m => m.role === 'core' || m.role === 'super_admin').length}</span>
                       </div>
                       <div className="pt-4 border-t border-gray-800/60">
                         <div className="text-[10px] font-bold text-gray-600 uppercase mb-3">Top cống hiến</div>
@@ -261,7 +275,7 @@ export default function Dashboard() {
                           {topMembers.slice(0, 3).map((m, i) => (
                             <div key={m.id} className="flex items-center gap-2">
                               <div className="w-5 h-5 rounded-full bg-gray-800 flex items-center justify-center text-[10px] font-bold text-gray-500">{i + 1}</div>
-                              <span className="text-xs text-gray-400 flex-1 truncate">{m.fullName.split(' ').pop()}</span>
+                              <span className="text-xs text-gray-400 flex-1 truncate">{(m.fullName || '').split(' ').pop()}</span>
                               <span className="text-xs font-black text-blue-400">{m.points}đ</span>
                             </div>
                           ))}
@@ -283,26 +297,28 @@ export default function Dashboard() {
               transition={{ duration: 0.4 }}
               className="p-6 space-y-6"
             >
-              {/* AI Analysis Header */}
-              <div className="flex items-center justify-between bg-blue-600/10 border border-blue-500/20 p-4 rounded-2xl">
-                <div>
-                  <h3 className="text-sm font-black text-white flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-blue-400" />
-                    AI Phân tích sức khỏe nhóm
-                  </h3>
-                  <p className="text-[10px] text-gray-500 mt-0.5">Phân tích chuyên sâu dựa trên Task và Điểm danh</p>
+              {/* AI Analysis Header (Core/Super Admin only to protect member privacy) */}
+              {isCore && (
+                <div className="flex items-center justify-between bg-blue-600/10 border border-blue-500/20 p-4 rounded-2xl">
+                  <div>
+                    <h3 className="text-sm font-black text-white flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-blue-400" />
+                      AI Phân tích sức khỏe nhóm
+                    </h3>
+                    <p className="text-[10px] text-gray-500 mt-0.5">Phân tích chuyên sâu dựa trên Task, Điểm danh và Học lực (Core Team)</p>
+                  </div>
+                  <button
+                    onClick={handleAiAnalysis}
+                    disabled={isAiAnalyzing}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-blue-600/30"
+                  >
+                    {isAiAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
+                    CHẠY PHÂN TÍCH
+                  </button>
                 </div>
-                <button
-                  onClick={handleAiAnalysis}
-                  disabled={isAiAnalyzing}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-blue-600/30"
-                >
-                  {isAiAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
-                  CHẠY PHÂN TÍCH
-                </button>
-              </div>
+              )}
 
-              {aiAnalysis && (
+              {isCore && aiAnalysis && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -311,12 +327,15 @@ export default function Dashboard() {
                   <div className="md:col-span-2 bg-[#1a1a1a] border border-gray-800 rounded-2xl p-4">
                     <h4 className="text-[10px] font-bold text-gray-500 uppercase mb-3">Cảnh báo thành viên</h4>
                     <div className="space-y-3">
-                      {aiAnalysis.warnings?.length > 0 ? aiAnalysis.warnings.map((w, i) => (
+                      {aiAnalysis.warnings?.length > 0 ? aiAnalysis.warnings.map((w: any, i: number) => (
                         <div key={i} className="flex items-start gap-3 p-3 bg-red-500/5 border border-red-500/10 rounded-xl">
                           <AlertCircle className={`w-4 h-4 shrink-0 mt-0.5 ${w.level === 'high' ? 'text-red-500' : 'text-yellow-500'}`} />
                           <div>
-                            <div className="text-xs font-bold text-gray-200">{w.memberName}</div>
-                            <div className="text-[10px] text-gray-500 mt-0.5">{w.reason}</div>
+                            <div className="text-xs font-bold text-gray-200">{w.name || w.memberName}</div>
+                            <div className="text-[10px] text-gray-400 mt-0.5">{w.issue || w.reason}</div>
+                            {w.action && (
+                              <div className="text-[10px] text-blue-400 mt-1">Giải pháp: {w.action}</div>
+                            )}
                           </div>
                         </div>
                       )) : (
@@ -331,10 +350,11 @@ export default function Dashboard() {
                     </div>
                     <div className="mt-4">
                       <div className="text-[10px] font-bold text-gray-600 mb-2 uppercase">Trạng thái chung</div>
-                      <div className={`text-xs font-black uppercase tracking-widest ${aiAnalysis.overallHealth === 'good' ? 'text-green-400' :
+                      <div className={`text-xs font-black uppercase tracking-widest ${aiAnalysis.overallHealth === 'excellent' || aiAnalysis.overallHealth === 'good' ? 'text-green-400' :
                         aiAnalysis.overallHealth === 'warning' ? 'text-yellow-400' : 'text-red-400'
                         }`}>
-                        {aiAnalysis.overallHealth === 'good' ? 'ỔN ĐỊNH' :
+                        {aiAnalysis.overallHealth === 'excellent' ? 'XUẤT SẮC' :
+                          aiAnalysis.overallHealth === 'good' ? 'ỔN ĐỊNH' :
                           aiAnalysis.overallHealth === 'warning' ? 'CẦN CHÚ Ý' : 'NGUY CẤP'}
                       </div>
                     </div>
@@ -343,12 +363,12 @@ export default function Dashboard() {
               )}
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <GroupGPACard myGrades={myGrades} allGrades={allGrades} members={members} />
-                <LearningProgressCard myGrades={myGrades} allGrades={allGrades} members={members} />
+                <GroupGPACard myGrades={myGrades} allGrades={allGrades} members={activeMembers} />
+                <LearningProgressCard myGrades={myGrades} allGrades={allGrades} members={activeMembers} />
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <RadarChartCard myGrades={myGrades} />
-                <GroupVelocityCard allGrades={allGrades} members={members} />
+                <GroupVelocityCard allGrades={allGrades} members={activeMembers} />
               </div>
             </motion.div>
           )}

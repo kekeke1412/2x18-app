@@ -3,11 +3,11 @@ import { store } from '../services/firebaseStore';
 import { archiveSeason } from '../services/seasonArchive.js';
 // @ts-nocheck
 // src/pages/Gamification.jsx
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { db, ref, set, onValue } from '../firebase';
+import { db, ref } from '../firebase';
 import { uid } from '../context/AppContext';
-import { motion, AnimatePresence } from 'framer-motion'; // eslint-disable-line no-unused-vars
+import { motion, AnimatePresence } from 'framer-motion';
 import UserAvatar from '../components/UserAvatar';
 import { useMembers, useContributions, useGamifTitles, useGamifAwards, useGamifSeasons } from '../hooks/useDomainQueries';
 
@@ -22,7 +22,7 @@ const RANKS = [
   { id:'s2', tier:'Bạc',        sub:'II',  min:80_000,      max:109_999,     color:'#b0b7c0', glow:'rgba(176,183,192,0.55)', bg:'rgba(176,183,192,0.08)' },
   { id:'s3', tier:'Bạc',        sub:'III', min:110_000,     max:149_999,     color:'#c8cfd8', glow:'rgba(200,207,216,0.55)', bg:'rgba(200,207,216,0.08)' },
   { id:'g1', tier:'Vàng',       sub:'I',   min:150_000,     max:229_999,     color:'#fbbf24', glow:'rgba(251,191,36,0.55)',  bg:'rgba(251,191,36,0.08)' },
-  { id:'g2', tier:'Vàng',       sub:'II',  min:230_000,     max:309_999,     color:'#fcd34d', glow:'rgba(252,211,77,0.55)',  bg:'rgba(252,211,77,0.08)' },
+  { id:'g2', tier:'Vàng',       sub:'II',  min:230_000,     max:309_999,     color:'#fcd34d', glow:'rgba(252,191,77,0.55)',  bg:'rgba(252,211,77,0.08)' },
   { id:'g3', tier:'Vàng',       sub:'III', min:310_000,     max:399_999,     color:'#fde68a', glow:'rgba(253,230,138,0.55)', bg:'rgba(253,230,138,0.08)' },
   { id:'p1', tier:'Bạch Kim',   sub:'I',   min:400_000,     max:529_999,     color:'#bfdbfe', glow:'rgba(191,219,254,0.5)',  bg:'rgba(191,219,254,0.06)' },
   { id:'p2', tier:'Bạch Kim',   sub:'II',  min:530_000,     max:659_999,     color:'#c8e8ff', glow:'rgba(200,232,255,0.5)',  bg:'rgba(200,232,255,0.06)' },
@@ -93,7 +93,7 @@ function Avatar({ m, size, isMe }: any) {
 }
 
 /* ── Leaderboard row ── */
-function LbRow({ m, i, currentUser, onRevoke }: any) {
+function LbRow({ m, i, currentUser }: any) {
   const isMe = m.id === currentUser?.id;
   const medals = ['🥇','🥈','🥉'];
   return (
@@ -157,14 +157,14 @@ export default function Gamification() {
   const [seasonName, setSeasonName] = useState('');
   const [confirmReset, setConfirmReset] = useState(false);
 
-  const activeMembers = useMemo(() => (members || []).filter(m => m.status !== 'pending'), [members]);
+  const activeMembers = useMemo(() => (members || []).filter(m => m.status === 'active'), [members]);
 
   const ranked = useMemo(() => activeMembers.map(m => ({
     ...m,
     points:   Number(contributions?.[m.id]) || 0,
     rankInfo: getRankInfo(Number(contributions?.[m.id]) || 0),
     progress: getRankProgress(Number(contributions?.[m.id]) || 0),
-    myTitles: toArr(awards[m.id]).map(tid => titles.find(t => t.id === tid)).filter(Boolean),
+    myTitles: toArr(awards[m.id]).map(tid => titles.find(t => t.id === tid && !t.archived)).filter(Boolean),
   })).sort((a,b) => b.points - a.points), [activeMembers, contributions, awards, titles]);
 
   const me     = ranked.find(m => m.id === currentUser?.id);
@@ -397,7 +397,7 @@ export default function Gamification() {
 
             {/* Full list */}
             <div style={{ background:'#111113', border:'1px solid rgba(255,255,255,0.05)', borderRadius:16, overflow:'hidden' }}>
-              {ranked.map((m, i) => <LbRow key={m.id} m={m} i={i} currentUser={currentUser} onRevoke={isSuperAdmin ? handleRevoke : null} />)}
+              {ranked.map((m, i) => <LbRow key={m.id} m={m} i={i} currentUser={currentUser} />)}
             </div>
           </>
         )}
@@ -644,7 +644,7 @@ export default function Gamification() {
                     </select>
                     <select value={awardForm.titleId} onChange={e=>setAwardForm(f=>({...f,titleId:e.target.value}))} style={inputSt}>
                       <option value="">Chọn danh hiệu…</option>
-                      {titles.map(t=><option key={t.id} value={t.id}>{t.icon} {t.name}</option>)}
+                      {titles.filter(t => !t.archived).map(t=><option key={t.id} value={t.id}>{t.icon} {t.name}</option>)}
                     </select>
                     <button onClick={handleAward} style={btnPrimary}>Trao danh hiệu</button>
                   </div>

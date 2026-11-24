@@ -10,6 +10,7 @@ import { useApp } from '../context/AppContext';
 import { uploadToDrive } from '../services/googleApi';
 import { motion, AnimatePresence } from 'framer-motion';
 import UserAvatar from '../components/UserAvatar';
+import { safeExternalUrl, isImeComposing } from '../utils/stringUtils';
 import { useSmeMap, useDocs, useSubjectTasks, useSubjectComments, useMembers } from '../hooks/useDomainQueries';
 
 const progressColor = p => p>=80?'#22c55e':p>=50?'#3b82f6':p>=25?'#f59e0b':'#ef4444';
@@ -224,6 +225,8 @@ function AddDocModal({ subject, onClose, onAdd }) {
         return toast(err.message || 'Lỗi upload Drive', 'error');
       }
       setIsUploading(false);
+    } else if (finalUrl && !safeExternalUrl(finalUrl)) {
+      return toast('Liên kết không hợp lệ (chỉ chấp nhận http/https).', 'error');
     }
     setIsUploading(true);
     const saved = await onAdd(subject.id, { ...form, url: finalUrl });
@@ -359,7 +362,7 @@ function SubjectTaskPanel({ subjectId, isSme, currentUser, onOpenStats }) {
           <input className="input-dark flex-1 py-1.5 text-xs"
             placeholder="Tên chương / mục / dạng bài..."
             value={newTitle} onChange={e=>setNewTitle(e.target.value)}
-            onKeyDown={e=>e.key==='Enter'&&doAdd()} autoFocus/>
+            onKeyDown={e => { if (e.key === 'Enter' && !isImeComposing(e)) doAdd(); }} autoFocus/>
           <button onClick={doAdd} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold">OK</button>
           <button onClick={()=>setAdding(false)} className="p-1.5 text-gray-500 hover:text-white"><X className="w-4 h-4"/></button>
         </div>
@@ -390,7 +393,7 @@ function SubjectTaskPanel({ subjectId, isSme, currentUser, onOpenStats }) {
                     <>
                       <input className="flex-1 bg-transparent text-xs text-white outline-none border-b border-blue-500"
                         value={editText} onChange={e=>setEditText(e.target.value)}
-                        onKeyDown={e=>e.key==='Enter'&&doEdit(t)} autoFocus/>
+                        onKeyDown={e => { if (e.key === 'Enter' && !isImeComposing(e)) doEdit(t); }} autoFocus/>
                       <button onClick={()=>doEdit(t)} className="text-green-400"><Check className="w-3 h-3"/></button>
                       <button onClick={()=>setEditId(null)} className="text-gray-500"><X className="w-3 h-3"/></button>
                     </>
@@ -432,6 +435,7 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
   const progress = tasks.length > 0 ? Math.round(myDone / tasks.length * 100) : 0;
   const comments = toArr(subjectComments[sub.id]);
   const isActiveSme = isSme && grade?.status === 'Đang học';
+  const smeMember = members.find(m => m.id === sme || m.fullName === sme);
   const docs = toArr(docsProp).filter(d => {
     if (!d.private) return true;
     return isCore || isSme || currentUser?.id === d.uploadedBy;
@@ -442,7 +446,8 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
     (members || []).forEach(m => {
       if (!m?.id) return;
       const st = grades?.[m.id]?.[sub.id]?.status;
-      if (map[st]) map[st].push(m);
+      if (st === 'Đạt') map['Đã học'].push(m);
+      else if (map[st]) map[st].push(m);
     });
     return map;
   }, [members, grades, sub.id]);
@@ -456,9 +461,9 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
   };
 
   const statusBadge = {
-    'Đang học':'badge-blue','Đã học':'badge-green',
+    'Đang học':'badge-blue','Đã học':'badge-green','Đạt':'badge-green',
     'Chưa học':'badge-gray','Được miễn':'badge-purple',
-  }[grade?.status||'Chưa học'];
+  }[grade?.status||'Chưa học'] || 'badge-gray';
 
   return (
     <motion.div layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -489,20 +494,20 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
         </div>
 
         <div className="flex items-center justify-between mt-3">
-          {grade?.status === 'Đã học' && !isCore ? (
+          {(grade?.status === 'Đã học' || grade?.status === 'Đạt') && !isCore ? (
             <div className="flex items-center gap-1.5 py-1 px-2.5 bg-green-500/10 border border-green-500/20 rounded-lg">
               <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
               <span className="text-[10px] font-black text-green-500 uppercase tracking-wider">Môn này đã xong!</span>
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <UserAvatar user={members.find(m => m.fullName === sme)} size={24} />
+              <UserAvatar user={smeMember} size={24} />
               {isCore ? (
-                <select value={sme||''} onChange={e=>onChangeSme(sub.id,e.target.value)} className="text-xs bg-[#252525] text-white border border-gray-700 rounded-lg px-2 py-1 outline-none">
+                <select value={smeMember?.fullName || sme || ''} onChange={e=>onChangeSme(sub.id,e.target.value)} className="text-xs bg-[#252525] text-white border border-gray-700 rounded-lg px-2 py-1 outline-none">
                   <option value="">-- Chọn SME --</option>
                   {members.map(m=><option key={m.id} value={m.fullName}>{m.fullName}</option>)}
                 </select>
-              ) : <span className="text-xs text-gray-400">{sme||'Chưa có SME'}</span>}
+              ) : <span className="text-xs text-gray-400">{smeMember?.fullName || sme || 'Chưa có SME'}</span>}
             </div>
           )}
           {(isActiveSme || isCore) && (
@@ -592,42 +597,49 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
             <div className="p-4 border-b border-gray-800/60">
               <h4 className="text-xs font-bold text-gray-400 mb-2">Tài liệu ({docs.length})</h4>
               <div className="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
-                {docs.map(d => (
-                  <div key={d.id} className="flex items-center gap-2 px-2.5 py-1.5 bg-[#111] hover:bg-[#15151b] rounded-xl border border-gray-800/40 group/doc transition-all">
-                    <FileText className="w-3.5 h-3.5 text-blue-400 shrink-0"/>
-                    <div className="flex-1 min-w-0">
-                      <a href={d.url} target="_blank" rel="noreferrer" 
-                         className="text-[11px] font-bold text-gray-200 hover:text-blue-400 hover:underline truncate block">
-                        {d.name}
-                      </a>
-                    </div>
-                    {/* Hover items */}
-                    <div className="flex items-center gap-2 shrink-0 md:opacity-0 md:group-hover/doc:opacity-100 transition-opacity">
-                      <div className="flex gap-0.5">
-                        {[1,2,3,4,5].map(s=>(
-                          <Star key={s} onClick={()=>rateDoc(sub.id,d.id,s)} 
-                            className={`w-2.5 h-2.5 cursor-pointer transition-transform hover:scale-125 ${
-                              s<=(d.ratings?.[currentUser?.id]||0)?'text-yellow-400':'text-gray-700'
-                            }`} 
-                            fill={s<=(d.ratings?.[currentUser?.id]||0)?'currentColor':'none'}/>
-                        ))}
+                {docs.map(d => {
+                  const safeUrl = safeExternalUrl(d.url);
+                  return (
+                    <div key={d.id} className="flex items-center gap-2 px-2.5 py-1.5 bg-[#111] hover:bg-[#15151b] rounded-xl border border-gray-800/40 group/doc transition-all">
+                      <FileText className="w-3.5 h-3.5 text-blue-400 shrink-0"/>
+                      <div className="flex-1 min-w-0">
+                        {safeUrl ? (
+                          <a href={safeUrl} target="_blank" rel="noopener noreferrer" 
+                             className="text-[11px] font-bold text-gray-200 hover:text-blue-400 hover:underline truncate block">
+                            {d.name}
+                          </a>
+                        ) : (
+                          <span className="text-[11px] font-bold text-gray-200 truncate block">{d.name}</span>
+                        )}
                       </div>
-                      {(isCore || isSme || currentUser?.id === d.uploadedBy) && (
-                        <button 
-                          onClick={() => { if (window.confirm(`Chuyển tài liệu "${d.name}" vào thùng rác?`)) deleteDoc(sub.id, d.id); }}
-                          className="p-1 hover:text-red-400 text-gray-500 transition-colors"
-                          title="Chuyển vào thùng rác"
-                        >
-                          <Trash2 className="w-3 h-3"/>
-                        </button>
-                      )}
+                      {/* Hover items */}
+                      <div className="flex items-center gap-2 shrink-0 md:opacity-0 md:group-hover/doc:opacity-100 transition-opacity">
+                        <div className="flex gap-0.5">
+                          {[1,2,3,4,5].map(s=>(
+                            <Star key={s} onClick={()=>rateDoc(sub.id,d.id,s)} 
+                              className={`w-2.5 h-2.5 cursor-pointer transition-transform hover:scale-125 ${
+                                s<=(d.ratings?.[currentUser?.id]||0)?'text-yellow-400':'text-gray-700'
+                              }`} 
+                              fill={s<=(d.ratings?.[currentUser?.id]||0)?'currentColor':'none'}/>
+                          ))}
+                        </div>
+                        {(isCore || isSme || currentUser?.id === d.uploadedBy) && (
+                          <button 
+                            onClick={() => { if (window.confirm(`Chuyển tài liệu "${d.name}" vào thùng rác?`)) deleteDoc(sub.id, d.id); }}
+                            className="p-1 hover:text-red-400 text-gray-500 transition-colors"
+                            title="Chuyển vào thùng rác"
+                          >
+                            <Trash2 className="w-3 h-3"/>
+                          </button>
+                        )}
+                      </div>
+                      {/* Compact uploader name */}
+                      <span className="text-[9px] text-gray-600 shrink-0 md:group-hover/doc:hidden truncate max-w-[60px]">
+                        {d.uploadedByName ? d.uploadedByName.split(' ').slice(-1)[0] : 'SME'}
+                      </span>
                     </div>
-                    {/* Compact uploader name */}
-                    <span className="text-[9px] text-gray-600 shrink-0 md:group-hover/doc:hidden truncate max-w-[60px]">
-                      {d.uploadedByName ? d.uploadedByName.split(' ').slice(-1)[0] : 'SME'}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -642,7 +654,7 @@ function SubjectCard({ sub, grade, sme, isCore, isSme, onChangeSme, onUpload, do
                 ))}
               </div>
               <div className="flex gap-2">
-                <input value={comment} onChange={e=>setComment(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleComment()} placeholder="Nhập bình luận..." className="input-dark flex-1 text-xs py-1.5 px-3"/>
+                <input value={comment} onChange={e=>setComment(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !isImeComposing(e)) handleComment(); }} placeholder="Nhập bình luận..." className="input-dark flex-1 text-xs py-1.5 px-3"/>
                 <button onClick={handleComment} className="p-1.5 bg-blue-600 text-white rounded-lg"><Send className="w-4 h-4"/></button>
               </div>
             </div>
@@ -658,20 +670,24 @@ export default function Subjects() {
   const { data: smeMap = {} } = useSmeMap();
   const { data: docs = {} } = useDocs();
   const { data: members = [] } = useMembers();
+  const activeMembers = useMemo(() => members.filter((m: any) => m.status === 'active'), [members]);
   const [search,      setSearch]     = useState('');
   const [filterType,  setFilterType] = useState('learning');
   const [uploadSub,   setUploadSub]  = useState(null);
   const [memberProgress, setMemberProgress] = useState(null);
   const [groupProgress, setGroupProgress] = useState(null);
 
+  const isUserSme = (subId: string) =>
+    Boolean(currentUser && (smeMap[subId] === currentUser.id || smeMap[subId] === currentUser.fullName));
+
   const filtered = subjectDatabase.filter(sub => {
     const q = search.toLowerCase();
     const match = sub.name.toLowerCase().includes(q) || sub.code.toLowerCase().includes(q);
     if (!match) return false;
     const myStatus = myGrades[sub.id]?.status;
-    if (filterType==='done') return myStatus==='Đã học'||myStatus==='Được miễn';
+    if (filterType==='done') return myStatus==='Đã học'||myStatus==='Đạt'||myStatus==='Được miễn';
     if (filterType==='learning') return myStatus==='Đang học';
-    if (filterType==='sme') return smeMap[sub.id] === currentUser?.fullName;
+    if (filterType==='sme') return isUserSme(sub.id);
     return true;
   }).sort((a, b) => (a.code || '').localeCompare(b.code || '', undefined, { numeric: true, sensitivity: 'base' }));
 
@@ -679,28 +695,49 @@ export default function Subjects() {
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.4 }} className="h-full bg-[#121212] text-gray-200 flex flex-col overflow-hidden">
       <div className="px-6 py-5 border-b border-gray-800/60 bg-[#141414] shrink-0">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
           <div><h1 className="text-xl font-black text-white">Môn học & SME</h1><p className="text-xs text-gray-500">Quản lý lộ trình học tập và hỗ trợ từ chuyên gia</p></div>
-          <div className="relative w-64">
+          <div className="relative w-full sm:w-64">
             <Search className="w-4 h-4 text-gray-600 absolute left-3 top-1/2 -translate-y-1/2"/>
             <input className="w-full bg-[#1a1a1a] border border-gray-700 rounded-xl py-2 pl-9 pr-4 text-sm" placeholder="Tìm môn học..." value={search} onChange={e=>setSearch(e.target.value)}/>
           </div>
         </div>
         <div className="flex gap-2 mt-4 overflow-x-auto pb-1">
-          {[['learning','Đang học'],['done','Đã hoàn thành'],['sme','Phụ trách']].map(([k,l])=>(
+          {[['learning','Đang học'],['done','Đã hoàn thành'],['sme','Phụ trách'],['all',`Tất cả (${subjectDatabase.length})`]].map(([k,l])=>(
             <button key={k} onClick={()=>setFilterType(k)} className={`px-4 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${filterType===k?'bg-blue-600 text-white':'text-gray-500 hover:bg-[#222]'}`}>{l}</button>
           ))}
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          <AnimatePresence mode="popLayout">
-            {filtered.map(s => (
-              <SubjectCard key={s.id} sub={s} grade={myGrades[s.id]} sme={smeMap[s.id]} isCore={isCore} isSme={smeMap[s.id]===currentUser?.fullName} onChangeSme={(sid,n)=>setSme({subjectId:sid,userId:n})} onUpload={setUploadSub} docs={docs[s.id]} members={members} currentUser={currentUser} rateDoc={rateDoc} grades={grades} onViewProgress={setMemberProgress} onOpenStats={setGroupProgress}/>
-            ))}
-          </AnimatePresence>
-        </div>
+        {filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 bg-[#1a1a1a] border border-dashed border-gray-800 rounded-2xl text-center px-4">
+            <BookOpen className="w-10 h-10 text-gray-700 mb-3"/>
+            <p className="text-sm text-gray-400 font-medium">
+              {filterType === 'learning'
+                ? 'Chưa có môn nào ở trạng thái "Đang học".'
+                : filterType === 'done'
+                  ? 'Chưa có môn nào hoàn thành.'
+                  : filterType === 'sme'
+                    ? 'Bạn chưa được gán làm SME môn học nào.'
+                    : 'Không tìm thấy môn học phù hợp.'}
+            </p>
+            {filterType !== 'all' && (
+              <button onClick={() => setFilterType('all')}
+                className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl transition-all">
+                Xem tất cả {subjectDatabase.length} môn học
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <AnimatePresence mode="popLayout">
+              {filtered.map(s => (
+                <SubjectCard key={s.id} sub={s} grade={myGrades[s.id]} sme={smeMap[s.id]} isCore={isCore} isSme={isUserSme(s.id)} onChangeSme={(sid,n)=>setSme({subjectId:sid,userId:n})} onUpload={setUploadSub} docs={docs[s.id]} members={activeMembers} currentUser={currentUser} rateDoc={rateDoc} grades={grades} onViewProgress={setMemberProgress} onOpenStats={setGroupProgress}/>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
       </div>
 
       <AnimatePresence>

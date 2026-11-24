@@ -2,7 +2,7 @@
 // src/pages/Tasks.jsx
 import React, { useState } from 'react';
 import {
-  ClipboardList, Clock, FileText, Plus, CheckCircle2,
+  ClipboardList, Clock, FileText, Plus, CheckCircle2, Circle,
   AlertCircle, Folder, Trash2, X, Link,
   ChevronDown, ChevronUp, BookOpen, Sparkles, Loader2, User as UserIcon
 } from 'lucide-react';
@@ -10,6 +10,7 @@ import { suggestTaskAssignment } from '../services/aiService';
 import { subjectDatabase } from '../data';
 import { useApp } from '../context/AppContext';
 import { uploadToDrive } from '../services/googleApi';
+import { daysDiffLocal, localDateStr, safeExternalUrl, isImeComposing } from '../utils/stringUtils';
 import {
   useMembers, useTasks, useSmeMap, useDocs, useSubjectTasks
 } from '../hooks/useDomainQueries';
@@ -37,13 +38,12 @@ const ProgressBar = ({ value, height=5 }) => (
   </div>
 );
 
-const daysDiff = d => Math.ceil((new Date(d).getTime() - new Date().getTime())/(1000*60*60*24));
-
 export default function Tasks() {
   const {
     currentUser, grades: allGrades,
     addTask:    ctxAddTask,
     deleteTask: ctxDeleteTask,
+    toggleTask: ctxToggleTask,
     addDoc:     ctxAddDoc,
     deleteDoc:  ctxDeleteDoc,
     toast,
@@ -55,10 +55,11 @@ export default function Tasks() {
   const { data: subjectTasks = {} } = useSubjectTasks();
   const { data: docs = {} } = useDocs();
 
+  const activeMembers = members.filter((m: any) => m.status === 'active');
   const isCore = currentUser?.role === 'core' || currentUser?.role === 'super_admin';
   const isSuperAdmin = currentUser?.role === 'super_admin';
   const myGrades = allGrades[currentUser?.id] || {};
-  const myTasks = tasks.filter((t: any) => t.userId === currentUser?.id);
+  const myTasks = tasks.filter((t: any) => t.userId === currentUser?.id || (Array.isArray(t.assignees) && t.assignees.includes(currentUser?.id)));
   const grades = myGrades;
 
   const profile = currentUser || {};
@@ -84,12 +85,14 @@ export default function Tasks() {
   const userSubjects = subjectDatabase.filter(s => grades[s.id]?.status === 'Đang học');
 
   const handleAddTask = async () => {
-    if (!newTask.code || !newTask.title || !newTask.date) return;
+    if (!newTask.code || !newTask.title.trim() || !newTask.date) return;
+    const assignee = newTask.assigneeId || currentUser?.id;
     const saved = await ctxAddTask({
-      userId:    newTask.assigneeId || currentUser?.id,
+      userId:    assignee,
+      assignees: [assignee],
       code:      newTask.code,
       subjectId: newTask.code,
-      task:      newTask.title,
+      task:      newTask.title.trim(),
       deadline:  newTask.date,
       date:      newTask.date,
       type:      newTask.type,
@@ -105,33 +108,33 @@ export default function Tasks() {
     setIsAiLoading(true);
     setAiSuggestion(null);
     try {
-      const res = await suggestTaskAssignment(newTask.title, members, tasks, smeMap);
+      const res = await suggestTaskAssignment(newTask.title, activeMembers, tasks, smeMap);
       if (res) {
         setAiSuggestion(res);
         // Auto-fill some fields if possible
         if (res.suggestedAssignee) {
-          const found = members.find(m => m.fullName === res.suggestedAssignee);
+          const found = activeMembers.find(m => m.fullName === res.suggestedAssignee);
           if (found) setNewTask(prev => ({ ...prev, assigneeId: found.id }));
         }
         if (res.estimatedDays) {
           const d = new Date();
           d.setDate(d.getDate() + res.estimatedDays);
-          setNewTask(prev => ({ ...prev, date: d.toISOString().split('T')[0] }));
+          setNewTask(prev => ({ ...prev, date: localDateStr(d) }));
         }
       }
     } catch (err) {
       console.error(err);
-      toast(err.message || 'AI không phản hồi. Kiểm tra API Key trong Cài đặt.', 'error');
+      toast(err.message || 'AI không phản hồi. Vui lòng thử lại sau.', 'error');
     } finally {
       setIsAiLoading(false);
     }
   };
 
-  const activeMyTasks = myTasks
-    .filter(t => userSubjects.some(s=>s.id===t.code))
-    .sort((a,b)=>new Date(a.deadline).getTime() - new Date(b.deadline).getTime());
-  const overdue  = activeMyTasks.filter(t=>daysDiff(t.deadline)<0);
-  const upcoming = activeMyTasks.filter(t=>daysDiff(t.deadline)>=0);
+  const sortedMyTasks = [...myTasks].sort((a, b) => daysDiffLocal(a.deadline) - daysDiffLocal(b.deadline));
+  const pendingTasks = sortedMyTasks.filter(t => !t.done);
+  const completedTasks = sortedMyTasks.filter(t => t.done);
+  const overdue  = pendingTasks.filter(t => daysDiffLocal(t.deadline) < 0);
+  const upcoming = pendingTasks.filter(t => daysDiffLocal(t.deadline) >= 0);
 
   // Tính tiến độ từ checklist (subjectTasks)
   const getChecklistProgress = (subId) => {
@@ -211,7 +214,7 @@ export default function Tasks() {
                         <input className="input-dark w-full" placeholder="Mô tả công việc (Ví dụ: Soạn slide tuần 5...)"
                           value={newTask.title}
                           onChange={e=>setNewTask(f=>({...f,title:e.target.value}))}
-                          onKeyDown={e=>e.key==='Enter'&&handleAddTask()} />
+                          onKeyDown={e => { if (e.key === 'Enter' && !isImeComposing(e)) handleAddTask(); }} />
                       </div>
                       <div>
                         <label className="text-[10px] text-gray-500 font-bold block mb-1">MÔN HỌC</label>
@@ -235,7 +238,7 @@ export default function Tasks() {
                           </label>
                           <select className="input-dark w-full" value={newTask.assigneeId} onChange={e=>setNewTask(f=>({...f,assigneeId:e.target.value}))}>
                             <option value={currentUser?.id}>Bản thân ({myName})</option>
-                            {members.filter(m => m.id !== currentUser?.id).map(m => (
+                            {activeMembers.filter(m => m.id !== currentUser?.id).map(m => (
                               <option key={m.id} value={m.id}>{m.fullName} ({m.role})</option>
                             ))}
                           </select>
@@ -293,11 +296,13 @@ export default function Tasks() {
                     <AlertCircle className="w-4 h-4 text-red-400"/>
                     <span className="text-xs font-bold text-red-400 uppercase tracking-wider">Trễ hạn ({overdue.length})</span>
                   </div>
-                  <AnimatePresence mode="popLayout">
-                    {overdue.map((t, i) => (
-                      <TaskRow key={t.id} index={i} task={t} onDelete={ctxDeleteTask}/>
-                    ))}
-                  </AnimatePresence>
+                  <div className="space-y-2">
+                    <AnimatePresence mode="popLayout">
+                      {overdue.map((t, i) => (
+                        <TaskRow key={t.id} index={i} task={t} onToggle={ctxToggleTask} onDelete={ctxDeleteTask}/>
+                      ))}
+                    </AnimatePresence>
+                  </div>
                 </motion.div>
               )}
 
@@ -311,7 +316,7 @@ export default function Tasks() {
                   {upcoming.length > 0 ? (
                     <motion.div layout className="space-y-2">
                       {upcoming.map((t, i) => (
-                        <TaskRow key={t.id} index={i} task={t} onDelete={ctxDeleteTask}/>
+                        <TaskRow key={t.id} index={i} task={t} onToggle={ctxToggleTask} onDelete={ctxDeleteTask}/>
                       ))}
                     </motion.div>
                   ) : (
@@ -327,6 +332,23 @@ export default function Tasks() {
                 </AnimatePresence>
               </motion.div>
 
+              {/* Đã hoàn thành */}
+              {completedTasks.length > 0 && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle2 className="w-4 h-4 text-green-400"/>
+                    <span className="text-xs font-bold text-green-400 uppercase tracking-wider">Đã hoàn thành ({completedTasks.length})</span>
+                  </div>
+                  <div className="space-y-2">
+                    <AnimatePresence mode="popLayout">
+                      {completedTasks.map((t, i) => (
+                        <TaskRow key={t.id} index={i} task={t} onToggle={ctxToggleTask} onDelete={ctxDeleteTask}/>
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                </motion.div>
+              )}
+
               {/* Tiến độ môn học (tính từ checklist) */}
               {userSubjects.length > 0 && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
@@ -334,7 +356,7 @@ export default function Tasks() {
                   <motion.div layout className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {userSubjects.map((sub, idx) => {
                       const { done, total, pct } = getChecklistProgress(sub.id);
-                      const isMySme = smeMap[sub.id] === myName;
+                      const isMySme = smeMap[sub.id] === currentUser?.id || smeMap[sub.id] === myName;
                       const show    = expandProg[sub.id];
                       const tasks   = subjectTasks[sub.id] || [];
                       return (
@@ -422,11 +444,11 @@ export default function Tasks() {
               ) : (
                     <div className="space-y-4">
                       {userSubjects.map((sub, idx) => {
+                        const isMySme = smeMap[sub.id] === currentUser?.id || smeMap[sub.id] === myName;
                         const subDocs = toArr(docs[sub.id]).filter(d => {
                           if (!d.private) return true;
                           return isCore || isMySme || currentUser?.id === d.uploadedBy;
                         });
-                        const isMySme = smeMap[sub.id] === myName;
                         return (
                           <motion.div 
                             layout 
@@ -461,44 +483,47 @@ export default function Tasks() {
                                   >
                                     Chưa có tài liệu nào
                                   </motion.div>
-                                ) : subDocs.map((d, dIdx) => (
-                                  <motion.div 
-                                    layout 
-                                    key={d.id} 
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, scale: 0.95 }}
-                                    transition={{ delay: dIdx * 0.03 }}
-                                    className="flex items-center gap-2 px-2.5 py-1.5 bg-[#111] hover:bg-[#15151b] rounded-xl border border-gray-800/40 group/doc mb-1 transition-all"
-                                  >
-                                    <FileText className="w-3.5 h-3.5 text-blue-400 shrink-0"/>
-                                    <div className="flex-1 min-w-0">
-                                      {d.url ? (
-                                        <a href={d.url} target="_blank" rel="noreferrer"
-                                          className="text-[11px] font-bold text-gray-200 hover:text-blue-400 hover:underline truncate block">
-                                          {d.name}
-                                        </a>
-                                      ) : (
-                                        <div className="text-[11px] font-bold text-gray-200 truncate">{d.name}</div>
+                                ) : subDocs.map((d, dIdx) => {
+                                  const safeUrl = safeExternalUrl(d.url);
+                                  return (
+                                    <motion.div 
+                                      layout 
+                                      key={d.id} 
+                                      initial={{ opacity: 0, x: -10 }}
+                                      animate={{ opacity: 1, x: 0 }}
+                                      exit={{ opacity: 0, scale: 0.95 }}
+                                      transition={{ delay: dIdx * 0.03 }}
+                                      className="flex items-center gap-2 px-2.5 py-1.5 bg-[#111] hover:bg-[#15151b] rounded-xl border border-gray-800/40 group/doc mb-1 transition-all"
+                                    >
+                                      <FileText className="w-3.5 h-3.5 text-blue-400 shrink-0"/>
+                                      <div className="flex-1 min-w-0">
+                                        {safeUrl ? (
+                                          <a href={safeUrl} target="_blank" rel="noopener noreferrer"
+                                            className="text-[11px] font-bold text-gray-200 hover:text-blue-400 hover:underline truncate block">
+                                            {d.name}
+                                          </a>
+                                        ) : (
+                                          <div className="text-[11px] font-bold text-gray-200 truncate">{d.name}</div>
+                                        )}
+                                      </div>
+                                      
+                                      {/* Hover delete button */}
+                                      {(isCore || isMySme || currentUser?.id === d.uploadedBy) && (
+                                        <button onClick={() => { if (window.confirm(`Chuyển tài liệu "${d.name}" vào thùng rác?`)) ctxDeleteDoc(sub.id, d.id); }}
+                                          className="md:opacity-0 md:group-hover/doc:opacity-100 p-1 hover:text-red-400 text-gray-500 transition-all shrink-0"
+                                          title="Chuyển vào thùng rác"
+                                        >
+                                          <Trash2 className="w-3 h-3"/>
+                                        </button>
                                       )}
-                                    </div>
-                                    
-                                    {/* Hover delete button */}
-                                    {(isCore || isMySme || currentUser?.id === d.uploadedBy) && (
-                                      <button onClick={() => { if (window.confirm(`Xóa tài liệu "${d.name}"?`)) ctxDeleteDoc(sub.id, d.id); }}
-                                        className="md:opacity-0 md:group-hover/doc:opacity-100 p-1 hover:text-red-400 text-gray-500 transition-all shrink-0"
-                                        title="Xóa tài liệu"
-                                      >
-                                        <Trash2 className="w-3 h-3"/>
-                                      </button>
-                                    )}
-                                    
-                                    {/* Compact uploader name */}
-                                    <span className="text-[9px] text-gray-600 shrink-0 md:group-hover/doc:hidden truncate max-w-[60px]">
-                                      {d.uploadedByName ? d.uploadedByName.split(' ').slice(-1)[0] : 'SME'}
-                                    </span>
-                                  </motion.div>
-                                ))}
+                                      
+                                      {/* Compact uploader name */}
+                                      <span className="text-[9px] text-gray-600 shrink-0 md:group-hover/doc:hidden truncate max-w-[60px]">
+                                        {d.uploadedByName ? d.uploadedByName.split(' ').slice(-1)[0] : 'SME'}
+                                      </span>
+                                    </motion.div>
+                                  );
+                                })}
                               </AnimatePresence>
                             </div>
                           </motion.div>
@@ -577,6 +602,8 @@ function AddDocForm({ onSubmit, onClose, subjectCode = 'Tasks' }) {
         return toast(err.message || 'Lỗi upload Drive', 'error');
       }
       setIsUploading(false);
+    } else if (finalUrl && !safeExternalUrl(finalUrl)) {
+      return toast('Liên kết không hợp lệ (chỉ chấp nhận http/https).', 'error');
     }
     setIsUploading(true);
     const saved = await onSubmit({ ...form, url: finalUrl });
@@ -645,10 +672,11 @@ function AddDocForm({ onSubmit, onClose, subjectCode = 'Tasks' }) {
 }
 
 // ── TaskRow ────────────────────────────────────────────────────────────────
-function TaskRow({ task, onDelete, index = 0 }) {
-  const days   = daysDiff(task.deadline);
-  const isLate = days < 0;
-  const isSoon = days >= 0 && days <= 3;
+function TaskRow({ task, onToggle, onDelete, index = 0 }) {
+  const days   = daysDiffLocal(task.deadline);
+  const isDone = Boolean(task.done);
+  const isLate = !isDone && days < 0;
+  const isSoon = !isDone && days >= 0 && days <= 3;
   return (
     <motion.div 
       layout
@@ -656,26 +684,40 @@ function TaskRow({ task, onDelete, index = 0 }) {
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ delay: index * 0.03 }}
-      className={`flex items-center gap-4 p-4 rounded-xl border hover:bg-[#1e1e1e] transition-colors group ${
-        isLate?'border-red-500/20 bg-red-500/5':'border-gray-800/60 bg-[#1a1a1a]'
+      className={`flex items-center gap-3 p-4 rounded-xl border hover:bg-[#1e1e1e] transition-colors group ${
+        isDone ? 'border-green-500/20 bg-green-500/5 opacity-75' : isLate ? 'border-red-500/20 bg-red-500/5' : 'border-gray-800/60 bg-[#1a1a1a]'
       }`}
     >
-      <div className={`p-2 rounded-xl shrink-0 ${isLate?'bg-red-500/10':'bg-blue-500/10'}`}>
-        <FileText className={`w-5 h-5 ${isLate?'text-red-400':'text-blue-400'}`}/>
-      </div>
+      <button
+        type="button"
+        onClick={() => onToggle?.(task.id)}
+        className="p-2 rounded-xl shrink-0 hover:bg-white/5 transition-colors"
+        aria-label={isDone ? 'Đánh dấu chưa hoàn thành' : 'Đánh dấu hoàn thành'}
+        title={isDone ? 'Đánh dấu chưa hoàn thành' : 'Đánh dấu hoàn thành (+500 XP)'}
+      >
+        {isDone ? (
+          <CheckCircle2 className="w-5 h-5 text-green-400" />
+        ) : (
+          <Circle className={`w-5 h-5 ${isLate ? 'text-red-400' : 'text-blue-400'}`} />
+        )}
+      </button>
       <div className="flex-1 min-w-0">
-        <div className="font-medium text-sm text-gray-200 truncate">{task.task}</div>
+        <div className={`font-medium text-sm truncate ${isDone ? 'line-through text-gray-500' : 'text-gray-200'}`}>{task.task}</div>
         <div className="text-xs text-gray-500 mt-0.5">
-          <span className="font-bold text-blue-400">{task.code}</span> · Hạn: {task.deadline}
+          <span className="font-bold text-blue-400">{task.code || task.subjectId}</span> · Hạn: {task.deadline}
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <span className={`badge ${isLate?'badge-red':isSoon?'badge-yellow':'badge-gray'}`}>
-          {isLate?`Trễ ${Math.abs(days)} ngày`:days===0?'Hôm nay':`Còn ${days}d`}
-        </span>
-        <button onClick={() => { if (window.confirm('Xóa task này?')) onDelete(task.id); }}
-          className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-600 hover:text-red-400 transition-all"
-          title="Xóa (vào thùng rác)">
+        {isDone ? (
+          <span className="badge badge-green">Hoàn thành</span>
+        ) : (
+          <span className={`badge ${isLate?'badge-red':isSoon?'badge-yellow':'badge-gray'}`}>
+            {isLate?`Trễ ${Math.abs(days)} ngày`:days===0?'Hôm nay':`Còn ${days}d`}
+          </span>
+        )}
+        <button onClick={() => { if (window.confirm('Chuyển task này vào thùng rác?')) onDelete(task.id); }}
+          className="md:opacity-0 md:group-hover:opacity-100 p-1.5 text-gray-600 hover:text-red-400 transition-all"
+          title="Chuyển vào thùng rác">
           <Trash2 className="w-4 h-4"/>
         </button>
       </div>

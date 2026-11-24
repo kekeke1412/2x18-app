@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useId } from 'react';
 import { TrendingUp, Check, X, Edit3 } from 'lucide-react';
 
 export function SemesterSelector({ semGPA, semesterNames, updateSemesterName }) {
@@ -6,6 +6,7 @@ export function SemesterSelector({ semGPA, semesterNames, updateSemesterName }) 
   const [draft, setDraft] = useState('');
   const [hoveredSem, setHoveredSem] = useState(null);
   const inputRef = useRef(null);
+  const gradId = useId();
 
   useEffect(() => {
     if (editing !== null && inputRef.current) inputRef.current.focus();
@@ -65,12 +66,12 @@ export function SemesterSelector({ semGPA, semesterNames, updateSemesterName }) 
 
             <svg className="absolute top-0 left-0 w-full h-[180px]" viewBox="0 0 100 100" preserveAspectRatio="none">
               <defs>
-                <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id={`semAreaGrad-${gradId}`} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#ef4444" stopOpacity="0.4" />
                   <stop offset="100%" stopColor="#ef4444" stopOpacity="0.0" />
                 </linearGradient>
               </defs>
-              <polygon points={polygonPoints} fill="url(#areaGrad)" />
+              <polygon points={polygonPoints} fill={`url(#semAreaGrad-${gradId})`} />
               <polyline points={points} fill="none" stroke="#ef4444" strokeWidth="2.5" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
 
@@ -95,7 +96,7 @@ export function SemesterSelector({ semGPA, semesterNames, updateSemesterName }) 
             </div>
 
             <div className="absolute bottom-0 left-0 w-full flex h-[40px]">
-              {sems.map((sem, i) => {
+              {sems.map((sem) => {
                 const isEd = editing === sem;
                 const isHovered = hoveredSem === sem;
                 return (

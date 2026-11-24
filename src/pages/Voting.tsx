@@ -5,6 +5,7 @@ import { Vote, Plus, X, Clock, Users, Trash2, ChevronDown, ChevronUp, UserX } fr
 import UserAvatar from '../components/UserAvatar';
 import { useApp, uid } from '../context/AppContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import { isImeComposing } from '../utils/stringUtils';
 import { useVotes, useMembers } from '../hooks/useDomainQueries';
 
 // Safe array coerce
@@ -150,14 +151,14 @@ function ConfirmDeleteModal({ title, onConfirm, onClose }) {
             <Trash2 className="w-5 h-5 text-red-400"/>
           </div>
           <div>
-            <div className="font-bold text-white">Xóa bình chọn?</div>
+            <div className="font-bold text-white">Chuyển bình chọn vào thùng rác?</div>
             <div className="text-xs text-gray-500 mt-0.5 line-clamp-1">"{title}"</div>
           </div>
         </div>
-        <p className="text-xs text-gray-500 mb-4">Tất cả kết quả bình chọn sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.</p>
+        <p className="text-xs text-gray-500 mb-4">Bình chọn và kết quả sẽ được chuyển vào thùng rác (Core Team có thể khôi phục khi cần).</p>
         <div className="flex gap-3">
           <button onClick={onClose} className="flex-1 py-2 border border-gray-700 rounded-xl text-sm text-gray-400 hover:bg-[#252525]">Hủy</button>
-          <button onClick={onConfirm} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-sm rounded-xl">Xóa</button>
+          <button onClick={onConfirm} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-sm rounded-xl">Chuyển thùng rác</button>
         </div>
       </motion.div>
     </motion.div>
@@ -213,23 +214,20 @@ function NonVotersPanel({ vote, activeMembers }) {
             className="px-4 pb-3 overflow-hidden"
           >
             <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto custom-scrollbar pr-1">
-              {nonVoters.map(m => {
-                const initials = (m.avatar || m.fullName?.[0] || '?');
-                return (
-                  <motion.div 
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    key={m.id}
-                    title={m.fullName}
-                    className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-full"
-                  >
-                    <UserAvatar user={m} size={16} className="bg-amber-600/30 text-amber-300" />
-                    <span className="text-[10px] text-amber-300 font-medium max-w-[80px] truncate">
-                      {m.fullName.split(' ').slice(-1)[0]}
-                    </span>
-                  </motion.div>
-                );
-              })}
+              {nonVoters.map(m => (
+                <motion.div 
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  key={m.id}
+                  title={m.fullName}
+                  className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-full"
+                >
+                  <UserAvatar user={m} size={16} className="bg-amber-600/30 text-amber-300" />
+                  <span className="text-[10px] text-amber-300 font-medium max-w-[80px] truncate">
+                    {(m.fullName || '').split(' ').slice(-1)[0]}
+                  </span>
+                </motion.div>
+              ))}
             </div>
           </motion.div>
         )}
@@ -243,7 +241,7 @@ function VoteCard({ vote, onDeleteRequest }) {
   const { castVote, closeVote, addVoteOption, currentUser, isCore, isLearningSme, getMemberById } = useApp();
   const { data: members = [] } = useMembers();
   const canManage = isCore || isLearningSme;
-  const activeMembers = useMemo(() => (members || []).filter(m => m.status !== 'pending'), [members]);
+  const activeMembers = useMemo(() => (members || []).filter(m => m.status === 'active'), [members]);
   const [newOption, setNewOption] = useState('');
   const [showAdd,   setShowAdd]   = useState(false);
 
@@ -304,7 +302,7 @@ function VoteCard({ vote, onDeleteRequest }) {
               )}
               <button onClick={() => onDeleteRequest(vote)}
                 className="p-1.5 text-gray-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                title="Xóa bình chọn">
+                title="Chuyển vào thùng rác">
                 <Trash2 className="w-3.5 h-3.5"/>
               </button>
             </div>
@@ -371,7 +369,7 @@ function VoteCard({ vote, onDeleteRequest }) {
               >
                 <input className="input-dark flex-1 py-2 text-sm" placeholder="Nhập phương án mới..."
                   value={newOption} onChange={e=>setNewOption(e.target.value)}
-                  onKeyDown={e=>e.key==='Enter'&&handleAddOption()} autoFocus/>
+                  onKeyDown={e => { if (e.key === 'Enter' && !isImeComposing(e)) handleAddOption(); }} autoFocus/>
                 <button onClick={handleAddOption} className="px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold">OK</button>
                 <button onClick={()=>setShowAdd(false)} className="px-3 py-2 border border-gray-700 text-gray-400 rounded-xl text-xs hover:bg-[#252525]">
                   <X className="w-4 h-4"/>

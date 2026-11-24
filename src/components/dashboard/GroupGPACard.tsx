@@ -1,14 +1,19 @@
 import React, { useMemo } from 'react';
 import { TrendingUp } from 'lucide-react';
 import { computeCPA, cpaColor } from '../../utils/dashboardUtils';
+import { useOptionalApp } from '../../context/AppContext';
+import UserAvatar from '../UserAvatar';
 
 export function GroupGPACard({ myGrades, allGrades, members }) {
+  const app: any = useOptionalApp();
+  const isCore = Boolean(app?.isCore);
+
   const { myCPA, groupCPA, memberCPAs } = useMemo(() => {
     const me = computeCPA(myGrades);
     const cpas = members.map(m => {
       const g = allGrades[m.id] || {};
       return { ...m, cpa: parseFloat(computeCPA(g).cpa) };
-    }).filter(m => m.cpa > 0);
+    }).filter(m => !Number.isNaN(m.cpa) && m.cpa > 0);
 
     const grpAvg = cpas.length
       ? (Math.round(((cpas.reduce((s, m) => s + m.cpa, 0) / cpas.length) + Number.EPSILON) * 100) / 100).toFixed(2)
@@ -17,8 +22,10 @@ export function GroupGPACard({ myGrades, allGrades, members }) {
     return { myCPA: me.cpa, groupCPA: grpAvg, memberCPAs: cpas };
   }, [myGrades, allGrades, members]);
 
-  const myVal = parseFloat(myCPA);
-  const grpVal = parseFloat(groupCPA);
+  const parsedMy = parseFloat(myCPA);
+  const myVal = Number.isNaN(parsedMy) ? 0 : parsedMy;
+  const parsedGrp = parseFloat(groupCPA);
+  const grpVal = Number.isNaN(parsedGrp) ? 0 : parsedGrp;
   const diff = (Math.round(((myVal - grpVal) + Number.EPSILON) * 100) / 100).toFixed(2);
   const isAbove = myVal >= grpVal;
 
@@ -58,14 +65,14 @@ export function GroupGPACard({ myGrades, allGrades, members }) {
               ? `↑ Cao hơn TB nhóm ${diff} điểm 🎉`
               : `↓ Thấp hơn TB nhóm ${Math.abs(parseFloat(diff)).toFixed(2)} điểm`}
         </div>
-        {memberCPAs.length > 0 && (
+        {isCore && memberCPAs.length > 0 && (
           <div className="mt-4 pt-4 border-t border-gray-800/40 space-y-1.5 max-h-48 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#4b5563 transparent' }}>
-            <div className="text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-2">Danh sách GPA nhóm</div>
-            {memberCPAs.sort((a, b) => b.cpa - a.cpa).map((m, i) => (
+            <div className="text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-2">Danh sách GPA nhóm (Core Team)</div>
+            {[...memberCPAs].sort((a, b) => b.cpa - a.cpa).map((m, i) => (
               <div key={m.id} className="flex items-center gap-2">
                 <span className="text-[10px] text-gray-600 w-4">{i + 1}.</span>
-                {m.avatarUrl ? <img src={m.avatarUrl} className="w-5 h-5 rounded-full object-cover border border-gray-700 shrink-0" /> : <div className="w-5 h-5 rounded-full bg-[#252525] flex items-center justify-center text-[8px] font-bold text-gray-400 shrink-0">{m.avatar}</div>}
-                <span className="text-[11px] text-gray-400 flex-1 truncate">{m.fullName.split(' ').slice(-2).join(' ')}</span>
+                <UserAvatar user={m} size={20} />
+                <span className="text-[11px] text-gray-400 flex-1 truncate">{(m.fullName || '').split(' ').slice(-2).join(' ')}</span>
                 <span className={`text-[11px] font-black ${cpaColor(String(m.cpa))}`}>{m.cpa.toFixed(2)}</span>
                 <div className="w-16 h-1.5 bg-gray-800 rounded-full overflow-hidden">
                   <div className="h-full rounded-full bg-blue-500/60" style={{ width: `${(m.cpa / 4) * 100}%` }} />
@@ -75,7 +82,7 @@ export function GroupGPACard({ myGrades, allGrades, members }) {
           </div>
         )}
         <div className="mt-3 pt-3 border-t border-gray-800/40 flex justify-between text-[10px] text-gray-600">
-          <span>Dựa trên bảng điểm từng người</span>
+          <span>{isCore ? 'Chi tiết CPA từng thành viên' : 'Trung bình ẩn danh toàn nhóm'}</span>
           <span>{memberCPAs.length}/{members.length} có dữ liệu</span>
         </div>
       </div>

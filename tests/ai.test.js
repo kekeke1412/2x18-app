@@ -1,7 +1,11 @@
 import { it, expect, vi } from 'vitest';
 import { createAiHandler } from '../server/aiHandler.js';
+import { authenticateMember } from '../server/firebaseAuth.js';
 import { createClassificationCache, validateClassification, validateTopics, safeDocumentUrl } from '../src/services/reportClassification.js';
 import { checkGoogleResponse, withGoogleAuthorization } from '../src/services/googleErrors.js';
+import { daysDiffLocal, safeExternalUrl } from '../src/utils/stringUtils.ts';
+import { calcGpaStats, clampScore } from '../src/utils/gradeUtils.ts';
+import { computeCPA } from '../src/utils/dashboardUtils.ts';
 
 const valid = { type: 'research', confidence: 0, tags: ['ALD', 'ALD'], reason: 'Mô tả thí nghiệm' };
 function response() { return { statusCode: 200, headers: {}, setHeader(key, value) { this.headers[key] = value; }, status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; } }; }
@@ -34,11 +38,51 @@ it('rejects malformed input, missing server keys and unsupported methods', async
   const handler = createAiHandler({ authenticate: async () => ({ uid: 'u' }), env: {} });
   for (const [req, code] of [[{ method: 'GET' }, 405], [{ method: 'POST', body: {} }, 400], [{ method: 'POST', body }, 503]]) { const res = response(); await handler(req, res); expect(res.statusCode).toBe(code); }
 });
-it('uses a bounded DeepSeek request and reports the actual configured model', async () => {
+it('uses a bounded DeepSeek request, disables default CoT on non-reasoning calls, and reports configured model', async () => {
   const fetchImpl = vi.fn(okFetch), handler = createAiHandler({ authenticate: async () => ({ uid: 'u' }), fetchImpl, env: { DEEPSEEK_API_KEY: 'test-only', DEEPSEEK_CHAT_MODEL: 'configured-model' } });
   const res = response(); await handler({ method: 'POST', body }, res);
   expect(res.statusCode).toBe(200); expect(res.body.modelUsed).toBe('configured-model');
-  const sent = JSON.parse(fetchImpl.mock.calls[0][1].body); expect(sent.max_tokens).toBe(4096); expect(sent.response_format).toEqual({ type: 'json_object' });
+  const sent = JSON.parse(fetchImpl.mock.calls[0][1].body);
+  expect(sent.max_tokens).toBe(4096);
+  expect(sent.thinking).toEqual({ type: 'disabled' });
+  expect(sent.response_format).toEqual({ type: 'json_object' });
+});
+it('blocks pending or unregistered Firebase users in authenticateMember while allowing active members', async () => {
+  const makeFetch = (directMember, collectionMembers = null, collectionStatus = 200) => vi.fn(async (url) => {
+    if (url.includes('identitytoolkit.googleapis.com')) {
+      return { ok: true, status: 200, json: async () => ({ users: [{ localId: 'uid-1', email: 'm@hus.edu.vn' }] }) };
+    }
+    if (url.includes('/2x18_members/uid-1.json')) {
+      return { ok: true, status: 200, json: async () => directMember };
+    }
+    if (url.includes('/2x18_members.json')) {
+      return { ok: collectionStatus === 200, status: collectionStatus, json: async () => collectionMembers };
+    }
+    throw new Error('Unexpected URL ' + url);
+  });
+
+  await expect(authenticateMember({ headers: { authorization: 'Bearer tok' } }, { fetchImpl: makeFetch({ id: 'uid-1', status: 'pending' }), env: {} }))
+    .rejects.toMatchObject({ status: 403 });
+  await expect(authenticateMember({ headers: { authorization: 'Bearer tok' } }, { fetchImpl: makeFetch(null, null, 401), env: {} }))
+    .rejects.toMatchObject({ status: 403 });
+  await expect(authenticateMember({ headers: { authorization: 'Bearer tok' } }, { fetchImpl: makeFetch({ id: 'uid-1', status: 'active', role: 'core' }), env: {} }))
+    .resolves.toEqual({ uid: 'uid-1', memberId: 'uid-1', role: 'core' });
+});
+it('handles local dates, safe external URLs, and unified CPA calculations accurately', () => {
+  const ref = new Date(2026, 10, 24, 23, 30, 0); // Nov 24, 2026 23:30 local
+  expect(daysDiffLocal('2026-11-24', ref)).toBe(0);
+  expect(daysDiffLocal('2026-11-25', ref)).toBe(1);
+  expect(daysDiffLocal('2026-11-23', ref)).toBe(-1);
+
+  expect(safeExternalUrl('javascript:alert(1)')).toBeNull();
+  expect(safeExternalUrl('facebook.com/hus2x18', { allowBareDomain: true })).toBe('https://facebook.com/hus2x18');
+  expect(Number.isNaN(clampScore('12.5'))).toBe(true);
+  expect(Number.isNaN(clampScore('-3'))).toBe(true);
+  expect(clampScore('8.5')).toBe(8.5);
+
+  const emptyStats = computeCPA({});
+  expect(emptyStats.cpa).toBe('—');
+  expect(calcGpaStats({}).cpa).toBe('—');
 });
 it('handles upstream failures and enforces per-user request limits', async () => {
   const handler = createAiHandler({ authenticate: async () => ({ uid: 'u' }), fetchImpl: async () => ({ ok: false, status: 500, json: async () => ({}) }), env: { DEEPSEEK_API_KEY: 'test-only' } });

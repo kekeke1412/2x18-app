@@ -1,0 +1,130 @@
+{
+  "rules": {
+    ".read": "auth != null && root.child('2x18_members').child(auth.uid).child('status').val() === 'active' && (root.child('2x18_members').child(auth.uid).child('role').val() === 'core' || root.child('2x18_members').child(auth.uid).child('role').val() === 'super_admin')",
+    ".write": "auth != null && root.child('2x18_members').child(auth.uid).child('status').val() === 'active' && (root.child('2x18_members').child(auth.uid).child('role').val() === 'core' || root.child('2x18_members').child(auth.uid).child('role').val() === 'super_admin')",
+    "2x18_members": {
+      ".read": "auth != null",
+      "$memberKey": {
+        ".write": "auth != null && (
+          (!data.exists() && newData.child('uid').val() === auth.uid && newData.child('role').val() === 'member' && newData.child('status').val() === 'pending') ||
+          (data.exists() && (data.child('uid').val() === auth.uid || $memberKey === auth.uid) && newData.child('role').val() === data.child('role').val() && newData.child('status').val() === data.child('status').val()) ||
+          (root.child('2x18_members').child(auth.uid).child('status').val() === 'active' && (
+            root.child('2x18_members').child(auth.uid).child('role').val() === 'super_admin' ||
+            (root.child('2x18_members').child(auth.uid).child('role').val() === 'core' && (!newData.exists() || (newData.child('role').val() === data.child('role').val() && data.child('role').val() !== 'super_admin')))
+          ))
+        )"
+      }
+    },
+    "2x18_config": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('2x18_members').child(auth.uid).child('status').val() === 'active' && (root.child('2x18_members').child(auth.uid).child('role').val() === 'core' || root.child('2x18_members').child(auth.uid).child('role').val() === 'super_admin')"
+    },
+    "2x18_sme": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('2x18_members').child(auth.uid).child('status').val() === 'active' && (root.child('2x18_members').child(auth.uid).child('role').val() === 'core' || root.child('2x18_members').child(auth.uid).child('role').val() === 'super_admin')"
+    },
+    "2x18_trash": {
+      ".read": "auth != null && root.child('2x18_members').child(auth.uid).child('status').val() === 'active' && (root.child('2x18_members').child(auth.uid).child('role').val() === 'core' || root.child('2x18_members').child(auth.uid).child('role').val() === 'super_admin')",
+      "$trashId": {
+        ".write": "auth != null && (
+          (!data.exists() && newData.exists()) ||
+          (root.child('2x18_members').child(auth.uid).child('status').val() === 'active' && (root.child('2x18_members').child(auth.uid).child('role').val() === 'core' || root.child('2x18_members').child(auth.uid).child('role').val() === 'super_admin'))
+        )"
+      }
+    },
+    "2x18_tasks": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "2x18_subject_tasks": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "2x18_subject_comments": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "2x18_docs": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "2x18_events": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "2x18_roadmap": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "2x18_votes": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "2x18_notifs": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "2x18_attendance": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "2x18_reports": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "2x18_vocab": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "2x18_user_vocab": {
+      ".read": "auth != null",
+      "$userId": {
+        ".write": "auth != null && ($userId === auth.uid || root.child('2x18_members').child(auth.uid).child('role').val() === 'core' || root.child('2x18_members').child(auth.uid).child('role').val() === 'super_admin')"
+      }
+    },
+    "2x18_quiz_history": {
+      ".read": "auth != null",
+      "$userId": {
+        ".write": "auth != null && ($userId === auth.uid || root.child('2x18_members').child(auth.uid).child('role').val() === 'core' || root.child('2x18_members').child(auth.uid).child('role').val() === 'super_admin')"
+      }
+    },
+    "2x18_contributions": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "2x18_audit": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "2x18_semester_labels": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "2x18_ai_chats": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "gamif_titles": {
+      ".read": "auth != null",
+      ".write": "auth != null && (root.child('2x18_members').child(auth.uid).child('role').val() === 'core' || root.child('2x18_members').child(auth.uid).child('role').val() === 'super_admin')"
+    },
+    "gamif_awards": {
+      ".read": "auth != null",
+      ".write": "auth != null && (root.child('2x18_members').child(auth.uid).child('role').val() === 'core' || root.child('2x18_members').child(auth.uid).child('role').val() === 'super_admin')"
+    },
+    "gamif_seasons": {
+      ".read": "auth != null",
+      ".write": "auth != null && (root.child('2x18_members').child(auth.uid).child('role').val() === 'core' || root.child('2x18_members').child(auth.uid).child('role').val() === 'super_admin')"
+    },
+    "$other": {
+      ".read": "auth != null && $other.endsWith('_grades')",
+      ".write": "auth != null && $other.endsWith('_grades') && (
+        $other === (auth.uid + '_grades') ||
+        root.child('2x18_members').child(auth.uid).child('role').val() === 'core' ||
+        root.child('2x18_members').child(auth.uid).child('role').val() === 'super_admin'
+      )"
+    }
+  }
+}

@@ -37,8 +37,13 @@ export function createAiHandler({ authenticate, fetchImpl = fetch, env = process
       const reasoning = input.model === 'deepseek-v4-pro';
       const model = reasoning ? env.DEEPSEEK_REASONING_MODEL || 'deepseek-v4-pro' : env.DEEPSEEK_CHAT_MODEL || 'deepseek-flash';
       const payload = { model, messages: [{ role: 'system', content: input.systemPrompt }, ...input.messages, { role: 'user', content: input.userPrompt }], max_tokens: reasoning ? 8192 : 4096, stream: false };
-      if (!reasoning) payload.temperature = input.temperature;
-      if (reasoning) { payload.thinking = { type: 'enabled' }; payload.reasoning_effort = 'high'; }
+      if (reasoning) {
+        payload.thinking = { type: 'enabled' };
+        payload.reasoning_effort = 'high';
+      } else {
+        payload.thinking = { type: 'disabled' };
+        payload.temperature = input.temperature;
+      }
       if (input.responseMimeType === 'application/json') payload.response_format = { type: 'json_object' };
       const upstream = await fetchImpl('https://api.deepseek.com/v1/chat/completions', {
         method: 'POST', signal: AbortSignal.timeout(55000),

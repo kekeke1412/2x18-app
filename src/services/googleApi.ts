@@ -71,7 +71,7 @@ export async function createCalendarEvent(token, { title, description, date, sta
  */
 export async function uploadToDrive(token, file, folderName = '2X18_Reports', onWarning = console.warn) {
   // 1. Tìm xem thư mục đã tồn tại chưa
-  let folderId = await getOrCreateFolder(token, folderName);
+  const folderId = await getOrCreateFolder(token, folderName);
 
   // 2. Upload file
   // Drive API v3 yêu cầu multipart/related upload để gửi metadata và nội dung

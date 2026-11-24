@@ -27,7 +27,15 @@ function GradeRow({ subject, grades, onGradeChange, isEditing, isDimmed }) {
 
   const inp = (field) => (
     <input type="number" min="0" max="10" step="0.1"
-      value={g[field] || ''} onChange={e => onGradeChange(subject.id, field, e.target.value)}
+      value={g[field] ?? ''}
+      onChange={e => {
+        const raw = e.target.value;
+        if (raw === '') { onGradeChange(subject.id, field, ''); return; }
+        const num = parseFloat(raw);
+        if (Number.isNaN(num)) return;
+        const clamped = Math.min(10, Math.max(0, Math.round(num * 10) / 10));
+        onGradeChange(subject.id, field, String(clamped));
+      }}
       className="w-14 text-center text-xs bg-[#252525] border border-gray-700 rounded-lg px-1 py-1 text-white outline-none focus:border-blue-500" />
   );
 

@@ -1,15 +1,16 @@
 // src/pages/FlashcardSet.jsx
-import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useRef, useCallback, useId } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import {
   ChevronLeft, Plus, Trash2, Edit3, Sparkles,
-  Volume2, CheckCircle2, Circle, ArrowLeft, ArrowRight,
-  Maximize2, RotateCcw, Save, Trash, X, Loader2, Book, Layers,
-  Trophy, AlertTriangle, CheckCircle, HelpCircle, FileEdit, Zap,
+  Volume2, CheckCircle2, ArrowRight,
+  RotateCcw, Save, X, Loader2, Book, Layers,
+  Trophy, CheckCircle, HelpCircle, FileEdit, Zap,
   RefreshCw
 } from 'lucide-react';
 import { useApp, toArr } from '../context/AppContext';
 import { suggestDefinitions } from '../services/vocabService';
+import { isImeComposing } from '../utils/stringUtils';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { useVocab, useUserVocab, useQuizHistory } from '../hooks/useDomainQueries';
 
@@ -17,9 +18,8 @@ const EMPTY_SET = Object.freeze({ title: '', description: '', terms: [] });
 
 export default function FlashcardSet() {
   const { setId } = useParams();
-  const navigate = useNavigate();
   const {
-    currentUser, isSuperAdmin, isCore, editVocabSet, markWordLearned, incrementWordLevel,
+    currentUser, editVocabSet, markWordLearned, incrementWordLevel,
     addQuizResult, toast
   } = useApp();
   const { data: vocab = {} } = useVocab();
@@ -34,7 +34,7 @@ export default function FlashcardSet() {
   const [activeTab, setActiveTab] = useState('list'); // 'list' | 'study' | 'quiz'
   const [cards, setCards] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
-  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isAiLoading, setIsAiLoading] = useState<any>(false);
   const [hideMastered, setHideMastered] = useState(false);
   const [exampleSource, setExampleSource] = useState('');
   const [description, setDescription] = useState('');
@@ -55,37 +55,42 @@ export default function FlashcardSet() {
   const [quizScore, setQuizScore] = useState(0);
   const [quizComplete, setQuizComplete] = useState(false);
   const [userAnswer, setUserAnswer] = useState('');
-  const [quizFeedback, setQuizFeedback] = useState(null);
-  const [isSpeaking, setIsSpeaking] = useState(null);
+  const [quizFeedback, setQuizFeedback] = useState<any>(null);
+  const [isSpeaking, setIsSpeaking] = useState<string | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [quizDetails, setQuizDetails] = useState([]); // { question, userAns, correctAns, isCorrect }
+  const quizTimerRef = useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (quizTimerRef.current) clearTimeout(quizTimerRef.current);
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
   const myHistory = useMemo(() => quizHistory[currentUser?.id] || [], [quizHistory, currentUser]);
   const currentSetHistory = useMemo(() =>
     myHistory.filter(h => h.setId === setId).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()),
     [myHistory, setId]);
 
-  const speak = (text, lang = 'en') => {
+  const speak = (text: string, lang = 'en-US') => {
     if (!text) return;
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(text);
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = lang;
+      utterance.onend = () => setIsSpeaking(null);
+      utterance.onerror = () => setIsSpeaking(null);
+      window.speechSynthesis.speak(utterance);
+      return;
+    }
     setIsSpeaking(text);
-
-    // Sử dụng client=gtx thường ổn định hơn trên web
     const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${lang}&client=gtx`;
     const audio = new Audio(url);
-
-    audio.play()
-      .then(() => {
-        console.log('[TTS] Playing:', text);
-      })
-      .catch(err => {
-        console.error('[TTS] Error:', err);
-        // Fallback sang SpeechSynthesis nếu Google API bị chặn
-        const msg = new SpeechSynthesisUtterance(text);
-        msg.lang = lang;
-        window.speechSynthesis.speak(msg);
-      })
-      .finally(() => {
-        setIsSpeaking(null);
-      });
+    audio.play().catch(() => {}).finally(() => setIsSpeaking(null));
   };
 
   useEffect(() => {
@@ -120,15 +125,13 @@ export default function FlashcardSet() {
         newCards[idx] = { ...newCards[idx], ...s };
         setCards(newCards);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      toast(err.message || 'AI không phản hồi. Kiểm tra API Key.', 'error');
+      toast(err.message || 'AI không phản hồi. Vui lòng thử lại sau.', 'error');
     } finally {
       setIsAiLoading(false);
     }
   };
-
-  const currentLevels = (userVocab[currentUser?.id] || {})[setId] || {};
 
   // ── STUDY LOGIC (Combined Flip + Swipe) ──────────────────────────────────
   const startStudy = () => {
@@ -143,6 +146,7 @@ export default function FlashcardSet() {
     const isRight = direction === 'right';
     if (isRight) {
       setStudyResults(prev => ({ ...prev, remembered: prev.remembered + 1 }));
+      if (setId !== undefined) void incrementWordLevel(setId, studyIndex);
     } else {
       setStudyResults(prev => ({ ...prev, forgotten: prev.forgotten + 1 }));
     }
@@ -157,7 +161,7 @@ export default function FlashcardSet() {
 
   // ── QUIZ LOGIC ───────────────────────────────────────────────────────────
   const startQuiz = () => {
-    if (cards.length < 4) { alert('Cần ít nhất 4 từ vựng!'); return; }
+    if (cards.length < 4) { toast('Cần ít nhất 4 từ vựng để tạo bài kiểm tra!', 'warning'); return; }
     const questions = generateQuiz(cards);
     setQuizQuestions(questions);
     setQuizIndex(0);
@@ -215,7 +219,7 @@ export default function FlashcardSet() {
     });
   };
 
-  const handleQuizAnswer = (ans) => {
+  const handleQuizAnswer = useCallback((ans: string) => {
     if (quizFeedback || isChecking) return;
     setIsChecking(true);
 
@@ -226,7 +230,6 @@ export default function FlashcardSet() {
       return;
     }
 
-    // So sánh không phân biệt hoa thường và khoảng trắng thừa
     const isCorrect = (ans || '').trim().toLowerCase() === (current.answer || '').trim().toLowerCase();
 
     setQuizFeedback({
@@ -239,31 +242,29 @@ export default function FlashcardSet() {
       setQuizScore(prev => prev + 1);
     }
 
-    setQuizDetails(prev => [...prev, {
+    const detailItem = {
       question: current.question,
       userAns: ans,
       correctAns: current.answer,
       isCorrect,
-      wordIndex: current.wordIndex // Add wordIndex here
-    }]);
+      wordIndex: current.wordIndex
+    };
+    setQuizDetails(prev => [...prev, detailItem]);
 
-    // Delay before next question to show feedback animation
-    setTimeout(() => {
+    if (quizTimerRef.current) clearTimeout(quizTimerRef.current);
+    quizTimerRef.current = setTimeout(() => {
       try {
-        // Reset feedback first to clear overlay
         setQuizFeedback(null);
         setUserAnswer('');
 
-        if (isCorrect) {
-          // Offload level increment to avoid blocking transition
-          setTimeout(() => incrementWordLevel(setId, current.wordIndex), 0);
+        if (isCorrect && setId !== undefined) {
+          void incrementWordLevel(setId, current.wordIndex);
         }
 
         if (quizIndex < quizQuestions.length - 1) {
           setQuizIndex(prev => prev + 1);
           setIsChecking(false);
         } else {
-          // End of quiz
           const finalScore = quizScore + (isCorrect ? 1 : 0);
           addQuizResult({
             setId,
@@ -272,13 +273,7 @@ export default function FlashcardSet() {
             total: quizQuestions.length,
             percentage: Math.round((finalScore / quizQuestions.length) * 100),
             timestamp: new Date().toISOString(),
-            details: [...quizDetails, {
-              question: current.question,
-              userAns: ans,
-              correctAns: current.answer,
-              isCorrect,
-              wordIndex: current.wordIndex
-            }]
+            details: [...quizDetails, detailItem]
           });
           setQuizScore(finalScore);
           setQuizComplete(true);
@@ -289,12 +284,8 @@ export default function FlashcardSet() {
         setQuizFeedback(null);
         setIsChecking(false);
       }
-    }, 800); // Snappier delay
-
-  };
-
-
-
+    }, 800);
+  }, [quizFeedback, isChecking, quizQuestions, quizIndex, setId, incrementWordLevel, quizScore, addQuizResult, set.title, quizDetails]);
 
   // Keyboard shortcuts for Quiz
   useEffect(() => {
@@ -316,7 +307,7 @@ export default function FlashcardSet() {
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
     }
-  }, [activeTab, quizStarted, quizComplete, quizFeedback, quizIndex, quizQuestions]);
+  }, [activeTab, quizStarted, quizComplete, quizFeedback, quizIndex, quizQuestions, handleQuizAnswer]);
 
   if (!vocab[setId]) return <div className="p-10 text-center text-gray-500 font-bold">Học phần không tồn tại.</div>;
 
@@ -529,17 +520,24 @@ export default function FlashcardSet() {
                             </div>
 
                             <div className="flex flex-col items-center gap-1 shrink-0">
-                              {Number(progress[idx]) === 6 ? (
-                                <div className="flex flex-col items-center gap-1 bg-green-500/10 p-3 rounded-2xl border border-green-500/20">
-                                  <CheckCircle2 className="w-6 h-6 text-green-500" />
-                                  <span className="text-[8px] font-black text-green-600 uppercase tracking-tighter">Nhớ sâu</span>
-                                </div>
-                              ) : (
-                                <div className="flex flex-col items-center gap-1 bg-gray-800/40 p-3 rounded-2xl border border-gray-800/60 min-w-[56px]">
-                                  <span className="text-xl font-black text-gray-400 leading-none">{Number(progress[idx]) || 0}</span>
-                                  <span className="text-[8px] font-black text-gray-500 uppercase tracking-tighter">Bậc</span>
-                                </div>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() => setId !== undefined && markWordLearned(setId, idx, Number(progress[idx]) !== 6)}
+                                title={Number(progress[idx]) === 6 ? 'Bỏ đánh dấu Nhớ sâu' : 'Đánh dấu Nhớ sâu (Lv 6)'}
+                                className="cursor-pointer transition-transform active:scale-95"
+                              >
+                                {Number(progress[idx]) === 6 ? (
+                                  <div className="flex flex-col items-center gap-1 bg-green-500/10 hover:bg-green-500/20 p-3 rounded-2xl border border-green-500/20">
+                                    <CheckCircle2 className="w-6 h-6 text-green-500" />
+                                    <span className="text-[8px] font-black text-green-600 uppercase tracking-tighter">Nhớ sâu</span>
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col items-center gap-1 bg-gray-800/40 hover:border-indigo-500/40 p-3 rounded-2xl border border-gray-800/60 min-w-[56px]">
+                                    <span className="text-xl font-black text-gray-400 leading-none">{Number(progress[idx]) || 0}</span>
+                                    <span className="text-[8px] font-black text-gray-500 uppercase tracking-tighter">Bậc</span>
+                                  </div>
+                                )}
+                              </button>
                             </div>
                           </div>
                         )}
@@ -558,7 +556,16 @@ export default function FlashcardSet() {
           {/* ── STUDY MODE (Flip + Swipe) ──────────────────────────────────── */}
           {activeTab === 'study' && (
             <div className="flex flex-col items-center justify-center h-full pt-4">
-              {studyComplete ? (
+              {cards.length === 0 ? (
+                <div className="text-center bg-[#1a1a1a] p-10 rounded-3xl border border-gray-800 max-w-md w-full">
+                  <Book className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                  <h2 className="text-lg font-bold text-gray-300 mb-2">Chưa có thẻ từ vựng</h2>
+                  <p className="text-xs text-gray-500 mb-6">Hãy thêm thuật ngữ ở tab Danh sách trước khi bắt đầu học tập.</p>
+                  <button onClick={() => setActiveTab('list')} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs rounded-2xl">
+                    QUAY LẠI DANH SÁCH
+                  </button>
+                </div>
+              ) : studyComplete ? (
                 <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center bg-[#1a1a1a] p-10 rounded-3xl border border-gray-800 shadow-2xl max-w-md w-full">
                   <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-6" />
                   <h2 className="text-2xl font-black text-white mb-2">Hoàn thành!</h2>
@@ -862,8 +869,14 @@ export default function FlashcardSet() {
                                 const isSelected = quizFeedback?.selected === val;
                                 const isCorrect = val === quizQuestions[quizIndex].answer;
                                 const showResult = quizFeedback !== null;
-                                const label = val === 'true' ? 'ĐÚNG' : 'SAI';
-                                const colorClass = val === 'true' ? 'green' : 'red';
+                                const isTrueBtn = val === 'true';
+                                const label = isTrueBtn ? 'ĐÚNG' : 'SAI';
+                                const idleHoverCls = isTrueBtn
+                                  ? 'hover:border-green-500/50 hover:text-green-400'
+                                  : 'hover:border-red-500/50 hover:text-red-400';
+                                const iconBoxCls = isTrueBtn
+                                  ? 'bg-green-500/10 text-green-500'
+                                  : 'bg-red-500/10 text-red-500';
 
                                 return (
                                   <motion.button
@@ -877,14 +890,14 @@ export default function FlashcardSet() {
                                           : isSelected
                                             ? 'border-red-500 bg-red-500/10 text-red-400'
                                             : 'border-gray-800 opacity-40'
-                                        : `border-gray-800 bg-[#121212] hover:border-${colorClass}-500/50 hover:text-${colorClass}-400`
+                                        : `border-gray-800 bg-[#121212] ${idleHoverCls}`
                                       }`}
                                   >
-                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center bg-${colorClass}-500/10 text-${colorClass}-500`}>
-                                      {val === 'true' ? <CheckCircle2 className="w-7 h-7" /> : <X className="w-7 h-7" />}
+                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${iconBoxCls}`}>
+                                      {isTrueBtn ? <CheckCircle2 className="w-7 h-7" /> : <X className="w-7 h-7" />}
                                     </div>
                                     {label}
-                                    <div className="text-[10px] font-black opacity-30 tracking-widest">{val === 'true' ? 'Phím 1' : 'Phím 2'}</div>
+                                    <div className="text-[10px] font-black opacity-30 tracking-widest">{isTrueBtn ? 'Phím 1' : 'Phím 2'}</div>
                                   </motion.button>
                                 );
                               })}
@@ -900,7 +913,7 @@ export default function FlashcardSet() {
                                   placeholder="Nhập câu trả lời của bạn..."
                                   value={userAnswer}
                                   onChange={e => setUserAnswer(e.target.value)}
-                                  onKeyDown={e => e.key === 'Enter' && handleQuizAnswer(userAnswer)}
+                                  onKeyDown={e => { if (e.key === 'Enter' && !isImeComposing(e)) handleQuizAnswer(userAnswer); }}
                                   disabled={isChecking || quizFeedback}
                                   className={`w-full bg-[#121212] border-2 rounded-2xl p-6 text-xl font-bold outline-none transition-all ${quizFeedback
                                       ? (quizFeedback.correct ? 'border-green-500 bg-green-500/5 text-green-400' : 'border-red-500 bg-red-500/5 text-red-400')
@@ -1015,6 +1028,7 @@ export default function FlashcardSet() {
 }
 
 function QuizHistoryChart({ data }) {
+  const chartId = useId();
   const height = 150;
   const width = 500;
   const padding = 20;
@@ -1033,11 +1047,11 @@ function QuizHistoryChart({ data }) {
     <div className="w-full overflow-x-auto no-scrollbar">
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[400px] h-auto overflow-visible">
         <defs>
-          <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={`quizAreaGrad-${chartId}`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#6366f1" stopOpacity="0.3" />
             <stop offset="100%" stopColor="#6366f1" stopOpacity="0" />
           </linearGradient>
-          <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+          <linearGradient id={`quizLineGrad-${chartId}`} x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%" stopColor="#818cf8" />
             <stop offset="100%" stopColor="#6366f1" />
           </linearGradient>
@@ -1057,13 +1071,13 @@ function QuizHistoryChart({ data }) {
         {/* Area */}
         <motion.path
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1 }}
-          d={areaPath} fill="url(#areaGrad)"
+          d={areaPath} fill={`url(#quizAreaGrad-${chartId})`}
         />
 
         {/* Line */}
         <motion.path
           initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 1.5, ease: "easeInOut" }}
-          d={linePath} fill="none" stroke="url(#lineGrad)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+          d={linePath} fill="none" stroke={`url(#quizLineGrad-${chartId})`} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
         />
 
         {/* Points */}
